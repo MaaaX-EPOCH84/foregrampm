@@ -8,3 +8,7 @@ Le nom : *foreman* (chef de chantier) + *diagram*, et *PM* pour
 *project management*.
 
 Projet en cours de cadrage — voir `docs/genese.md`.
+
+Le projet vit sur GitLab : https://gitlab.com/MaaaX-EPOCH84/foregrampm.
+Tickets et demandes de fusion s'y déposent ; toute autre copie n'en est
+qu'un miroir.
