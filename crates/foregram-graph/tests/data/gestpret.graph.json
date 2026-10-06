@@ -1,0 +1,15 @@
+{
+  "format": "foregram-graph",
+  "version": 1,
+  "name": "gestpret",
+  "direction": "right",
+  "nodes": [
+    {"id": "MEMBRE", "width": 14000, "height": 15600},
+    {"id": "MATERIEL", "width": 14000, "height": 15600},
+    {"id": "PRET", "width": 18000, "height": 8800}
+  ],
+  "edges": [
+    {"id": "membre-pret", "source": "MEMBRE", "target": "PRET", "labels": [{"width": 2600, "height": 1600, "at": "source"}]},
+    {"id": "materiel-pret", "source": "MATERIEL", "target": "PRET", "labels": [{"width": 2600, "height": 1600, "at": "source"}]}
+  ]
+}

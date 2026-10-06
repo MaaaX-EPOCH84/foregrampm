@@ -1,0 +1,15 @@
+{
+  "format": "foregram-layout",
+  "version": 1,
+  "graph": "gestpret",
+  "engine": {"name": "main", "version": "1", "options": "placement tracé à la main, pour les tests"},
+  "nodes": [
+    {"id": "MEMBRE", "x": 0, "y": 0},
+    {"id": "MATERIEL", "x": 0, "y": 21600},
+    {"id": "PRET", "x": 26000, "y": 14200}
+  ],
+  "edges": [
+    {"id": "membre-pret", "route": [[14000, 7800], [20000, 7800], [20000, 16400], [26000, 16400]], "labels": [[14600, 5800]]},
+    {"id": "materiel-pret", "route": [[14000, 29400], [20000, 29400], [20000, 20800], [26000, 20800]], "labels": [[14600, 27400]]}
+  ]
+}

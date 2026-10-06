@@ -1,0 +1,14 @@
+{
+  "format": "foregram-layout",
+  "version": 1,
+  "graph": "gestpret",
+  "engine": {"name": "main", "version": "1"},
+  "nodes": [
+    {"id": "MEMBRE", "x": 0, "y": 0},
+    {"id": "PRET", "x": 26000, "y": 14200},
+    {"id": "INCONNU", "x": 0, "y": 0}
+  ],
+  "edges": [
+    {"id": "membre-pret", "route": [[13000, 7800], [26000, 16400]]}
+  ]
+}

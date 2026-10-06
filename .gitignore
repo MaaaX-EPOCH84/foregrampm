@@ -1,0 +1,4 @@
+# Produits de compilation de Cargo
+/target/
+
+# Cargo.lock est versionné : l'espace de travail produit des exécutables.
