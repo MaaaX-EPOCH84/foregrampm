@@ -6,7 +6,9 @@ use std::collections::BTreeMap;
 
 use crate::diag::{self, Diagnostic, Pos};
 use crate::json::{self, Value};
+use crate::msg::Message;
 use crate::read::{self, COORD_MAX, FORMAT_VERSION, LAYER_MAX, Obj};
+use crate::read::{field, field_at};
 
 /// Valeur de la clé `format` d'un graphe.
 pub const GRAPH_FORMAT: &str = "foregram-graph";
@@ -161,55 +163,42 @@ impl Graph {
     /// en mémoire. Une liste vide signifie que le graphe est valide.
     pub fn validate(&self) -> Vec<Diagnostic> {
         let mut diags = Vec::new();
-        read::check_ident(&self.name, "`name` (graph)", self.pos, &mut diags);
+        read::check_ident(&self.name, field("name", "in.graph"), self.pos, &mut diags);
 
         let mut nodes: BTreeMap<&str, &Node> = BTreeMap::new();
         let mut slots: BTreeMap<(i64, i64), &Node> = BTreeMap::new();
         for (index, node) in self.nodes.iter().enumerate() {
             let who = read::item_name("node", &node.id, index);
             let d = &mut diags;
-            read::check_ident(&node.id, &format!("{who}: `id`"), node.pos, d);
-            let label = format!("{who}: `width`");
-            read::check_range(node.width, 1, COORD_MAX, &label, node.pos, d);
-            let label = format!("{who}: `height`");
-            read::check_range(node.height, 1, COORD_MAX, &label, node.pos, d);
+            let at = |key| field_at(who.clone(), key);
+            read::check_ident(&node.id, at("id"), node.pos, d);
+            read::check_range(node.width, 1, COORD_MAX, at("width"), node.pos, d);
+            read::check_range(node.height, 1, COORD_MAX, at("height"), node.pos, d);
             if let Some(layer) = node.layer {
-                let label = format!("{who}: `layer`");
-                read::check_range(layer, 0, LAYER_MAX, &label, node.pos, d);
+                read::check_range(layer, 0, LAYER_MAX, at("layer"), node.pos, d);
             }
             if let Some(order) = node.order {
-                let label = format!("{who}: `order`");
-                read::check_range(order, 0, LAYER_MAX, &label, node.pos, d);
+                read::check_range(order, 0, LAYER_MAX, at("order"), node.pos, d);
                 if node.layer.is_none() {
                     d.push(Diagnostic::new(
-                        "G004",
                         node.pos,
-                        format!("{who}: `order` without `layer`"),
+                        Message::new("G004").msg("subject", who.clone()),
                     ));
                 }
             }
             if let Some(first) = nodes.get(node.id.as_str()) {
-                d.push(Diagnostic::new(
-                    "G001",
-                    node.pos,
-                    format!(
-                        "node identifier \"{}\" already used{}",
-                        node.id,
-                        diag::at_line(first.pos)
-                    ),
-                ));
+                let message = again("G001", "G001.again", first.pos);
+                d.push(Diagnostic::new(node.pos, message.text("id", &node.id)));
             } else {
                 nodes.insert(&node.id, node);
             }
             if let (Some(layer), Some(order)) = (node.layer, node.order) {
                 if let Some(first) = slots.get(&(layer, order)) {
                     d.push(Diagnostic::new(
-                        "G005",
                         node.pos,
-                        format!(
-                            "{who}: same `layer` and same `order` as node \"{}\"",
-                            first.id
-                        ),
+                        Message::new("G005")
+                            .msg("subject", who.clone())
+                            .text("other", &first.id),
                     ));
                 } else {
                     slots.insert((layer, order), node);
@@ -221,35 +210,31 @@ impl Graph {
         for (index, edge) in self.edges.iter().enumerate() {
             let who = read::item_name("edge", &edge.id, index);
             let d = &mut diags;
-            read::check_ident(&edge.id, &format!("{who}: `id`"), edge.pos, d);
+            read::check_ident(&edge.id, field_at(who.clone(), "id"), edge.pos, d);
             if let Some(first) = edges.get(edge.id.as_str()) {
-                d.push(Diagnostic::new(
-                    "G002",
-                    edge.pos,
-                    format!(
-                        "edge identifier \"{}\" already used{}",
-                        edge.id,
-                        diag::at_line(first.pos)
-                    ),
-                ));
+                let message = again("G002", "G002.again", first.pos);
+                d.push(Diagnostic::new(edge.pos, message.text("id", &edge.id)));
             } else {
                 edges.insert(&edge.id, edge);
             }
             for (key, end) in [("source", &edge.source), ("target", &edge.target)] {
                 if !nodes.contains_key(end.as_str()) {
                     d.push(Diagnostic::new(
-                        "G003",
                         edge.pos,
-                        format!("{who}: `{key}` refers to node \"{end}\", which does not exist"),
+                        Message::new("G003")
+                            .msg("subject", who.clone())
+                            .text("key", key)
+                            .text("node", end),
                     ));
                 }
             }
             for (rank, label) in edge.labels.iter().enumerate() {
-                let what = format!("{who}, label #{}", rank + 1);
-                let text = format!("{what}: `width`");
-                read::check_range(label.width, 1, COORD_MAX, &text, edge.pos, d);
-                let text = format!("{what}: `height`");
-                read::check_range(label.height, 1, COORD_MAX, &text, edge.pos, d);
+                let what = Message::new("subject.edge-label")
+                    .msg("edge", who.clone())
+                    .text("rank", rank + 1);
+                let at = |key| field_at(what.clone(), key);
+                read::check_range(label.width, 1, COORD_MAX, at("width"), edge.pos, d);
+                read::check_range(label.height, 1, COORD_MAX, at("height"), edge.pos, d);
             }
         }
         diags
@@ -339,22 +324,22 @@ fn edge_line(edge: &Edge) -> String {
 }
 
 fn read_graph(root: &Value, diags: &mut Vec<Diagnostic>) -> Option<Graph> {
-    let mut obj = Obj::open(root, "graph", diags)?;
+    let mut obj = Obj::open(root, "in.graph", diags)?;
     read::header(&mut obj, GRAPH_FORMAT, diags);
     let name = obj
         .req("name", diags)
-        .and_then(|v| read::str_of(v, "`name` (graph)", diags));
+        .and_then(|v| read::str_of(v, field("name", "in.graph"), diags));
     let direction = obj
         .opt("direction")
-        .and_then(|v| read::choice_of(v, "`direction` (graph)", &Direction::TABLE, diags));
+        .and_then(|v| read::choice_of(v, field("direction", "in.graph"), &Direction::TABLE, diags));
     let nodes = obj
         .req("nodes", diags)
-        .and_then(|v| read::array_of(v, "`nodes` (graph)", diags));
+        .and_then(|v| read::array_of(v, field("nodes", "in.graph"), diags));
     let nodes: Option<Vec<Node>> =
         nodes.map(|items| items.iter().filter_map(|v| read_node(v, diags)).collect());
     let edges = obj
         .req("edges", diags)
-        .and_then(|v| read::array_of(v, "`edges` (graph)", diags));
+        .and_then(|v| read::array_of(v, field("edges", "in.graph"), diags));
     let edges: Option<Vec<Edge>> =
         edges.map(|items| items.iter().filter_map(|v| read_edge(v, diags)).collect());
     obj.close(diags);
@@ -368,22 +353,22 @@ fn read_graph(root: &Value, diags: &mut Vec<Diagnostic>) -> Option<Graph> {
 }
 
 fn read_node(value: &Value, diags: &mut Vec<Diagnostic>) -> Option<Node> {
-    let mut obj = Obj::open(value, "node", diags)?;
+    let mut obj = Obj::open(value, "in.node", diags)?;
     let id = obj
         .req("id", diags)
-        .and_then(|v| read::str_of(v, "`id` (node)", diags));
+        .and_then(|v| read::str_of(v, field("id", "in.node"), diags));
     let width = obj
         .req("width", diags)
-        .and_then(|v| read::int_of(v, "`width` (node)", diags));
+        .and_then(|v| read::int_of(v, field("width", "in.node"), diags));
     let height = obj
         .req("height", diags)
-        .and_then(|v| read::int_of(v, "`height` (node)", diags));
+        .and_then(|v| read::int_of(v, field("height", "in.node"), diags));
     let layer = obj
         .opt("layer")
-        .and_then(|v| read::int_of(v, "`layer` (node)", diags));
+        .and_then(|v| read::int_of(v, field("layer", "in.node"), diags));
     let order = obj
         .opt("order")
-        .and_then(|v| read::int_of(v, "`order` (node)", diags));
+        .and_then(|v| read::int_of(v, field("order", "in.node"), diags));
     obj.close(diags);
     Some(Node {
         id: id?.to_string(),
@@ -396,25 +381,25 @@ fn read_node(value: &Value, diags: &mut Vec<Diagnostic>) -> Option<Node> {
 }
 
 fn read_edge(value: &Value, diags: &mut Vec<Diagnostic>) -> Option<Edge> {
-    let mut obj = Obj::open(value, "edge", diags)?;
+    let mut obj = Obj::open(value, "in.edge", diags)?;
     let id = obj
         .req("id", diags)
-        .and_then(|v| read::str_of(v, "`id` (edge)", diags));
+        .and_then(|v| read::str_of(v, field("id", "in.edge"), diags));
     let source = obj
         .req("source", diags)
-        .and_then(|v| read::str_of(v, "`source` (edge)", diags));
+        .and_then(|v| read::str_of(v, field("source", "in.edge"), diags));
     let target = obj
         .req("target", diags)
-        .and_then(|v| read::str_of(v, "`target` (edge)", diags));
+        .and_then(|v| read::str_of(v, field("target", "in.edge"), diags));
     let source_side = obj
         .opt("source_side")
-        .and_then(|v| read::choice_of(v, "`source_side` (edge)", &Side::TABLE, diags));
+        .and_then(|v| read::choice_of(v, field("source_side", "in.edge"), &Side::TABLE, diags));
     let target_side = obj
         .opt("target_side")
-        .and_then(|v| read::choice_of(v, "`target_side` (edge)", &Side::TABLE, diags));
+        .and_then(|v| read::choice_of(v, field("target_side", "in.edge"), &Side::TABLE, diags));
     let labels = match obj.opt("labels") {
         None => Some(Vec::new()),
-        Some(v) => read::array_of(v, "`labels` (edge)", diags)
+        Some(v) => read::array_of(v, field("labels", "in.edge"), diags)
             .map(|items| items.iter().filter_map(|v| read_label(v, diags)).collect()),
     };
     obj.close(diags);
@@ -430,20 +415,29 @@ fn read_edge(value: &Value, diags: &mut Vec<Diagnostic>) -> Option<Edge> {
 }
 
 fn read_label(value: &Value, diags: &mut Vec<Diagnostic>) -> Option<Label> {
-    let mut obj = Obj::open(value, "label", diags)?;
+    let mut obj = Obj::open(value, "in.label", diags)?;
     let width = obj
         .req("width", diags)
-        .and_then(|v| read::int_of(v, "`width` (label)", diags));
+        .and_then(|v| read::int_of(v, field("width", "in.label"), diags));
     let height = obj
         .req("height", diags)
-        .and_then(|v| read::int_of(v, "`height` (label)", diags));
+        .and_then(|v| read::int_of(v, field("height", "in.label"), diags));
     let at = obj
         .req("at", diags)
-        .and_then(|v| read::choice_of(v, "`at` (label)", &Anchor::TABLE, diags));
+        .and_then(|v| read::choice_of(v, field("at", "in.label"), &Anchor::TABLE, diags));
     obj.close(diags);
     Some(Label {
         width: width?,
         height: height?,
         at: at?,
     })
+}
+
+/// Le message d'un doublon, avec la ligne du premier quand elle est connue.
+pub(crate) fn again(plain: &'static str, with_line: &'static str, first: Pos) -> Message {
+    if first.is_none() {
+        Message::new(plain)
+    } else {
+        Message::new(with_line).text("line", first.line)
+    }
 }

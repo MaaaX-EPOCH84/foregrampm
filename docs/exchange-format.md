@@ -183,6 +183,11 @@ column counts characters, not bytes. The **code** is stable from one
 version to the next and does not depend on the language of the message:
 it is what a program must read.
 
+The message is composed at display time from a per-language catalogue,
+[`messages/en.txt`](../crates/foregram-graph/messages/en.txt): a refusal
+carries its code and its arguments, not its sentence. English is the only
+language for now; another one is a new catalogue, with the code unchanged.
+
 A JSON syntax error stops the reading at the first one. Structure errors
 are all reported at once, and so are meaning errors, but the latter are
 only looked for in a file whose structure is right.

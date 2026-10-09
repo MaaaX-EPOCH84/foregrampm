@@ -5,9 +5,12 @@
 use std::collections::BTreeMap;
 
 use crate::diag::{self, Diagnostic, Pos};
+use crate::graph::again;
 use crate::graph::{Graph, Node, Side};
 use crate::json::{self, Kind, Value};
+use crate::msg::Message;
 use crate::read::{self, COORD_MAX, FORMAT_VERSION, Obj};
+use crate::read::{field, field_at};
 
 /// Valeur de la clé `format` d'un placement.
 pub const LAYOUT_FORMAT: &str = "foregram-layout";
@@ -85,26 +88,24 @@ impl Layout {
     pub fn validate(&self) -> Vec<Diagnostic> {
         let mut diags = Vec::new();
         let d = &mut diags;
-        read::check_ident(&self.graph, "`graph` (layout)", self.pos, d);
-        read::check_ident(&self.engine.name, "`name` (engine)", self.pos, d);
-        read::check_ident(&self.engine.version, "`version` (engine)", self.pos, d);
+        read::check_ident(&self.graph, field("graph", "in.layout"), self.pos, d);
+        read::check_ident(&self.engine.name, field("name", "in.engine"), self.pos, d);
+        read::check_ident(
+            &self.engine.version,
+            field("version", "in.engine"),
+            self.pos,
+            d,
+        );
 
         let mut nodes: BTreeMap<&str, &NodePlace> = BTreeMap::new();
         for (index, node) in self.nodes.iter().enumerate() {
             let who = read::item_name("node", &node.id, index);
-            read::check_ident(&node.id, &format!("{who}: `id`"), node.pos, d);
-            check_coord(node.x, &format!("{who}: `x`"), node.pos, d);
-            check_coord(node.y, &format!("{who}: `y`"), node.pos, d);
+            read::check_ident(&node.id, field_at(who.clone(), "id"), node.pos, d);
+            check_coord(node.x, field_at(who.clone(), "x"), node.pos, d);
+            check_coord(node.y, field_at(who.clone(), "y"), node.pos, d);
             if let Some(first) = nodes.get(node.id.as_str()) {
-                d.push(Diagnostic::new(
-                    "L003",
-                    node.pos,
-                    format!(
-                        "node \"{}\" placed twice{}",
-                        node.id,
-                        diag::at_line(first.pos)
-                    ),
-                ));
+                let message = again("L003", "L003.again", first.pos);
+                d.push(Diagnostic::new(node.pos, message.text("id", &node.id)));
             } else {
                 nodes.insert(&node.id, node);
             }
@@ -113,33 +114,25 @@ impl Layout {
         let mut edges: BTreeMap<&str, &EdgePlace> = BTreeMap::new();
         for (index, edge) in self.edges.iter().enumerate() {
             let who = read::item_name("edge", &edge.id, index);
-            read::check_ident(&edge.id, &format!("{who}: `id`"), edge.pos, d);
+            read::check_ident(&edge.id, field_at(who.clone(), "id"), edge.pos, d);
             if let Some(first) = edges.get(edge.id.as_str()) {
-                d.push(Diagnostic::new(
-                    "L006",
-                    edge.pos,
-                    format!(
-                        "edge \"{}\" routed twice{}",
-                        edge.id,
-                        diag::at_line(first.pos)
-                    ),
-                ));
+                let message = again("L006", "L006.again", first.pos);
+                d.push(Diagnostic::new(edge.pos, message.text("id", &edge.id)));
             } else {
                 edges.insert(&edge.id, edge);
             }
             if edge.route.len() < 2 {
                 d.push(Diagnostic::new(
-                    "L008",
                     edge.pos,
-                    format!(
-                        "{who}: a route has at least two points, this one has {}",
-                        edge.route.len()
-                    ),
+                    Message::new("L008")
+                        .msg("subject", who.clone())
+                        .text("count", edge.route.len()),
                 ));
             }
             for point in edge.route.iter().chain(&edge.labels) {
-                check_coord(point.x, &format!("{who}: x coordinate"), edge.pos, d);
-                check_coord(point.y, &format!("{who}: y coordinate"), edge.pos, d);
+                let coord = |key| Message::new(key).msg("subject", who.clone());
+                check_coord(point.x, coord("coord.x"), edge.pos, d);
+                check_coord(point.y, coord("coord.y"), edge.pos, d);
             }
         }
         diags
@@ -154,12 +147,10 @@ impl Layout {
         let d = &mut diags;
         if self.graph != graph.name {
             d.push(Diagnostic::new(
-                "L001",
                 self.pos,
-                format!(
-                    "this layout belongs to graph \"{}\", not to \"{}\"",
-                    self.graph, graph.name
-                ),
+                Message::new("L001")
+                    .text("layout", &self.graph)
+                    .text("graph", &graph.name),
             ));
         }
 
@@ -171,18 +162,16 @@ impl Layout {
                 placed.insert(&node.id, node);
             } else {
                 d.push(Diagnostic::new(
-                    "L002",
                     node.pos,
-                    format!("node \"{}\" is not in the graph", node.id),
+                    Message::new("L002").text("id", &node.id),
                 ));
             }
         }
         for node in &graph.nodes {
             if !placed.contains_key(node.id.as_str()) {
                 d.push(Diagnostic::new(
-                    "L004",
                     self.pos,
-                    format!("node \"{}\" not placed", node.id),
+                    Message::new("L004").text("id", &node.id),
                 ));
             }
         }
@@ -194,48 +183,43 @@ impl Layout {
         for edge in &self.edges {
             if !graph_edges.contains_key(edge.id.as_str()) {
                 d.push(Diagnostic::new(
-                    "L005",
                     edge.pos,
-                    format!("edge \"{}\" is not in the graph", edge.id),
+                    Message::new("L005").text("id", &edge.id),
                 ));
             }
         }
         for edge in &graph.edges {
             let Some(place) = routed.get(edge.id.as_str()) else {
                 d.push(Diagnostic::new(
-                    "L007",
                     self.pos,
-                    format!("edge \"{}\" has no route", edge.id),
+                    Message::new("L007").text("id", &edge.id),
                 ));
                 continue;
             };
             if place.labels.len() != edge.labels.len() {
                 d.push(Diagnostic::new(
-                    "L011",
                     place.pos,
-                    format!(
-                        "edge \"{}\": {} label(s) placed, the graph has {}",
-                        edge.id,
-                        place.labels.len(),
-                        edge.labels.len()
-                    ),
+                    Message::new("L011")
+                        .text("id", &edge.id)
+                        .text("placed", place.labels.len())
+                        .text("expected", edge.labels.len()),
                 ));
             }
             let ends = [
                 (
-                    "starts at",
+                    ("L009.start", "L010.start"),
                     place.route.first(),
                     &edge.source,
                     edge.source_side,
                 ),
                 (
-                    "ends at",
+                    ("L009.end", "L010.end"),
                     place.route.last(),
                     &edge.target,
                     edge.target_side,
                 ),
             ];
-            for (verb, point, node_id, side) in ends {
+            for ((off_border, off_side), point, node_id, side) in ends {
                 let (Some(point), Some(node), Some(at)) = (
                     point,
                     graph_nodes.get(node_id.as_str()),
@@ -249,29 +233,20 @@ impl Layout {
                     width: node.width,
                     height: node.height,
                 };
+                let end = |key| {
+                    Message::new(key)
+                        .text("id", &edge.id)
+                        .text("x", point.x)
+                        .text("y", point.y)
+                        .text("node", node_id)
+                };
                 if !rect.border_has(*point) {
-                    d.push(Diagnostic::new(
-                        "L009",
-                        place.pos,
-                        format!(
-                            "edge \"{}\": the route {verb} ({}, {}), off the border of node \"{node_id}\"",
-                            edge.id, point.x, point.y
-                        ),
-                    ));
+                    d.push(Diagnostic::new(place.pos, end(off_border)));
                 } else if let Some(side) = side
                     && !rect.side_has(side, *point)
                 {
-                    d.push(Diagnostic::new(
-                        "L010",
-                        place.pos,
-                        format!(
-                            "edge \"{}\": the route {verb} ({}, {}), off the imposed side `{}` of node \"{node_id}\"",
-                            edge.id,
-                            point.x,
-                            point.y,
-                            side.as_str()
-                        ),
-                    ));
+                    let message = end(off_side).text("side", side.as_str());
+                    d.push(Diagnostic::new(place.pos, message));
                 }
             }
         }
@@ -360,25 +335,25 @@ fn points(list: &[Point]) -> String {
     format!("[{}]", items.join(", "))
 }
 
-fn check_coord(value: i64, label: &str, pos: Pos, diags: &mut Vec<Diagnostic>) {
+fn check_coord(value: i64, label: Message, pos: Pos, diags: &mut Vec<Diagnostic>) {
     read::check_range(value, -COORD_MAX, COORD_MAX, label, pos, diags);
 }
 
 fn read_layout(root: &Value, diags: &mut Vec<Diagnostic>) -> Option<Layout> {
-    let mut obj = Obj::open(root, "layout", diags)?;
+    let mut obj = Obj::open(root, "in.layout", diags)?;
     read::header(&mut obj, LAYOUT_FORMAT, diags);
     let graph = obj
         .req("graph", diags)
-        .and_then(|v| read::str_of(v, "`graph` (layout)", diags));
+        .and_then(|v| read::str_of(v, field("graph", "in.layout"), diags));
     let engine = obj.req("engine", diags).and_then(|v| read_engine(v, diags));
     let nodes = obj
         .req("nodes", diags)
-        .and_then(|v| read::array_of(v, "`nodes` (layout)", diags));
+        .and_then(|v| read::array_of(v, field("nodes", "in.layout"), diags));
     let nodes: Option<Vec<NodePlace>> =
         nodes.map(|items| items.iter().filter_map(|v| read_node(v, diags)).collect());
     let edges = obj
         .req("edges", diags)
-        .and_then(|v| read::array_of(v, "`edges` (layout)", diags));
+        .and_then(|v| read::array_of(v, field("edges", "in.layout"), diags));
     let edges: Option<Vec<EdgePlace>> =
         edges.map(|items| items.iter().filter_map(|v| read_edge(v, diags)).collect());
     obj.close(diags);
@@ -392,16 +367,18 @@ fn read_layout(root: &Value, diags: &mut Vec<Diagnostic>) -> Option<Layout> {
 }
 
 fn read_engine(value: &Value, diags: &mut Vec<Diagnostic>) -> Option<Engine> {
-    let mut obj = Obj::open(value, "engine", diags)?;
+    let mut obj = Obj::open(value, "in.engine", diags)?;
     let name = obj
         .req("name", diags)
-        .and_then(|v| read::str_of(v, "`name` (engine)", diags));
+        .and_then(|v| read::str_of(v, field("name", "in.engine"), diags));
     let version = obj
         .req("version", diags)
-        .and_then(|v| read::str_of(v, "`version` (engine)", diags));
+        .and_then(|v| read::str_of(v, field("version", "in.engine"), diags));
     let options = match obj.opt("options") {
         None => Some(None),
-        Some(v) => read::str_of(v, "`options` (engine)", diags).map(|s| Some(s.to_string())),
+        Some(v) => {
+            read::str_of(v, field("options", "in.engine"), diags).map(|s| Some(s.to_string()))
+        }
     };
     obj.close(diags);
     Some(Engine {
@@ -412,16 +389,16 @@ fn read_engine(value: &Value, diags: &mut Vec<Diagnostic>) -> Option<Engine> {
 }
 
 fn read_node(value: &Value, diags: &mut Vec<Diagnostic>) -> Option<NodePlace> {
-    let mut obj = Obj::open(value, "placed node", diags)?;
+    let mut obj = Obj::open(value, "in.placed-node", diags)?;
     let id = obj
         .req("id", diags)
-        .and_then(|v| read::str_of(v, "`id` (placed node)", diags));
+        .and_then(|v| read::str_of(v, field("id", "in.placed-node"), diags));
     let x = obj
         .req("x", diags)
-        .and_then(|v| read::int_of(v, "`x` (placed node)", diags));
+        .and_then(|v| read::int_of(v, field("x", "in.placed-node"), diags));
     let y = obj
         .req("y", diags)
-        .and_then(|v| read::int_of(v, "`y` (placed node)", diags));
+        .and_then(|v| read::int_of(v, field("y", "in.placed-node"), diags));
     obj.close(diags);
     Some(NodePlace {
         id: id?.to_string(),
@@ -432,16 +409,16 @@ fn read_node(value: &Value, diags: &mut Vec<Diagnostic>) -> Option<NodePlace> {
 }
 
 fn read_edge(value: &Value, diags: &mut Vec<Diagnostic>) -> Option<EdgePlace> {
-    let mut obj = Obj::open(value, "routed edge", diags)?;
+    let mut obj = Obj::open(value, "in.routed-edge", diags)?;
     let id = obj
         .req("id", diags)
-        .and_then(|v| read::str_of(v, "`id` (routed edge)", diags));
+        .and_then(|v| read::str_of(v, field("id", "in.routed-edge"), diags));
     let route = obj
         .req("route", diags)
-        .and_then(|v| read_points(v, "`route` (routed edge)", diags));
+        .and_then(|v| read_points(v, field("route", "in.routed-edge"), diags));
     let labels = match obj.opt("labels") {
         None => Some(Vec::new()),
-        Some(v) => read_points(v, "`labels` (routed edge)", diags),
+        Some(v) => read_points(v, field("labels", "in.routed-edge"), diags),
     };
     obj.close(diags);
     Some(EdgePlace {
@@ -452,17 +429,17 @@ fn read_edge(value: &Value, diags: &mut Vec<Diagnostic>) -> Option<EdgePlace> {
     })
 }
 
-fn read_points(value: &Value, label: &str, diags: &mut Vec<Diagnostic>) -> Option<Vec<Point>> {
-    let items = read::array_of(value, label, diags)?;
+fn read_points(value: &Value, label: Message, diags: &mut Vec<Diagnostic>) -> Option<Vec<Point>> {
+    let items = read::array_of(value, label.clone(), diags)?;
     let before = diags.len();
     let points: Vec<Point> = items
         .iter()
-        .filter_map(|item| read_point(item, label, diags))
+        .filter_map(|item| read_point(item, &label, diags))
         .collect();
     (diags.len() == before).then_some(points)
 }
 
-fn read_point(value: &Value, label: &str, diags: &mut Vec<Diagnostic>) -> Option<Point> {
+fn read_point(value: &Value, label: &Message, diags: &mut Vec<Diagnostic>) -> Option<Point> {
     if let Kind::Array(items) = &value.kind
         && let [x, y] = items.as_slice()
         && let (Kind::Int(x), Kind::Int(y)) = (&x.kind, &y.kind)
@@ -470,9 +447,8 @@ fn read_point(value: &Value, label: &str, diags: &mut Vec<Diagnostic>) -> Option
         return Some(Point { x: *x, y: *y });
     }
     diags.push(Diagnostic::new(
-        "S001",
         value.pos,
-        format!("{label}: a point is written [x, y], two integers"),
+        Message::new("S001.point").msg("field", label.clone()),
     ));
     None
 }

@@ -145,7 +145,7 @@ fn an_edge_identifier_is_used_once() {
     let diags = graph_refusals(&graph_with(AB, edges));
     assert_eq!(places(&diags), [("G002", 5, 1)]);
     assert_eq!(
-        diags[0].message,
+        diags[0].text(),
         "edge identifier \"e\" already used (line 4)"
     );
 }
@@ -200,7 +200,7 @@ fn structure_refusals_are_all_reported_with_their_place() {
             ("S002", 6, 58), // clé inconnue « extra »
         ]
     );
-    assert!(diags[0].message.contains("right, down, left, up"));
+    assert!(diags[0].text().contains("right, down, left, up"));
 }
 
 #[test]
@@ -211,11 +211,11 @@ fn meaning_refusals_are_all_reported() {
         [("G001", 7, 5), ("S008", 7, 5), ("G003", 10, 5)]
     );
     assert_eq!(
-        diags[0].message,
+        diags[0].text(),
         "node identifier \"A\" already used (line 6)"
     );
     assert_eq!(
-        diags[2].message,
+        diags[2].text(),
         "edge \"e1\": `target` refers to node \"B\", which does not exist"
     );
 }
@@ -246,7 +246,7 @@ fn sizes_and_constraints_have_bounds() {
             ("S008", 8, 11), // étiquette n° 2 : width négative
         ]
     );
-    assert!(diags[5].message.starts_with("edge \"e\", label #2"));
+    assert!(diags[5].text().starts_with("edge \"e\", label #2"));
 }
 
 #[test]
@@ -261,9 +261,9 @@ fn identifiers_have_rules() {
     );
     let diags = graph_refusals(&graph_with(&nodes, ""));
     assert_eq!(codes(&diags), ["S007", "S007", "S007"]);
-    assert_eq!(diags[0].message, "node #1: `id`: identifier empty");
-    assert!(diags[1].message.starts_with("node #2: `id`"));
-    assert!(diags[2].message.contains("256 characters, at most 255"));
+    assert_eq!(diags[0].text(), "node #1: `id`: identifier empty");
+    assert!(diags[1].text().starts_with("node #2: `id`"));
+    assert!(diags[2].text().contains("256 characters, at most 255"));
 }
 
 #[test]
@@ -371,7 +371,7 @@ fn layout_structure_is_strict() {
         codes(&diags),
         ["S002", "S003", "S001", "S001", "S001", "S001"]
     );
-    assert!(diags[2].message.contains("a point is written [x, y]"));
+    assert!(diags[2].text().contains("a point is written [x, y]"));
 }
 
 #[test]
@@ -389,7 +389,7 @@ fn a_layout_must_cover_its_graph_and_nothing_else() {
         ]
     );
     assert_eq!(
-        diags[3].message,
+        diags[3].text(),
         "edge \"membre-pret\": the route starts at (13000, 7800), off the border of node \"MEMBRE\""
     );
 }
@@ -402,7 +402,7 @@ fn a_layout_routes_only_the_edges_of_its_graph() {
     let layout = Layout::parse(layout_with(nodes, edges).as_bytes()).unwrap();
     let diags = layout.check(&graph);
     assert_eq!(codes(&diags), ["L005"]);
-    assert_eq!(diags[0].message, "edge \"fantôme\" is not in the graph");
+    assert_eq!(diags[0].text(), "edge \"fantôme\" is not in the graph");
 }
 
 #[test]
@@ -452,12 +452,12 @@ fn imposed_sides_are_respected() {
     assert_eq!(codes(&diags), ["L010", "L010"]);
     assert!(
         diags[0]
-            .message
+            .text()
             .contains("off the imposed side `east` of node \"A\"")
     );
     assert!(
         diags[1]
-            .message
+            .text()
             .contains("off the imposed side `north` of node \"B\"")
     );
 }
@@ -535,15 +535,9 @@ const MARK: &str = concat!("#[cfg", "(test)]");
 
 #[test]
 fn the_documentation_lists_every_code_and_no_other() {
-    let dir = format!("{}/src", env!("CARGO_MANIFEST_DIR"));
-    let mut sources = String::new();
-    for name in ["diag.rs", "graph.rs", "json.rs", "layout.rs", "read.rs"] {
-        let path = format!("{dir}/{name}");
-        let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path} : {e}"));
-        // Les tests de json.rs citent des codes qu'ils attendent : seul le code produit compte.
-        sources.push_str(text.split(MARK).next().unwrap());
-    }
-    let produced = codes_in(&sources, true);
+    // Les codes que le produit sait prononcer sont ceux du catalogue.
+    let keys: Vec<&str> = foregram_graph::Catalog::english().keys().collect();
+    let produced = codes_in(&keys.join("\n"), false);
     let table: String = doc()
         .lines()
         .filter(|line| line.starts_with("| "))
@@ -555,6 +549,7 @@ fn the_documentation_lists_every_code_and_no_other() {
 
     // Chaque refus que le code sait prononcer est provoqué par un test au moins :
     // ceux de ce fichier, et ceux qui suivent le code dans json.rs.
+    let dir = format!("{}/src", env!("CARGO_MANIFEST_DIR"));
     let json = format!("{dir}/json.rs");
     let json = std::fs::read_to_string(&json).unwrap_or_else(|e| panic!("{json} : {e}"));
     let mut tests = json.split(MARK).last().unwrap().to_string();

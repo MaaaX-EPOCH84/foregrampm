@@ -4,6 +4,8 @@
 
 use std::fmt;
 
+use crate::msg::{Catalog, Message};
+
 /// Position dans un texte source, comptée à partir de 1.
 ///
 /// La colonne compte des points de code Unicode, pas des octets.
@@ -25,35 +27,54 @@ impl Pos {
 /// Un refus : où, lequel, pourquoi.
 ///
 /// Le code est stable d'une version à l'autre et ne dépend pas de la langue
-/// du message ; c'est lui qu'un programme doit lire.
+/// du message ; c'est lui qu'un programme doit lire. Le message ne porte pas
+/// sa phrase : elle est composée à l'affichage, dans la langue choisie.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Diagnostic {
     pub code: &'static str,
     pub pos: Pos,
-    pub message: String,
+    pub message: Message,
 }
 
 impl Diagnostic {
-    pub fn new(code: &'static str, pos: Pos, message: impl Into<String>) -> Self {
-        Diagnostic {
-            code,
-            pos,
-            message: message.into(),
-        }
+    /// Le code est la clé du message, sans sa variante : `J005` pour `J005.zero`.
+    pub fn new(pos: Pos, message: Message) -> Self {
+        let code = message.key.split('.').next().unwrap_or(message.key);
+        // Chaque refus produit par les tests est confronté au catalogue anglais :
+        // une clé absente ou un argument oublié s'y voit tout de suite.
+        debug_assert_eq!(message.check(Catalog::english()), Ok(()));
+        Diagnostic { code, pos, message }
+    }
+
+    /// Le message seul, composé dans la langue du catalogue.
+    pub fn text_in(&self, catalog: &Catalog) -> String {
+        self.message.render(catalog)
+    }
+
+    /// Le message seul, en anglais.
+    pub fn text(&self) -> String {
+        self.text_in(Catalog::english())
+    }
+
+    /// Le refus entier — position, code, message — dans la langue du catalogue.
+    pub fn render(&self, catalog: &Catalog) -> String {
+        let line = if self.pos.is_none() {
+            Message::new("diag.bare")
+        } else {
+            Message::new("diag.at")
+                .text("line", self.pos.line)
+                .text("col", self.pos.col)
+        };
+        line.text("code", self.code)
+            .text("text", self.text_in(catalog))
+            .render(catalog)
     }
 }
 
 impl fmt::Display for Diagnostic {
+    /// Le refus entier, en anglais.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if self.pos.is_none() {
-            write!(f, "error[{}]: {}", self.code, self.message)
-        } else {
-            write!(
-                f,
-                "{}:{}: error[{}]: {}",
-                self.pos.line, self.pos.col, self.code, self.message
-            )
-        }
+        f.write_str(&self.render(Catalog::english()))
     }
 }
 
@@ -62,13 +83,4 @@ impl fmt::Display for Diagnostic {
 /// que du contenu. Deux exécutions rendent donc la même liste.
 pub(crate) fn sort(diags: &mut [Diagnostic]) {
     diags.sort_by(|a, b| (a.pos, a.code).cmp(&(b.pos, b.code)));
-}
-
-/// « (ligne N) » quand la position est connue, rien sinon.
-pub(crate) fn at_line(pos: Pos) -> String {
-    if pos.is_none() {
-        String::new()
-    } else {
-        format!(" (line {})", pos.line)
-    }
 }

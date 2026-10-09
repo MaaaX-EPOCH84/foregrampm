@@ -13,6 +13,7 @@
 //! prononcé plus tard, sur le sens, désigne encore l'endroit du texte.
 
 use crate::diag::{Diagnostic, Pos};
+use crate::msg::Message;
 
 /// Profondeur d'imbrication admise. Les formats de ForegramPM en emploient cinq.
 pub const MAX_DEPTH: usize = 64;
@@ -41,15 +42,15 @@ pub struct Member {
 }
 
 impl Kind {
-    /// Nom du type, tel qu'il paraît dans un message.
+    /// Clé du fragment qui nomme le type dans un message : `type.integer`.
     pub fn name(&self) -> &'static str {
         match self {
-            Kind::Null => "null",
-            Kind::Bool(_) => "boolean",
-            Kind::Int(_) => "integer",
-            Kind::Str(_) => "string",
-            Kind::Array(_) => "array",
-            Kind::Object(_) => "object",
+            Kind::Null => "type.null",
+            Kind::Bool(_) => "type.boolean",
+            Kind::Int(_) => "type.integer",
+            Kind::Str(_) => "type.string",
+            Kind::Array(_) => "type.array",
+            Kind::Object(_) => "type.object",
         }
     }
 }
@@ -61,18 +62,13 @@ pub fn parse(bytes: &[u8]) -> Result<Value, Diagnostic> {
         Err(error) => {
             let valid = bytes.get(..error.valid_up_to()).unwrap_or(&[]);
             let prefix = std::str::from_utf8(valid).unwrap_or("");
-            return Err(Diagnostic::new(
-                "J001",
-                end_of(prefix),
-                "invalid bytes: the text must be UTF-8",
-            ));
+            return Err(Diagnostic::new(end_of(prefix), Message::new("J001.utf8")));
         }
     };
     if text.starts_with('\u{FEFF}') {
         return Err(Diagnostic::new(
-            "J001",
             Pos { line: 1, col: 1 },
-            "byte order mark (BOM) refused at the start of the text",
+            Message::new("J001.bom"),
         ));
     }
     let mut parser = Parser {
@@ -86,9 +82,8 @@ pub fn parse(bytes: &[u8]) -> Result<Value, Diagnostic> {
     let pos = parser.pos();
     if let Some(c) = parser.peek() {
         return Err(Diagnostic::new(
-            "J010",
             pos,
-            format!("unexpected content after the value: `{}`", show(c)),
+            Message::new("J010").text("char", show(c)),
         ));
     }
     Ok(value)
@@ -199,11 +194,7 @@ impl Parser<'_> {
         let pos = self.pos();
         let kind = match self.peek() {
             None => {
-                return Err(Diagnostic::new(
-                    "J003",
-                    pos,
-                    "unexpected end of text: a value is expected",
-                ));
+                return Err(Diagnostic::new(pos, Message::new("J003.value")));
             }
             Some('{') => {
                 check_depth(depth, pos)?;
@@ -218,9 +209,8 @@ impl Parser<'_> {
             Some(c) if c.is_ascii_alphabetic() => self.word()?,
             Some(c) => {
                 return Err(Diagnostic::new(
-                    "J002",
                     pos,
-                    format!("unexpected character `{}`: a value is expected", show(c)),
+                    Message::new("J002.value-char").text("char", show(c)),
                 ));
             }
         };
@@ -242,9 +232,8 @@ impl Parser<'_> {
             "false" => Ok(Kind::Bool(false)),
             "null" => Ok(Kind::Null),
             _ => Err(Diagnostic::new(
-                "J002",
                 pos,
-                format!("unknown word `{word}`: a value is expected"),
+                Message::new("J002.value-word").text("word", word),
             )),
         }
     }
@@ -264,32 +253,16 @@ impl Parser<'_> {
             self.bump();
         }
         if digits.is_empty() {
-            return Err(Diagnostic::new(
-                "J005",
-                pos,
-                "malformed number: a digit is expected after `-`",
-            ));
+            return Err(Diagnostic::new(pos, Message::new("J005.digit")));
         }
         if matches!(self.peek(), Some('.' | 'e' | 'E')) {
-            return Err(Diagnostic::new(
-                "J004",
-                pos,
-                "non-integer number: only integers are allowed",
-            ));
+            return Err(Diagnostic::new(pos, Message::new("J004")));
         }
         if digits.len() > 1 && digits.starts_with('0') {
-            return Err(Diagnostic::new(
-                "J005",
-                pos,
-                "malformed number: leading zero",
-            ));
+            return Err(Diagnostic::new(pos, Message::new("J005.zero")));
         }
         if negative && digits == "0" {
-            return Err(Diagnostic::new(
-                "J005",
-                pos,
-                "malformed number: `-0` is written `0`",
-            ));
+            return Err(Diagnostic::new(pos, Message::new("J005.minus-zero")));
         }
         let mut value: i64 = 0;
         for digit in digits.bytes() {
@@ -301,9 +274,7 @@ impl Parser<'_> {
                     v.checked_add(digit)
                 }
             });
-            value = next.ok_or_else(|| {
-                Diagnostic::new("J006", pos, "integer too large to be represented")
-            })?;
+            value = next.ok_or_else(|| Diagnostic::new(pos, Message::new("J006")))?;
         }
         Ok(value)
     }
@@ -316,15 +287,14 @@ impl Parser<'_> {
             let pos = self.pos();
             match self.bump() {
                 None => {
-                    return Err(Diagnostic::new("J003", start, "unterminated string"));
+                    return Err(Diagnostic::new(start, Message::new("J003.string")));
                 }
                 Some('"') => return Ok(out),
                 Some('\\') => out.push(self.escape(pos)?),
                 Some(c) if (c as u32) < 0x20 => {
                     return Err(Diagnostic::new(
-                        "J007",
                         pos,
-                        format!("unescaped control character {} in a string", show(c)),
+                        Message::new("J007.control").text("char", show(c)),
                     ));
                 }
                 Some(c) => out.push(c),
@@ -333,7 +303,7 @@ impl Parser<'_> {
     }
 
     fn escape(&mut self, pos: Pos) -> Result<char, Diagnostic> {
-        let bad = |message: &str| Diagnostic::new("J007", pos, message);
+        let bad = |key| Diagnostic::new(pos, Message::new(key));
         match self.bump() {
             Some('"') => Ok('"'),
             Some('\\') => Ok('\\'),
@@ -347,34 +317,33 @@ impl Parser<'_> {
                 let high = self.hex4(pos)?;
                 if (0xD800..0xDC00).contains(&high) {
                     if self.bump() != Some('\\') || self.bump() != Some('u') {
-                        return Err(bad("high surrogate without its low surrogate"));
+                        return Err(bad("J007.high"));
                     }
                     let low = self.hex4(pos)?;
                     if !(0xDC00..0xE000).contains(&low) {
-                        return Err(bad("high surrogate without its low surrogate"));
+                        return Err(bad("J007.high"));
                     }
                     let code = 0x10000 + ((high - 0xD800) << 10) + (low - 0xDC00);
-                    char::from_u32(code).ok_or_else(|| bad("invalid code point"))
+                    // Une paire de demi-codets donne toujours un point de code valide.
+                    Ok(char::from_u32(code).unwrap_or(char::REPLACEMENT_CHARACTER))
                 } else if (0xDC00..0xE000).contains(&high) {
-                    Err(bad("lone low surrogate"))
+                    Err(bad("J007.low"))
                 } else {
-                    char::from_u32(high).ok_or_else(|| bad("invalid code point"))
+                    // Hors des demi-codets, quatre chiffres donnent toujours un point de code valide.
+                    Ok(char::from_u32(high).unwrap_or(char::REPLACEMENT_CHARACTER))
                 }
             }
-            _ => Err(bad("unknown escape sequence")),
+            _ => Err(bad("J007.escape")),
         }
     }
 
     fn hex4(&mut self, pos: Pos) -> Result<u32, Diagnostic> {
         let mut code = 0;
         for _ in 0..4 {
-            let digit = self.bump().and_then(|c| c.to_digit(16)).ok_or_else(|| {
-                Diagnostic::new(
-                    "J007",
-                    pos,
-                    "four hexadecimal digits are expected after `\\u`",
-                )
-            })?;
+            let digit = self
+                .bump()
+                .and_then(|c| c.to_digit(16))
+                .ok_or_else(|| Diagnostic::new(pos, Message::new("J007.hex")))?;
             code = code * 16 + digit;
         }
         Ok(code)
@@ -396,7 +365,7 @@ impl Parser<'_> {
             match self.bump() {
                 Some(',') => {}
                 Some(']') => return Ok(Kind::Array(items)),
-                other => return Err(expected(other, pos, "`,` or `]`")),
+                other => return Err(expected(other, pos, "expect.comma-bracket")),
             }
         }
     }
@@ -413,21 +382,20 @@ impl Parser<'_> {
             self.skip_ws();
             let key_pos = self.pos();
             if self.peek() != Some('"') {
-                return Err(expected(self.peek(), key_pos, "a quoted key"));
+                return Err(expected(self.peek(), key_pos, "expect.key"));
             }
             let key = self.string()?;
             if members.iter().any(|m| m.key == key) {
                 return Err(Diagnostic::new(
-                    "J008",
                     key_pos,
-                    format!("duplicate key `{key}` in the same object"),
+                    Message::new("J008").text("key", key),
                 ));
             }
             self.skip_ws();
             let pos = self.pos();
             match self.bump() {
                 Some(':') => {}
-                other => return Err(expected(other, pos, "`:`")),
+                other => return Err(expected(other, pos, "expect.colon")),
             }
             self.skip_ws();
             let value = self.value(depth + 1)?;
@@ -441,7 +409,7 @@ impl Parser<'_> {
             match self.bump() {
                 Some(',') => {}
                 Some('}') => return Ok(Kind::Object(members)),
-                other => return Err(expected(other, pos, "`,` or `}`")),
+                other => return Err(expected(other, pos, "expect.comma-brace")),
             }
         }
     }
@@ -450,25 +418,23 @@ impl Parser<'_> {
 fn check_depth(depth: usize, pos: Pos) -> Result<(), Diagnostic> {
     if depth >= MAX_DEPTH {
         return Err(Diagnostic::new(
-            "J009",
             pos,
-            format!("nesting too deep: at most {MAX_DEPTH} levels"),
+            Message::new("J009").text("max", MAX_DEPTH),
         ));
     }
     Ok(())
 }
 
-fn expected(found: Option<char>, pos: Pos, what: &str) -> Diagnostic {
+/// `what` est la clé du fragment qui dit ce qui était attendu : `expect.colon`.
+fn expected(found: Option<char>, pos: Pos, what: &'static str) -> Diagnostic {
+    let what = Message::new(what);
     match found {
-        None => Diagnostic::new(
-            "J003",
-            pos,
-            format!("unexpected end of text: {what} expected"),
-        ),
+        None => Diagnostic::new(pos, Message::new("J003.expected").msg("expected", what)),
         Some(c) => Diagnostic::new(
-            "J002",
             pos,
-            format!("unexpected character `{}`: {what} expected", show(c)),
+            Message::new("J002.expected")
+                .text("char", show(c))
+                .msg("expected", what),
         ),
     }
 }

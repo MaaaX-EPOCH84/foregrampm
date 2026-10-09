@@ -4,6 +4,7 @@
 
 use crate::diag::{Diagnostic, Pos};
 use crate::json::{Kind, Member, Value};
+use crate::msg::Message;
 
 /// Version du format lue et écrite par cette version de la bibliothèque.
 pub const FORMAT_VERSION: i64 = 1;
@@ -18,11 +19,26 @@ pub const LAYER_MAX: i64 = 1_000_000;
 /// Longueur maximale d'un identifiant, en points de code.
 pub const IDENT_MAX_CHARS: usize = 255;
 
+/// Désigne une clé lue dans un objet du format : « `width` (node) ».
+pub(crate) fn field(key: &'static str, within: &'static str) -> Message {
+    Message::new("field.of")
+        .text("key", key)
+        .msg("in", Message::new(within))
+}
+
+/// Désigne une clé d'un élément déjà identifié : « node "A": `width` ».
+pub(crate) fn field_at(subject: Message, key: &'static str) -> Message {
+    Message::new("field.at")
+        .msg("subject", subject)
+        .text("key", key)
+}
+
 /// Un objet JSON en cours de lecture, qui retient les clés consultées
 /// pour refuser les autres à la fermeture.
 pub(crate) struct Obj<'a> {
     pub pos: Pos,
-    what: &'static str,
+    /// Clé du fragment qui nomme l'objet : `in.node`.
+    within: &'static str,
     members: &'a [Member],
     seen: Vec<bool>,
 }
@@ -30,18 +46,19 @@ pub(crate) struct Obj<'a> {
 impl<'a> Obj<'a> {
     pub fn open(
         value: &'a Value,
-        what: &'static str,
+        within: &'static str,
         diags: &mut Vec<Diagnostic>,
     ) -> Option<Obj<'a>> {
         match &value.kind {
             Kind::Object(members) => Some(Obj {
                 pos: value.pos,
-                what,
+                within,
                 members,
                 seen: vec![false; members.len()],
             }),
             _ => {
-                diags.push(type_error(value, what, "object"));
+                let whole = Message::new(within);
+                diags.push(type_error(value, whole, "type.object"));
                 None
             }
         }
@@ -61,9 +78,10 @@ impl<'a> Obj<'a> {
         let value = self.opt(key);
         if value.is_none() {
             diags.push(Diagnostic::new(
-                "S003",
                 self.pos,
-                format!("required key `{key}` missing ({})", self.what),
+                Message::new("S003")
+                    .text("key", key)
+                    .msg("in", Message::new(self.within)),
             ));
         }
         value
@@ -74,42 +92,46 @@ impl<'a> Obj<'a> {
         for (member, seen) in self.members.iter().zip(&self.seen) {
             if !seen {
                 diags.push(Diagnostic::new(
-                    "S002",
                     member.key_pos,
-                    format!("unknown key `{}` ({})", member.key, self.what),
+                    Message::new("S002")
+                        .text("key", &member.key)
+                        .msg("in", Message::new(self.within)),
                 ));
             }
         }
     }
 }
 
-pub(crate) fn type_error(value: &Value, label: &str, expected: &str) -> Diagnostic {
+/// `expected` est la clé d'un fragment de type : `type.integer`.
+pub(crate) fn type_error(value: &Value, label: Message, expected: &'static str) -> Diagnostic {
     Diagnostic::new(
-        "S001",
         value.pos,
-        format!("{label}: {expected} expected, got {}", value.kind.name()),
+        Message::new("S001")
+            .msg("field", label)
+            .msg("expected", Message::new(expected))
+            .msg("found", Message::new(value.kind.name())),
     )
 }
 
 pub(crate) fn str_of<'a>(
     value: &'a Value,
-    label: &str,
+    label: Message,
     diags: &mut Vec<Diagnostic>,
 ) -> Option<&'a str> {
     match &value.kind {
         Kind::Str(text) => Some(text),
         _ => {
-            diags.push(type_error(value, label, "string"));
+            diags.push(type_error(value, label, "type.string"));
             None
         }
     }
 }
 
-pub(crate) fn int_of(value: &Value, label: &str, diags: &mut Vec<Diagnostic>) -> Option<i64> {
+pub(crate) fn int_of(value: &Value, label: Message, diags: &mut Vec<Diagnostic>) -> Option<i64> {
     match &value.kind {
         Kind::Int(number) => Some(*number),
         _ => {
-            diags.push(type_error(value, label, "integer"));
+            diags.push(type_error(value, label, "type.integer"));
             None
         }
     }
@@ -117,13 +139,13 @@ pub(crate) fn int_of(value: &Value, label: &str, diags: &mut Vec<Diagnostic>) ->
 
 pub(crate) fn array_of<'a>(
     value: &'a Value,
-    label: &str,
+    label: Message,
     diags: &mut Vec<Diagnostic>,
 ) -> Option<&'a [Value]> {
     match &value.kind {
         Kind::Array(items) => Some(items),
         _ => {
-            diags.push(type_error(value, label, "array"));
+            diags.push(type_error(value, label, "type.array"));
             None
         }
     }
@@ -132,94 +154,98 @@ pub(crate) fn array_of<'a>(
 /// Lit une valeur prise dans une liste fermée de mots.
 pub(crate) fn choice_of<T: Copy>(
     value: &Value,
-    label: &str,
+    label: Message,
     table: &[(&'static str, T)],
     diags: &mut Vec<Diagnostic>,
 ) -> Option<T> {
-    let text = str_of(value, label, diags)?;
+    let text = str_of(value, label.clone(), diags)?;
     if let Some((_, choice)) = table.iter().find(|(word, _)| *word == text) {
         return Some(*choice);
     }
     let words: Vec<&str> = table.iter().map(|(word, _)| *word).collect();
     diags.push(Diagnostic::new(
-        "S006",
         value.pos,
-        format!(
-            "{label}: unknown value `{text}`; expected one of {}",
-            words.join(", ")
-        ),
+        Message::new("S006")
+            .msg("field", label)
+            .text("value", text)
+            .text("words", words.join(", ")),
     ));
     None
 }
 
 /// Vérifie les deux clés d'en-tête communes aux formats : `format` et `version`.
 pub(crate) fn header(obj: &mut Obj<'_>, format: &str, diags: &mut Vec<Diagnostic>) {
+    let root = |key| Message::new("field.root").text("key", key);
     if let Some(value) = obj.req("format", diags)
-        && let Some(found) = str_of(value, "`format`", diags)
+        && let Some(found) = str_of(value, root("format"), diags)
         && found != format
     {
         diags.push(Diagnostic::new(
-            "S004",
             value.pos,
-            format!("unexpected format `{found}`: `{format}` expected"),
+            Message::new("S004")
+                .text("found", found)
+                .text("expected", format),
         ));
     }
     if let Some(value) = obj.req("version", diags)
-        && let Some(found) = int_of(value, "`version`", diags)
+        && let Some(found) = int_of(value, root("version"), diags)
         && found != FORMAT_VERSION
     {
         diags.push(Diagnostic::new(
-            "S005",
             value.pos,
-            format!("version {found} not supported: only version {FORMAT_VERSION} is read"),
+            Message::new("S005")
+                .text("found", found)
+                .text("supported", FORMAT_VERSION),
         ));
     }
 }
 
 /// Un identifiant est une chaîne non vide, sans caractère de contrôle,
 /// de 255 points de code au plus.
-pub(crate) fn check_ident(text: &str, label: &str, pos: Pos, diags: &mut Vec<Diagnostic>) {
-    let problem = if text.is_empty() {
-        Some("empty".to_string())
+pub(crate) fn check_ident(text: &str, label: Message, pos: Pos, diags: &mut Vec<Diagnostic>) {
+    let length = text.chars().count();
+    let message = if text.is_empty() {
+        Message::new("S007.empty")
     } else if text.chars().any(char::is_control) {
-        Some("contains a control character".to_string())
+        Message::new("S007.control")
+    } else if length > IDENT_MAX_CHARS {
+        Message::new("S007.long")
+            .text("length", length)
+            .text("max", IDENT_MAX_CHARS)
     } else {
-        let length = text.chars().count();
-        (length > IDENT_MAX_CHARS)
-            .then(|| format!("too long ({length} characters, at most {IDENT_MAX_CHARS})"))
+        return;
     };
-    if let Some(problem) = problem {
-        diags.push(Diagnostic::new(
-            "S007",
-            pos,
-            format!("{label}: identifier {problem}"),
-        ));
-    }
+    diags.push(Diagnostic::new(pos, message.msg("field", label)));
 }
 
 pub(crate) fn check_range(
     value: i64,
     min: i64,
     max: i64,
-    label: &str,
+    label: Message,
     pos: Pos,
     diags: &mut Vec<Diagnostic>,
 ) {
     if value < min || value > max {
         diags.push(Diagnostic::new(
-            "S008",
             pos,
-            format!("{label}: {value} outside the range {min} to {max}"),
+            Message::new("S008")
+                .msg("field", label)
+                .text("value", value)
+                .text("min", min)
+                .text("max", max),
         ));
     }
 }
 
 /// Désigne un élément dans un message : par son identifiant s'il en a un
-/// de lisible, par son rang sinon.
-pub(crate) fn item_name(kind: &str, id: &str, index: usize) -> String {
-    if id.is_empty() || id.chars().any(char::is_control) {
-        format!("{kind} #{}", index + 1)
-    } else {
-        format!("{kind} \"{id}\"")
+/// de lisible, par son rang sinon. `kind` vaut `node` ou `edge`.
+pub(crate) fn item_name(kind: &str, id: &str, index: usize) -> Message {
+    let readable = !(id.is_empty() || id.chars().any(char::is_control));
+    match (kind, readable) {
+        ("node", true) => Message::new("subject.node").text("id", id),
+        ("node", false) => Message::new("subject.node-n").text("rank", index + 1),
+        (_, true) => Message::new("subject.edge").text("id", id),
+        (_, false) => Message::new("subject.edge-n").text("rank", index + 1),
     }
 }

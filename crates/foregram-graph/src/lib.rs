@@ -12,14 +12,20 @@
 //! La bibliothèque lit des octets et rend des valeurs ou des refus. Elle ne
 //! touche ni fichier, ni horloge, ni environnement, et n'emploie que des
 //! entiers : la même entrée donne les mêmes octets sur toute machine.
+//!
+//! Un refus porte un code stable, une position et un [`Message`] : une clé
+//! et des arguments. Sa phrase est composée à l'affichage depuis le
+//! [`Catalog`] de la langue choisie ; seul l'anglais existe pour l'instant.
 
 mod diag;
 mod graph;
 pub mod json;
 mod layout;
+mod msg;
 mod read;
 
 pub use diag::{Diagnostic, Pos};
 pub use graph::{Anchor, Direction, Edge, GRAPH_FORMAT, Graph, Label, Node, Side};
 pub use layout::{EdgePlace, Engine, LAYOUT_FORMAT, Layout, NodePlace, Point};
+pub use msg::{Arg, Catalog, Message};
 pub use read::{COORD_MAX, FORMAT_VERSION, IDENT_MAX_CHARS, LAYER_MAX};

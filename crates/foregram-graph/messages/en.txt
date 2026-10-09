@@ -1,0 +1,123 @@
+# ForegramPM — message catalogue, English (en)
+#
+# One entry per line: `key = template`. In a template, `{name}` is replaced
+# by the argument of that name; any other brace is kept as is; `\n` starts
+# a new line.
+# A refusal key starts with its stable code (G003), followed if needed by a
+# variant (J005.zero). The other keys are fragments that refusals embed.
+
+# JSON syntax
+J001.utf8 = invalid bytes: the text must be UTF-8
+J001.bom = byte order mark (BOM) refused at the start of the text
+J002.value-char = unexpected character `{char}`: a value is expected
+J002.value-word = unknown word `{word}`: a value is expected
+J002.expected = unexpected character `{char}`: {expected} expected
+J003.value = unexpected end of text: a value is expected
+J003.expected = unexpected end of text: {expected} expected
+J003.string = unterminated string
+J004 = non-integer number: only integers are allowed
+J005.digit = malformed number: a digit is expected after `-`
+J005.zero = malformed number: leading zero
+J005.minus-zero = malformed number: `-0` is written `0`
+J006 = integer too large to be represented
+J007.control = unescaped control character {char} in a string
+J007.high = high surrogate without its low surrogate
+J007.low = lone low surrogate
+J007.escape = unknown escape sequence
+J007.hex = four hexadecimal digits are expected after `\u`
+J008 = duplicate key `{key}` in the same object
+J009 = nesting too deep: at most {max} levels
+J010 = unexpected content after the value: `{char}`
+
+# What the JSON reader expected
+expect.comma-bracket = `,` or `]`
+expect.comma-brace = `,` or `}`
+expect.colon = `:`
+expect.key = a quoted key
+
+# Structure, for both formats
+S001 = {field}: {expected} expected, got {found}
+S001.point = {field}: a point is written [x, y], two integers
+S002 = unknown key `{key}` ({in})
+S003 = required key `{key}` missing ({in})
+S004 = unexpected format `{found}`: `{expected}` expected
+S005 = version {found} not supported: only version {supported} is read
+S006 = {field}: unknown value `{value}`; expected one of {words}
+S007.empty = {field}: identifier empty
+S007.control = {field}: identifier contains a control character
+S007.long = {field}: identifier too long ({length} characters, at most {max})
+S008 = {field}: {value} outside the range {min} to {max}
+
+# Graph
+G001 = node identifier "{id}" already used
+G001.again = node identifier "{id}" already used (line {line})
+G002 = edge identifier "{id}" already used
+G002.again = edge identifier "{id}" already used (line {line})
+G003 = {subject}: `{key}` refers to node "{node}", which does not exist
+G004 = {subject}: `order` without `layer`
+G005 = {subject}: same `layer` and same `order` as node "{other}"
+
+# Layout
+L001 = this layout belongs to graph "{layout}", not to "{graph}"
+L002 = node "{id}" is not in the graph
+L003 = node "{id}" placed twice
+L003.again = node "{id}" placed twice (line {line})
+L004 = node "{id}" not placed
+L005 = edge "{id}" is not in the graph
+L006 = edge "{id}" routed twice
+L006.again = edge "{id}" routed twice (line {line})
+L007 = edge "{id}" has no route
+L008 = {subject}: a route has at least two points, this one has {count}
+L009.start = edge "{id}": the route starts at ({x}, {y}), off the border of node "{node}"
+L009.end = edge "{id}": the route ends at ({x}, {y}), off the border of node "{node}"
+L010.start = edge "{id}": the route starts at ({x}, {y}), off the imposed side `{side}` of node "{node}"
+L010.end = edge "{id}": the route ends at ({x}, {y}), off the imposed side `{side}` of node "{node}"
+L011 = edge "{id}": {placed} label(s) placed, the graph has {expected}
+
+# Types of a JSON value
+type.null = null
+type.boolean = boolean
+type.integer = integer
+type.string = string
+type.array = array
+type.object = object
+
+# Objects of the formats
+in.graph = graph
+in.node = node
+in.edge = edge
+in.label = label
+in.layout = layout
+in.engine = engine
+in.placed-node = placed node
+in.routed-edge = routed edge
+
+# What a refusal is about
+field.root = `{key}`
+field.of = `{key}` ({in})
+field.at = {subject}: `{key}`
+coord.x = {subject}: x coordinate
+coord.y = {subject}: y coordinate
+subject.node = node "{id}"
+subject.node-n = node #{rank}
+subject.edge = edge "{id}"
+subject.edge-n = edge #{rank}
+subject.edge-label = {edge}, label #{rank}
+
+# How a refusal is shown
+diag.at = {line}:{col}: error[{code}]: {text}
+diag.bare = error[{code}]: {text}
+
+# The benchmark command line
+bench.usage = usage: foregram-bench validate <graph.json> [<layout.json>...]\n       foregram-bench --help | --version\n\n  validate  Validates a graph, then each layout against that graph.\n\nexit codes: 0 everything is valid, 1 a file is refused,\n            2 wrong call or unreadable file
+bench.valid-graph = {path}: valid graph ({nodes}, {edges})
+bench.valid-layout = {path}: valid layout of graph "{graph}" (engine {engine} {version})
+bench.not-checked = {path}: not checked against the graph, which is not valid
+bench.unreadable = {path}: cannot read: {error}
+bench.refused = {path}: refused ({count})
+count.node.one = {n} node
+count.node.other = {n} nodes
+count.edge.one = {n} edge
+count.edge.other = {n} edges
+count.error.one = {n} error
+count.error.other = {n} errors

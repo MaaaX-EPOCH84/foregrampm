@@ -6,17 +6,7 @@ use std::ffi::OsString;
 use std::path::Path;
 use std::process::ExitCode;
 
-use foregram_graph::{Diagnostic, Graph, Layout};
-
-const USAGE: &str = "\
-usage: foregram-bench validate <graph.json> [<layout.json>...]
-       foregram-bench --help | --version
-
-  validate  Validates a graph, then each layout against that graph.
-
-exit codes: 0 everything is valid, 1 a file is refused,
-            2 wrong call or unreadable file
-";
+use foregram_graph::{Catalog, Diagnostic, Graph, Layout, Message};
 
 /// Tout est valide.
 const VALID: u8 = 0;
@@ -30,7 +20,7 @@ fn main() -> ExitCode {
     let command = args.first().and_then(|a| a.to_str());
     let status = match (command, args.get(1..).unwrap_or(&[])) {
         (Some("--help"), []) => {
-            print!("{USAGE}");
+            println!("{}", say(Message::new("bench.usage")));
             VALID
         }
         (Some("--version"), []) => {
@@ -39,7 +29,7 @@ fn main() -> ExitCode {
         }
         (Some("validate"), [graph, layouts @ ..]) => validate(graph.as_ref(), layouts),
         _ => {
-            eprint!("{USAGE}");
+            eprintln!("{}", say(Message::new("bench.usage")));
             UNUSABLE
         }
     };
@@ -54,12 +44,11 @@ fn validate(graph_path: &Path, layout_paths: &[OsString]) -> u8 {
         None => None,
         Some(bytes) => match Graph::parse(&bytes) {
             Ok(graph) => {
-                println!(
-                    "{}: valid graph ({}, {})",
-                    graph_path.display(),
-                    count(graph.nodes.len(), "node"),
-                    count(graph.edges.len(), "edge")
-                );
+                let message = Message::new("bench.valid-graph")
+                    .text("path", graph_path.display())
+                    .msg("nodes", count(graph.nodes.len(), "node"))
+                    .msg("edges", count(graph.edges.len(), "edge"));
+                println!("{}", say(message));
                 Some(graph)
             }
             Err(diags) => {
@@ -82,22 +71,19 @@ fn validate(graph_path: &Path, layout_paths: &[OsString]) -> u8 {
             }
         };
         let Some(graph) = &graph else {
-            eprintln!(
-                "{}: not checked against the graph, which is not valid",
-                path.display()
-            );
+            let message = Message::new("bench.not-checked").text("path", path.display());
+            eprintln!("{}", say(message));
             status = status.max(REFUSED);
             continue;
         };
         let diags = layout.check(graph);
         if diags.is_empty() {
-            println!(
-                "{}: valid layout of graph \"{}\" (engine {} {})",
-                path.display(),
-                layout.graph,
-                layout.engine.name,
-                layout.engine.version
-            );
+            let message = Message::new("bench.valid-layout")
+                .text("path", path.display())
+                .text("graph", &layout.graph)
+                .text("engine", &layout.engine.name)
+                .text("version", &layout.engine.version);
+            println!("{}", say(message));
         } else {
             refuse(path, &diags, &mut status);
         }
@@ -109,7 +95,10 @@ fn load(path: &Path, status: &mut u8) -> Option<Vec<u8>> {
     match std::fs::read(path) {
         Ok(bytes) => Some(bytes),
         Err(error) => {
-            eprintln!("{}: cannot read: {error}", path.display());
+            let message = Message::new("bench.unreadable")
+                .text("path", path.display())
+                .text("error", error);
+            eprintln!("{}", say(message));
             *status = (*status).max(UNUSABLE);
             None
         }
@@ -124,18 +113,29 @@ fn refuse(path: &Path, diags: &[Diagnostic], status: &mut u8) {
             eprintln!("{}:{diag}", path.display());
         }
     }
-    eprintln!(
-        "{}: refused ({})",
-        path.display(),
-        count(diags.len(), "error")
-    );
+    let message = Message::new("bench.refused")
+        .text("path", path.display())
+        .msg("count", count(diags.len(), "error"));
+    eprintln!("{}", say(message));
     *status = (*status).max(REFUSED);
 }
 
-fn count(number: usize, noun: &str) -> String {
-    if number < 2 {
-        format!("{number} {noun}")
-    } else {
-        format!("{number} {noun}s")
-    }
+/// Compose une phrase en anglais, seule langue pour l'instant.
+fn say(message: Message) -> String {
+    debug_assert_eq!(message.check(Catalog::english()), Ok(()));
+    message.render(Catalog::english())
+}
+
+/// « 1 node », « 3 nodes ». Le choix suit la règle anglaise du pluriel,
+/// « one » pour 1 seulement ; une autre langue apportera sa propre règle.
+fn count(number: usize, noun: &str) -> Message {
+    let key = match (noun, number) {
+        ("node", 1) => "count.node.one",
+        ("node", _) => "count.node.other",
+        ("edge", 1) => "count.edge.one",
+        ("edge", _) => "count.edge.other",
+        (_, 1) => "count.error.one",
+        _ => "count.error.other",
+    };
+    Message::new(key).text("n", number)
 }
