@@ -21,6 +21,17 @@ cargo test
 cargo run -p foregram-bench -- validate <graph.json> [<layout.json>...]
 ```
 
+The public corpora — Rome, North and elk-models — are not versioned.
+`corpus/fetch.sh` downloads them into `corpus/cache/` (ignored by Git)
+and checks them against [`corpus/manifest.txt`](corpus/manifest.txt),
+which records each address, version, SHA-256 or commit, file count and
+licence. Running it again downloads nothing and checks everything; it
+needs `curl`, `git`, `tar` and `sha256sum`.
+
+```
+corpus/fetch.sh [rome] [north] [elk-models]
+```
+
 ## Licence
 
 GPL v3 or later — see [LICENSE](LICENSE).

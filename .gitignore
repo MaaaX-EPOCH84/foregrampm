@@ -2,3 +2,6 @@
 /target/
 
 # Cargo.lock est versionné : l'espace de travail produit des exécutables.
+
+# Corpus publics téléchargés par corpus/fetch.sh : jamais versionnés.
+/corpus/cache/
