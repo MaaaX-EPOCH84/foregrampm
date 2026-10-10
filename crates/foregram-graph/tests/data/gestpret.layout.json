@@ -1,6 +1,6 @@
 {
   "format": "foregram-layout",
-  "version": 1,
+  "version": 2,
   "graph": "gestpret",
   "engine": {"name": "main", "version": "1", "options": "placement tracé à la main, pour les tests"},
   "nodes": [

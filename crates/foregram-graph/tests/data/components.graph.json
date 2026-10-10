@@ -1,0 +1,18 @@
+{
+  "format": "foregram-graph",
+  "version": 2,
+  "name": "components",
+  "direction": "right",
+  "nodes": [
+    {"id": "Client", "width": 10000, "height": 6000, "ports": [{"id": "req", "side": "east"}]},
+    {"id": "System", "padding": 1000, "children": [
+      {"id": "Core", "width": 12000, "height": 6000, "ports_ordered": true, "ports": [{"id": "in", "side": "west"}, {"id": "out", "side": "east", "x": 12000, "y": 3000, "width": 600, "height": 600}]},
+      {"id": "Store", "width": 8000, "height": 5000}
+    ]}
+  ],
+  "edges": [
+    {"id": "e1", "source": "Client", "target": "Core", "source_port": "req", "target_port": "in", "labels": [{"width": 3000, "height": 1400, "at": "center"}]},
+    {"id": "e2", "source": "Core", "target": "Store", "source_port": "out", "target_side": "west"},
+    {"id": "e3", "source": "Store", "target": "System"}
+  ]
+}

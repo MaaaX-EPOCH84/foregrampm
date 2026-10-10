@@ -3,11 +3,11 @@
 Two JSON files describe one benchmark case:
 
 - the **graph** (`foregram-graph`): what a layout engine receives —
-  rectangular nodes, edges, their labels, and whatever the author chose
-  to pin down;
+  rectangular nodes, which may contain other nodes, their ports, edges,
+  their labels, and whatever the author chose to pin down;
 - the **layout** (`foregram-layout`): what an engine returns for that
-  graph — the position of every node, the route of every edge, the
-  position of every label.
+  graph — the position of every node and port, the size of every
+  container, the route of every edge, the position of every label.
 
 The layout repeats nothing from the graph. An engine therefore cannot
 alter a size or an edge; it can only forget an element or cite one that
@@ -19,6 +19,9 @@ By convention a graph is named `<name>.graph.json` and its layouts
 This format serves the benchmark and the layout engine. It is not the
 format diagrams will be written in: that one comes with the compiler.
 
+This is version 2 of the format. Version 1 files are still read: everything
+version 2 adds is optional. The library writes version 2.
+
 ## Units and axes
 
 - Every length is an **integer**, in **hundredths of a pixel**: a node
@@ -26,6 +29,10 @@ format diagrams will be written in: that one comes with the compiler.
 - The x axis points right, the y axis **points down**.
 - The position of a rectangle, node or label, is that of its top-left
   corner.
+- **A node is positioned in its parent**: a top-level node relative to
+  the drawing, a child relative to the top-left corner of its container.
+  **A port is positioned in its node.** **Routes and edge labels are
+  absolute.**
 - A dimension ranges from 1 to 1,000,000,000; a coordinate from
   −1,000,000,000 to 1,000,000,000.
 
@@ -49,20 +56,33 @@ Keys may come in any order.
 | Key | Type | | Meaning |
 |---|---|---|---|
 | `format` | string | required | `"foregram-graph"` |
-| `version` | integer | required | `1` |
+| `version` | integer | required | `1` or `2` |
 | `name` | identifier | required | Name of the graph; the layout cites it |
 | `direction` | word | optional | Direction in which layers follow each other: `right`, `down`, `left` or `up` |
-| `nodes` | array | required | The nodes |
-| `edges` | array | required | The edges |
+| `nodes` | array | required | The top-level nodes |
+| `edges` | array | required | All the edges, whatever the depth of their nodes |
 
 A **node**:
 
 | Key | Type | | Meaning |
 |---|---|---|---|
-| `id` | identifier | required | Unique among nodes |
-| `width`, `height` | integers | required | Dimensions of the rectangle |
+| `id` | identifier | required | Unique among all nodes, at every depth |
+| `width`, `height` | integers | leaf only | Dimensions of the rectangle; required for a node without children, refused for a container |
 | `layer` | integer | optional | Imposed layer, from 0 to 1,000,000 |
 | `order` | integer | optional | Imposed rank within the layer; requires `layer` |
+| `children` | array | optional | The nodes this node contains; a node with children is a **container** |
+| `padding` | integer | container only | Space kept between the border of a container and its children |
+| `ports` | array | optional | The ports of the node |
+| `ports_ordered` | boolean | optional | `true`: on each side, the ports follow each other in the order of the list |
+
+A **port**, a named attach point on the border of its node:
+
+| Key | Type | | Meaning |
+|---|---|---|---|
+| `id` | identifier | required | Unique among all ports of the graph |
+| `side` | word | optional | Imposed side: `north`, `south`, `east` or `west` |
+| `x`, `y` | integers | optional | Imposed anchor point, relative to the top-left corner of the node; requires `side`, and lies on the border of that side |
+| `width`, `height` | integers | optional | Box of the port, centred on its anchor point; without them the port is a point |
 
 An **edge**:
 
@@ -70,7 +90,8 @@ An **edge**:
 |---|---|---|---|
 | `id` | identifier | required | Unique among edges |
 | `source`, `target` | identifiers | required | Start node, end node |
-| `source_side`, `target_side` | words | optional | Imposed side of the node: `north`, `south`, `east` or `west` |
+| `source_port`, `target_port` | identifiers | optional | A port of the start node, of the end node |
+| `source_side`, `target_side` | words | optional | Imposed side of the node, for an end without a port: `north`, `south`, `east` or `west` |
 | `labels` | array | optional | The labels of the edge |
 
 A **label**:
@@ -84,11 +105,19 @@ Rules:
 
 - An **identifier** is a non-empty string, without control characters,
   of at most 255 characters.
-- Node identifiers and edge identifiers are two separate spaces: a node
-  and an edge may carry the same one.
-- `source` and `target` refer to nodes that exist.
+- Node identifiers, port identifiers and edge identifiers are three
+  separate spaces: a node, a port and an edge may carry the same one.
+- `source` and `target` refer to nodes that exist; `source_port` refers
+  to a port of `source`, `target_port` to a port of `target`.
+- An end has a port or a side, never both: with a port, the side is the
+  port's.
+- `ports_ordered` requires a `side` on every port of the node, since the
+  order is read side by side.
+- A container cannot position its ports: its size is not known before
+  the layout.
 - A **loop** (an edge from a node to itself) is allowed, as are several
-  edges between the same two nodes.
+  edges between the same two nodes, and an edge between a node and one of
+  its own ancestors or descendants.
 - A graph without nodes is valid.
 
 ### What the author pins down
@@ -104,44 +133,66 @@ Everything below is optional. Without a constraint, the engine decides.
   same `layer` and the same `order`.
 - `source_side` and `target_side` impose the side through which an edge
   leaves or reaches a node. A corner belongs to both of its sides.
+- A port's `side` imposes the side of the node it sits on; `ports_ordered`
+  imposes the order of the ports on each side; a port's `x` and `y` impose
+  its exact anchor point. Those are the four port constraint levels of
+  ELK: free, fixed side, fixed order, fixed position — but each port may
+  be pinned on its own.
 
-The validator checks imposed sides, because they can be read off the
-route. It does not check `layer` or `order`: whether an engine honoured
-them is a benchmark measurement, not a validity condition.
+The validator checks imposed sides and port positions, because they can
+be read off the layout. It does not check `layer`, `order` or the order
+of ports: whether an engine honoured them is a benchmark measurement, not
+a validity condition.
 
 ## The layout
 
 | Key | Type | | Meaning |
 |---|---|---|---|
 | `format` | string | required | `"foregram-layout"` |
-| `version` | integer | required | `1` |
+| `version` | integer | required | `1` or `2` |
 | `graph` | identifier | required | The `name` of the graph laid out |
 | `engine` | object | required | The engine that produced the layout |
-| `nodes` | array | required | The position of every node |
+| `nodes` | array | required | Every node, at every depth, in one flat list |
 | `edges` | array | required | The route of every edge |
 
 The **engine**: `name` and `version`, required, and `options`, optional,
 which says with which settings it ran. Enough to replay the layout.
 
-A **placed node**: `id`, `x`, `y`, all required.
+A **placed node**:
+
+| Key | Type | | Meaning |
+|---|---|---|---|
+| `id` | identifier | required | The node of the graph |
+| `x`, `y` | integers | required | Top-left corner, relative to the parent |
+| `width`, `height` | integers | container only | The size the engine found for a container; refused for a leaf, whose size is in the graph |
+| `ports` | array | optional | The anchor point of every port: `id`, `x`, `y`, relative to the node |
 
 A **routed edge**:
 
 | Key | Type | | Meaning |
 |---|---|---|---|
 | `id` | identifier | required | The edge of the graph |
-| `route` | array of points | required | Polyline from start to end; at least two points |
+| `route` | array of segments | required | The start point, then segments to the end; at least two elements |
 | `labels` | array of points | optional | Position of every label, in the order of the graph |
 
-A **point** is written `[x, y]`.
+A **point** is written `[x, y]`. A **segment** is either a point, for a
+straight line to that point, or three points `[[x, y], [x, y], [x, y]]`,
+for a cubic Bézier curve: two control points, then the end point. The
+first element of a route is always a point. A version 1 route, all
+points, is a valid version 2 route.
 
 Rules, checked by confronting the layout with its graph:
 
-- every node of the graph is placed once, and no other;
+- every node of the graph is placed once, and no other; a container has a
+  size, a leaf has none;
+- every child lies inside its parent, `padding` kept;
+- every port of a node is placed once, and no other; its anchor lies on
+  the border of its node, on its side if it has one, and at its position
+  if the graph fixes one;
 - every edge of the graph is routed once, and no other;
-- the first point of a route lies **on the border** of the start node,
-  the last on the border of the end node, and on the imposed side if
-  there is one;
+- a route starts on the border of the start node and ends on the border
+  of the end node, on the imposed side if there is one — or, for an end
+  with a port, on the port: its anchor point, or anywhere in its box;
 - an edge has as many placed labels as the graph gives it.
 
 Overlapping nodes or crossing edges do not make a layout invalid: that is
@@ -150,8 +201,10 @@ what the benchmark measures.
 ## Canonical form
 
 The library always writes a file the same way: keys in the order of the
-tables above, one node and one edge per line, two-space indentation,
-optional keys omitted when they have no value, a final newline. Inside a
+tables above, one node and one edge per line, the children of a container
+on the following lines with one more level of indentation, two-space
+indentation, optional keys omitted when they have no value, a final
+newline. Inside a
 string, only the quote, the backslash and control characters are escaped.
 
 Two equal contents therefore give the same bytes, and reading a canonical
@@ -231,6 +284,13 @@ Graph:
 | G003 | Edge to a node that does not exist |
 | G004 | `order` without `layer` |
 | G005 | Two nodes with the same `layer` and the same `order` |
+| G006 | Port identifier already used |
+| G007 | Edge to a port that does not exist, or that belongs to another node |
+| G008 | A side and a port given on the same end of an edge |
+| G009 | `ports_ordered` on a node whose ports lack a `side` |
+| G010 | Port position without a side, off its side, or on a container |
+| G011 | Size missing on a leaf, or given on a container |
+| G012 | `padding` on a node without children |
 
 Layout:
 
@@ -247,16 +307,27 @@ Layout:
 | L009 | Route end off the border of its node |
 | L010 | Route end off the imposed side |
 | L011 | Number of placed labels differs from the graph |
+| L012 | Child outside its parent |
+| L013 | Size missing on a placed container, or given on a placed leaf |
+| L014 | Port not in the graph, not placed, or placed twice |
+| L015 | Port anchor off the border, off its side, or off its fixed position |
+| L016 | Route end off its port |
+| L017 | Route starting with a curve |
 
-## Limits of version 1
+## Limits of version 2
 
-- **Flat graphs.** A node contains no other node.
 - **Rectangular nodes.** Any other shape is described by its bounding
   rectangle.
-- **Polyline routes.** A curve is described by the points that
-  approximate it.
-- **No imposed position.** Pinning a node's position will come with the
-  layout engine.
+- **Routes in straight segments and cubic curves.** Other curves are
+  described by cubic pieces.
+- **No imposed node position.** Pinning a node's position will come with
+  the layout engine.
+- **About thirty nesting levels.** The JSON reader stops at 64 levels of
+  nesting, and each container costs two; 31 levels read, 40 are refused.
+- **One direction for the whole graph.** A container cannot have its own.
+- **One source and one target per edge.** Hyperedges are not described.
+- **No node labels.** A container keeps room for its title with
+  `padding`; labels on nodes will come with the source format.
 
 ## Example
 
@@ -269,7 +340,7 @@ the label placed against the entity.
 ```json
 {
   "format": "foregram-graph",
-  "version": 1,
+  "version": 2,
   "name": "gestpret",
   "direction": "right",
   "nodes": [
@@ -289,7 +360,7 @@ the label placed against the entity.
 ```json
 {
   "format": "foregram-layout",
-  "version": 1,
+  "version": 2,
   "graph": "gestpret",
   "engine": {"name": "main", "version": "1", "options": "placement tracé à la main, pour les tests"},
   "nodes": [
@@ -304,5 +375,55 @@ the label placed against the entity.
 }
 ```
 
-Both files are in `crates/foregram-graph/tests/data/`, with two examples
-of refusal.
+A second example uses what version 2 adds: a container `System` with a
+`padding`, two children, ports on `Client` and `Core` — one of them
+pinned, with a box —, an edge from a child to its own container, and a
+curved route.
+
+`components.graph.json`:
+
+```json
+{
+  "format": "foregram-graph",
+  "version": 2,
+  "name": "components",
+  "direction": "right",
+  "nodes": [
+    {"id": "Client", "width": 10000, "height": 6000, "ports": [{"id": "req", "side": "east"}]},
+    {"id": "System", "padding": 1000, "children": [
+      {"id": "Core", "width": 12000, "height": 6000, "ports_ordered": true, "ports": [{"id": "in", "side": "west"}, {"id": "out", "side": "east", "x": 12000, "y": 3000, "width": 600, "height": 600}]},
+      {"id": "Store", "width": 8000, "height": 5000}
+    ]}
+  ],
+  "edges": [
+    {"id": "e1", "source": "Client", "target": "Core", "source_port": "req", "target_port": "in", "labels": [{"width": 3000, "height": 1400, "at": "center"}]},
+    {"id": "e2", "source": "Core", "target": "Store", "source_port": "out", "target_side": "west"},
+    {"id": "e3", "source": "Store", "target": "System"}
+  ]
+}
+```
+
+`components.layout.json`:
+
+```json
+{
+  "format": "foregram-layout",
+  "version": 2,
+  "graph": "components",
+  "engine": {"name": "hand", "version": "1", "options": "routed by hand, for the tests"},
+  "nodes": [
+    {"id": "Client", "x": 0, "y": 2000, "ports": [{"id": "req", "x": 10000, "y": 3000}]},
+    {"id": "System", "x": 16000, "y": 0, "width": 32000, "height": 10000},
+    {"id": "Core", "x": 1000, "y": 1000, "ports": [{"id": "in", "x": 0, "y": 3000}, {"id": "out", "x": 12000, "y": 3000}]},
+    {"id": "Store", "x": 19000, "y": 2000}
+  ],
+  "edges": [
+    {"id": "e1", "route": [[10000, 5000], [13500, 5000], [13500, 4000], [17000, 4000]], "labels": [[11000, 3400]]},
+    {"id": "e2", "route": [[29000, 4000], [35000, 4000]]},
+    {"id": "e3", "route": [[39000, 7000], [[39000, 8500], [40000, 9000], [41000, 10000]]]}
+  ]
+}
+```
+
+All four files are in `crates/foregram-graph/tests/data/`, with two
+examples of refusal.

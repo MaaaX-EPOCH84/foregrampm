@@ -38,10 +38,11 @@ expect.key = a quoted key
 # Structure, for both formats
 S001 = {field}: {expected} expected, got {found}
 S001.point = {field}: a point is written [x, y], two integers
+S001.segment = {field}: a route element is a point [x, y] or a curve [[x, y], [x, y], [x, y]]
 S002 = unknown key `{key}` ({in})
 S003 = required key `{key}` missing ({in})
 S004 = unexpected format `{found}`: `{expected}` expected
-S005 = version {found} not supported: only version {supported} is read
+S005 = version {found} not supported: versions 1 to {supported} are read
 S006 = {field}: unknown value `{value}`; expected one of {words}
 S007.empty = {field}: identifier empty
 S007.control = {field}: identifier contains a control character
@@ -56,6 +57,18 @@ G002.again = edge identifier "{id}" already used (line {line})
 G003 = {subject}: `{key}` refers to node "{node}", which does not exist
 G004 = {subject}: `order` without `layer`
 G005 = {subject}: same `layer` and same `order` as node "{other}"
+G006 = port identifier "{id}" already used
+G006.again = port identifier "{id}" already used (line {line})
+G007.unknown = {subject}: `{key}` refers to port "{port}", which does not exist
+G007.other = {subject}: `{key}` refers to port "{port}", which belongs to node "{owner}", not to node "{node}"
+G008 = {subject}: `{side}` cannot be given together with `{port}`
+G009 = {subject}: `ports_ordered` requires a `side` on every port; port "{port}" has none
+G010.side = {subject}: a position requires `side`
+G010.border = {subject}: position ({x}, {y}) is off the `{side}` side of its node
+G010.container = {subject}: a node with children cannot position its ports
+G011.leaf = {subject}: `width` and `height` are required for a node without children
+G011.container = {subject}: a node with children has no `width` or `height`; the layout gives them
+G012 = {subject}: `padding` only applies to a node with children
 
 # Layout
 L001 = this layout belongs to graph "{layout}", not to "{graph}"
@@ -73,6 +86,19 @@ L009.end = edge "{id}": the route ends at ({x}, {y}), off the border of node "{n
 L010.start = edge "{id}": the route starts at ({x}, {y}), off the imposed side `{side}` of node "{node}"
 L010.end = edge "{id}": the route ends at ({x}, {y}), off the imposed side `{side}` of node "{node}"
 L011 = edge "{id}": {placed} label(s) placed, the graph has {expected}
+L012 = node "{id}" does not fit inside its parent "{parent}"
+L013.container = node "{id}": a node with children needs `width` and `height` in the layout
+L013.leaf = node "{id}": `width` and `height` are not given for a node without children
+L014.unknown = port "{id}" is not a port of node "{node}"
+L014.missing = port "{id}" of node "{node}" not placed
+L014.twice = port "{id}" placed twice
+L014.twice-again = port "{id}" placed twice (line {line})
+L015.border = port "{id}": anchored at ({x}, {y}), off the border of node "{node}"
+L015.side = port "{id}": anchored at ({x}, {y}), off its side `{side}` of node "{node}"
+L015.fixed = port "{id}": anchored at ({x}, {y}), the graph fixes it at ({fx}, {fy})
+L016.start = edge "{id}": the route starts at ({x}, {y}), off port "{port}"
+L016.end = edge "{id}": the route ends at ({x}, {y}), off port "{port}"
+L017 = {subject}: a route starts with a point [x, y], not a curve
 
 # Types of a JSON value
 type.null = null
@@ -87,6 +113,8 @@ in.graph = graph
 in.node = node
 in.edge = edge
 in.label = label
+in.port = port
+in.placed-port = placed port
 in.layout = layout
 in.engine = engine
 in.placed-node = placed node
@@ -103,6 +131,8 @@ subject.node-n = node #{rank}
 subject.edge = edge "{id}"
 subject.edge-n = edge #{rank}
 subject.edge-label = {edge}, label #{rank}
+subject.port = port "{id}"
+subject.port-n = port #{rank}
 
 # How a refusal is shown
 diag.at = {line}:{col}: error[{code}]: {text}

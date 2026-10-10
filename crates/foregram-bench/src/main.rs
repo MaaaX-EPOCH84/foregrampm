@@ -46,7 +46,7 @@ fn validate(graph_path: &Path, layout_paths: &[OsString]) -> u8 {
             Ok(graph) => {
                 let message = Message::new("bench.valid-graph")
                     .text("path", graph_path.display())
-                    .msg("nodes", count(graph.nodes.len(), "node"))
+                    .msg("nodes", count(graph.all_nodes().len(), "node"))
                     .msg("edges", count(graph.edges.len(), "edge"));
                 println!("{}", say(message));
                 Some(graph)

@@ -5,10 +5,13 @@
 // Un test qui échoue doit s'arrêter net : les règles du produit ne valent pas ici.
 #![allow(clippy::unwrap_used, clippy::panic)]
 
+mod common;
+
 use std::collections::BTreeSet;
 
 use foregram_graph::{
-    Catalog, Diagnostic, Edge, EdgePlace, Engine, Graph, Layout, Node, NodePlace, Point, Pos,
+    Catalog, Diagnostic, Edge, EdgePlace, Engine, Graph, Layout, Node, NodePlace, Point, Port,
+    PortPlace, Pos, Segment, Size,
 };
 
 fn graph_refusals(text: &[u8]) -> Vec<Diagnostic> {
@@ -41,6 +44,11 @@ const AB: &str = "{\"id\": \"A\", \"width\": 100, \"height\": 100}, \
 /// chaque entrée du catalogue qui sert à un refus.
 fn every_refusal() -> Vec<Diagnostic> {
     let mut all = Vec::new();
+
+    // Les refus propres à la version 2 : ports, imbrication, courbes.
+    for (_, diags) in common::cases() {
+        all.extend(diags);
+    }
 
     // Syntaxe JSON.
     let deep = format!("{}{}", "[".repeat(65), "]".repeat(65));
@@ -90,7 +98,7 @@ fn every_refusal() -> Vec<Diagnostic> {
         graph("", "").replace("\"nodes\": []", "\"nodes\": \"x\""),
         graph("", "").replace("foregram-graph", "autre"),
         graph("", "").replace("\"format\": \"foregram-graph\"", "\"format\": 1"),
-        graph("", "").replace("\"version\": 1", "\"version\": 2"),
+        graph("", "").replace("\"version\": 1", "\"version\": 3"),
         graph("", "").replace("\"version\": 1", "\"version\": \"1\""),
         graph("", "").replace(
             "\"name\": \"g\"",
@@ -130,25 +138,42 @@ fn every_refusal() -> Vec<Diagnostic> {
     // Un graphe construit en mémoire n'a pas de position : les doublons n'ont pas de ligne.
     let node = |id: &str| Node {
         id: id.into(),
-        width: 1,
-        height: 1,
+        size: Some(Size {
+            width: 1,
+            height: 1,
+        }),
         layer: None,
         order: None,
+        padding: None,
+        ports_ordered: false,
+        ports: Vec::new(),
+        children: Vec::new(),
         pos: Pos::NONE,
     };
     let edge = |id: &str| Edge {
         id: id.into(),
         source: "A".into(),
         target: "A".into(),
+        source_port: None,
+        target_port: None,
         source_side: None,
         target_side: None,
         labels: Vec::new(),
         pos: Pos::NONE,
     };
+    let mut twice = node("A");
+    let port = Port {
+        id: "p".into(),
+        side: None,
+        position: None,
+        size: None,
+        pos: Pos::NONE,
+    };
+    twice.ports = vec![port.clone(), port];
     let memory = Graph {
         name: "m".into(),
         direction: None,
-        nodes: vec![node("A"), node("A")],
+        nodes: vec![node("A"), twice],
         edges: vec![edge("e"), edge("e")],
         pos: Pos::NONE,
     };
@@ -182,19 +207,39 @@ fn every_refusal() -> Vec<Diagnostic> {
                 id: "A".into(),
                 x: 0,
                 y: 0,
+                size: None,
+                ports: Vec::new(),
                 pos: Pos::NONE,
             },
             NodePlace {
                 id: "A".into(),
                 x: 0,
                 y: 0,
+                size: None,
+                ports: vec![
+                    PortPlace {
+                        id: "q".into(),
+                        x: 0,
+                        y: 0,
+                        pos: Pos::NONE,
+                    },
+                    PortPlace {
+                        id: "q".into(),
+                        x: 0,
+                        y: 0,
+                        pos: Pos::NONE,
+                    },
+                ],
                 pos: Pos::NONE,
             },
         ],
         edges: vec![
             EdgePlace {
                 id: "e".into(),
-                route: vec![Point { x: 0, y: 0 }, Point { x: 1, y: 0 }],
+                route: vec![
+                    Segment::Line(Point { x: 0, y: 0 }),
+                    Segment::Line(Point { x: 1, y: 0 }),
+                ],
                 labels: Vec::new(),
                 pos: Pos::NONE,
             };

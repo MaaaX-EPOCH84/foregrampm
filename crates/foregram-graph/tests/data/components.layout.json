@@ -1,0 +1,17 @@
+{
+  "format": "foregram-layout",
+  "version": 2,
+  "graph": "components",
+  "engine": {"name": "hand", "version": "1", "options": "routed by hand, for the tests"},
+  "nodes": [
+    {"id": "Client", "x": 0, "y": 2000, "ports": [{"id": "req", "x": 10000, "y": 3000}]},
+    {"id": "System", "x": 16000, "y": 0, "width": 32000, "height": 10000},
+    {"id": "Core", "x": 1000, "y": 1000, "ports": [{"id": "in", "x": 0, "y": 3000}, {"id": "out", "x": 12000, "y": 3000}]},
+    {"id": "Store", "x": 19000, "y": 2000}
+  ],
+  "edges": [
+    {"id": "e1", "route": [[10000, 5000], [13500, 5000], [13500, 4000], [17000, 4000]], "labels": [[11000, 3400]]},
+    {"id": "e2", "route": [[29000, 4000], [35000, 4000]]},
+    {"id": "e3", "route": [[39000, 7000], [[39000, 8500], [40000, 9000], [41000, 10000]]]}
+  ]
+}

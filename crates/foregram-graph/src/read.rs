@@ -6,8 +6,9 @@ use crate::diag::{Diagnostic, Pos};
 use crate::json::{Kind, Member, Value};
 use crate::msg::Message;
 
-/// Version du format lue et écrite par cette version de la bibliothèque.
-pub const FORMAT_VERSION: i64 = 1;
+/// Version du format écrite par cette version de la bibliothèque. Les
+/// versions lues vont de 1 à celle-ci : tout ce que la 2 ajoute est facultatif.
+pub const FORMAT_VERSION: i64 = 2;
 
 /// Borne des coordonnées et des dimensions, en centièmes de pixel.
 /// Elle laisse les produits de deux écarts tenir dans un `i64`.
@@ -137,6 +138,16 @@ pub(crate) fn int_of(value: &Value, label: Message, diags: &mut Vec<Diagnostic>)
     }
 }
 
+pub(crate) fn bool_of(value: &Value, label: Message, diags: &mut Vec<Diagnostic>) -> Option<bool> {
+    match &value.kind {
+        Kind::Bool(flag) => Some(*flag),
+        _ => {
+            diags.push(type_error(value, label, "type.boolean"));
+            None
+        }
+    }
+}
+
 pub(crate) fn array_of<'a>(
     value: &'a Value,
     label: Message,
@@ -189,7 +200,7 @@ pub(crate) fn header(obj: &mut Obj<'_>, format: &str, diags: &mut Vec<Diagnostic
     }
     if let Some(value) = obj.req("version", diags)
         && let Some(found) = int_of(value, root("version"), diags)
-        && found != FORMAT_VERSION
+        && !(1..=FORMAT_VERSION).contains(&found)
     {
         diags.push(Diagnostic::new(
             value.pos,
@@ -239,12 +250,14 @@ pub(crate) fn check_range(
 }
 
 /// Désigne un élément dans un message : par son identifiant s'il en a un
-/// de lisible, par son rang sinon. `kind` vaut `node` ou `edge`.
+/// de lisible, par son rang sinon. `kind` vaut `node`, `edge` ou `port`.
 pub(crate) fn item_name(kind: &str, id: &str, index: usize) -> Message {
     let readable = !(id.is_empty() || id.chars().any(char::is_control));
     match (kind, readable) {
         ("node", true) => Message::new("subject.node").text("id", id),
         ("node", false) => Message::new("subject.node-n").text("rank", index + 1),
+        ("port", true) => Message::new("subject.port").text("id", id),
+        ("port", false) => Message::new("subject.port-n").text("rank", index + 1),
         (_, true) => Message::new("subject.edge").text("id", id),
         (_, false) => Message::new("subject.edge-n").text("rank", index + 1),
     }

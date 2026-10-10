@@ -1,6 +1,6 @@
 {
   "format": "foregram-graph",
-  "version": 1,
+  "version": 2,
   "name": "gestpret",
   "direction": "right",
   "nodes": [

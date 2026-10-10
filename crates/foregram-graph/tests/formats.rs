@@ -6,7 +6,8 @@
 #![allow(clippy::unwrap_used, clippy::panic)]
 
 use foregram_graph::{
-    Anchor, COORD_MAX, Diagnostic, Direction, Edge, Graph, IDENT_MAX_CHARS, Layout, Node, Pos, Side,
+    Anchor, COORD_MAX, Diagnostic, Direction, Edge, Graph, IDENT_MAX_CHARS, Layout, Node, Pos,
+    Side, Size,
 };
 
 /// Lit un fichier d'exemple par son nom, jamais par son rang.
@@ -70,7 +71,13 @@ fn the_example_graph_is_read_whole() {
     assert_eq!(graph.nodes.len(), 3);
     assert_eq!(graph.edges.len(), 2);
     let pret = graph.node("PRET").unwrap();
-    assert_eq!((pret.width, pret.height), (18000, 8800));
+    assert_eq!(
+        pret.size,
+        Some(Size {
+            width: 18000,
+            height: 8800
+        })
+    );
     assert_eq!(pret.pos, Pos { line: 9, col: 5 });
     let edge = &graph.edges[0];
     assert_eq!(
@@ -99,7 +106,7 @@ fn a_graph_in_any_key_order_comes_back_canonical() {
     let canonical = graph.to_json();
     assert_eq!(
         canonical,
-        "{\n  \"format\": \"foregram-graph\",\n  \"version\": 1,\n  \"name\": \"é \\\"x\\\"\",\n  \
+        "{\n  \"format\": \"foregram-graph\",\n  \"version\": 2,\n  \"name\": \"é \\\"x\\\"\",\n  \
          \"direction\": \"down\",\n  \"nodes\": [\n    \
          {\"id\": \"A\", \"width\": 1, \"height\": 2, \"layer\": 0, \"order\": 1},\n    \
          {\"id\": \"B\", \"width\": 3, \"height\": 4}\n  ],\n  \"edges\": [\n    \
@@ -117,7 +124,7 @@ fn an_empty_graph_is_valid() {
     assert!(graph.nodes.is_empty() && graph.edges.is_empty());
     assert_eq!(
         graph.to_json(),
-        "{\n  \"format\": \"foregram-graph\",\n  \"version\": 1,\n  \"name\": \"g\",\n  \
+        "{\n  \"format\": \"foregram-graph\",\n  \"version\": 2,\n  \"name\": \"g\",\n  \
          \"nodes\": [],\n  \"edges\": []\n}\n"
     );
 }
@@ -169,8 +176,16 @@ fn the_root_must_be_a_graph_object() {
 fn format_and_version_are_checked() {
     let text = graph_with("", "").replace("foregram-graph", "foregram-layout");
     assert_eq!(codes(&graph_refusals(&text)), ["S004"]);
+    // La version 2 est lue, comme la 1 ; la 3 n'existe pas encore.
     let text = graph_with("", "").replace("\"version\": 1", "\"version\": 2");
+    assert!(Graph::parse(text.as_bytes()).is_ok());
+    let text = graph_with("", "").replace("\"version\": 1", "\"version\": 3");
     assert_eq!(codes(&graph_refusals(&text)), ["S005"]);
+    assert!(
+        graph_refusals(&text)[0]
+            .text()
+            .contains("versions 1 to 2 are read")
+    );
     let text = graph_with("", "").replace("\"version\": 1", "\"version\": \"1\"");
     assert_eq!(codes(&graph_refusals(&text)), ["S001"]);
 }
@@ -270,10 +285,16 @@ fn identifiers_have_rules() {
 fn a_graph_built_in_memory_is_validated_the_same_way() {
     let node = |id: &str| Node {
         id: id.to_string(),
-        width: 10,
-        height: 10,
+        size: Some(Size {
+            width: 10,
+            height: 10,
+        }),
         layer: None,
         order: None,
+        padding: None,
+        ports_ordered: false,
+        ports: Vec::new(),
+        children: Vec::new(),
         pos: Pos::NONE,
     };
     let mut graph = Graph {
@@ -284,6 +305,8 @@ fn a_graph_built_in_memory_is_validated_the_same_way() {
             id: "e".to_string(),
             source: "A".to_string(),
             target: "B".to_string(),
+            source_port: None,
+            target_port: None,
             source_side: Some(Side::South),
             target_side: None,
             labels: Vec::new(),
@@ -332,7 +355,7 @@ fn an_empty_layout_fits_an_empty_graph() {
     assert!(layout.check(&graph).is_empty());
     assert_eq!(
         layout.to_json(),
-        "{\n  \"format\": \"foregram-layout\",\n  \"version\": 1,\n  \"graph\": \"g\",\n  \
+        "{\n  \"format\": \"foregram-layout\",\n  \"version\": 2,\n  \"graph\": \"g\",\n  \
          \"engine\": {\"name\": \"m\", \"version\": \"1\"},\n  \"nodes\": [],\n  \"edges\": []\n}\n"
     );
 }
@@ -371,7 +394,16 @@ fn layout_structure_is_strict() {
         codes(&diags),
         ["S002", "S003", "S001", "S001", "S001", "S001"]
     );
-    assert!(diags[2].text().contains("a point is written [x, y]"));
+    assert!(
+        diags[2]
+            .text()
+            .contains("a route element is a point [x, y] or a curve")
+    );
+    // Les étiquettes, elles, sont des points et rien d'autre.
+    let edges = "{\"id\": \"e\", \"route\": [[0, 0], [1, 1]], \"labels\": [[1]]}";
+    let diags = layout_refusals(&layout_with("", edges));
+    assert_eq!(codes(&diags), ["S001"]);
+    assert!(diags[0].text().contains("a point is written [x, y]"));
 }
 
 #[test]
@@ -504,7 +536,8 @@ fn codes_in(text: &str, quoted: bool) -> std::collections::BTreeSet<String> {
     let mut found = std::collections::BTreeSet::new();
     for window in chars.windows(if quoted { 6 } else { 4 }) {
         let code = if quoted {
-            if window[0] != '"' || window[5] != '"' {
+            // Entre guillemets : le code seul, ou le début d'une clé à variante (`"J005.zero"`).
+            if window[0] != '"' || !(window[5] == '"' || window[5] == '.') {
                 continue;
             }
             &window[1..5]
@@ -521,7 +554,12 @@ fn codes_in(text: &str, quoted: bool) -> std::collections::BTreeSet<String> {
 #[test]
 fn the_documentation_shows_the_example_files_as_they_are() {
     let doc = doc();
-    for name in ["gestpret.graph.json", "gestpret.layout.json"] {
+    for name in [
+        "gestpret.graph.json",
+        "gestpret.layout.json",
+        "components.graph.json",
+        "components.layout.json",
+    ] {
         let file = String::from_utf8(data(name)).unwrap();
         assert!(
             doc.contains(&format!("```json\n{file}```")),
@@ -545,7 +583,7 @@ fn the_documentation_lists_every_code_and_no_other() {
         .join("\n");
     let documented = codes_in(&table, false);
     assert_eq!(produced, documented);
-    assert_eq!(produced.len(), 34);
+    assert_eq!(produced.len(), 47);
 
     // Chaque refus que le code sait prononcer est provoqué par un test au moins :
     // ceux de ce fichier, et ceux qui suivent le code dans json.rs.
@@ -553,8 +591,10 @@ fn the_documentation_lists_every_code_and_no_other() {
     let json = format!("{dir}/json.rs");
     let json = std::fs::read_to_string(&json).unwrap_or_else(|e| panic!("{json} : {e}"));
     let mut tests = json.split(MARK).last().unwrap().to_string();
-    let here = format!("{}/tests/formats.rs", env!("CARGO_MANIFEST_DIR"));
-    tests.push_str(&std::fs::read_to_string(&here).unwrap_or_else(|e| panic!("{here} : {e}")));
+    for name in ["formats.rs", "v2.rs", "common/mod.rs"] {
+        let here = format!("{}/tests/{name}", env!("CARGO_MANIFEST_DIR"));
+        tests.push_str(&std::fs::read_to_string(&here).unwrap_or_else(|e| panic!("{here} : {e}")));
+    }
     let tested = codes_in(&tests, true);
     let untested: Vec<&String> = produced.difference(&tested).collect();
     assert!(untested.is_empty(), "codes sans test : {untested:?}");
