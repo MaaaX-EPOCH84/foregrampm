@@ -112,6 +112,33 @@ X007 = `{element}` without its `{name}` attribute
 X008.edgedefault = `edgedefault` is "{value}": `directed` or `undirected` expected
 X008.directed = `directed` is "{value}": `true` or `false` expected
 
+# ELK text (.elkt) reader
+E001 = text that is not UTF-8
+E002.string = unterminated string
+E002.comment = unterminated comment
+E003 = unexpected character `{char}`
+E004 = unexpected `{found}`: {expected} expected
+E004.end = unexpected end of text: {expected} expected
+E005 = unknown escape sequence in a string
+E006 = `{key}` given twice in the same `layout`
+
+# ELK import
+E007 = `{name}` refers to no node or port
+E008 = an edge with {count} ends: one source and one target expected
+E009 = number `{text}` cannot be carried in hundredths of a pixel
+E010 = `{key}` is `{value}`: {words} expected
+E011 = `{name}` is the graph itself, not a node
+E011.ports = the graph itself has ports
+
+# What the ELK text reader expected
+expect.literal = `{text}`
+expect.ident = an identifier
+expect.string = a string
+expect.number = a number
+expect.value = a value
+expect.element = `label`, `port`, `node` or `edge`
+expect.close = `}`, or {elements}
+
 # Types of a JSON value
 type.null = null
 type.boolean = boolean
@@ -151,7 +178,7 @@ diag.at = {line}:{col}: error[{code}]: {text}
 diag.bare = error[{code}]: {text}
 
 # The benchmark command line
-bench.usage = usage: foregram-bench validate <graph.json> [<layout.json>...]\n       foregram-bench graphml <file.graphml>\n       foregram-bench check-corpus <cache>\n       foregram-bench --help | --version\n\n  validate      Validates a graph, then each layout against that graph.\n  graphml       Converts a GraphML file and writes the graph on the output.\n  check-corpus  Converts every graph of Rome and North found in the cache\n                of corpus/fetch.sh, and compares each with its Graph.log.\n\nexit codes: 0 everything is valid, 1 a file is refused or a graph differs,\n            2 wrong call or unreadable file
+bench.usage = usage: foregram-bench validate <graph.json> [<layout.json>...]\n       foregram-bench graphml <file.graphml>\n       foregram-bench elkt <file.elkt>\n       foregram-bench check-corpus <cache>\n       foregram-bench --help | --version\n\n  validate      Validates a graph, then each layout against that graph.\n  graphml       Converts a GraphML file and writes the graph on the output.\n  elkt          Converts an ELK text file and writes the graph on the output.\n  check-corpus  Converts every graph of Rome, North and elk-models found in\n                the cache of corpus/fetch.sh; compares Rome and North with\n                their Graph.log, elk-models with corpus/manifest.txt.\n\nexit codes: 0 everything is valid, 1 a file is refused or a graph differs,\n            2 wrong call or unreadable file
 bench.valid-graph = {path}: valid graph ({nodes}, {edges})
 bench.valid-layout = {path}: valid layout of graph "{graph}" (engine {engine} {version})
 bench.not-checked = {path}: not checked against the graph, which is not valid
@@ -163,6 +190,9 @@ bench.log-orphan = {path}: lists graph "{name}", which has no file
 bench.log-unreadable = {path}:{line}: line not understood
 bench.corpus-ok = {corpus}: {graphs}, {nodes}, {edges}, all valid and as in Graph.log
 bench.corpus-failed = {corpus}: {graphs}, {problems}
+bench.elk-ok = {corpus}: {graphs}, {nodes}, {edges}, all valid; not carried: {labels}, {sizeless}, {container-ports}
+bench.manifest-differs = {path}: {files} found and {imported} imported, the manifest says {manifest-files} and {manifest-imported}
+bench.not-carried = {path}: not carried: {labels}, {sizeless}, {container-ports}
 count.node.one = {n} node
 count.node.other = {n} nodes
 count.edge.one = {n} edge
@@ -173,3 +203,11 @@ count.graph.one = {n} graph
 count.graph.other = {n} graphs
 count.problem.one = {n} problem
 count.problem.other = {n} problems
+count.label.one = {n} label
+count.label.other = {n} labels
+count.sizeless.one = {n} node without size, given 1 × 1
+count.sizeless.other = {n} nodes without size, given 1 × 1
+count.container-port.one = {n} fixed port position on a container
+count.container-port.other = {n} fixed port positions on a container
+count.file.one = {n} file
+count.file.other = {n} files

@@ -20,6 +20,8 @@
 use foregram_graph::{Diagnostic, Edge, Graph, Message, Node, Pos, Size};
 use roxmltree::{Document, ParsingOptions};
 
+use crate::lines::Lines;
+
 /// Taille commune à tous les nœuds importés : rapport exact de l'A4, 99/70,
 /// en paysage, soit 49,5 × 35 px, au plus près du nœud par défaut de
 /// Graphviz (54 × 36). Notée aussi dans `corpus/manifest.txt`.
@@ -270,35 +272,6 @@ fn is_graphml(node: XmlNode, name: &str) -> bool {
     tag.name() == name && matches!(tag.namespace(), None | Some(GRAPHML_NS))
 }
 
-/// Début de chaque ligne d'un texte, pour passer d'un décalage en octets à
-/// une ligne et une colonne en points de code. roxmltree sait le faire, mais
-/// en relisant le texte depuis le début à chaque appel.
-struct Lines<'a> {
-    text: &'a str,
-    starts: Vec<usize>,
-}
-
-impl<'a> Lines<'a> {
-    fn new(text: &'a str) -> Self {
-        let mut starts = vec![0];
-        starts.extend(text.match_indices('\n').map(|(i, _)| i + 1));
-        Lines { text, starts }
-    }
-
-    fn pos(&self, offset: usize) -> Pos {
-        let line = self.starts.partition_point(|&start| start <= offset);
-        let start = self.starts.get(line.wrapping_sub(1)).copied().unwrap_or(0);
-        let col = self
-            .text
-            .get(start..offset)
-            .map_or(0, |s| s.chars().count());
-        Pos {
-            line: u32::try_from(line).unwrap_or(u32::MAX),
-            col: u32::try_from(col + 1).unwrap_or(u32::MAX),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -547,15 +520,5 @@ mod tests {
         }
         // Le rapport exact de l'A4, 297/210 = 99/70, en paysage.
         assert_eq!(NODE_SIZE.width * 70, NODE_SIZE.height * 99);
-    }
-
-    #[test]
-    fn line_starts_turn_offsets_into_code_point_columns() {
-        let lines = Lines::new("é\nab\n");
-        assert_eq!(lines.pos(0), Pos { line: 1, col: 1 });
-        assert_eq!(lines.pos(2), Pos { line: 1, col: 2 });
-        assert_eq!(lines.pos(3), Pos { line: 2, col: 1 });
-        assert_eq!(lines.pos(5), Pos { line: 2, col: 3 });
-        assert_eq!(lines.pos(6), Pos { line: 3, col: 1 });
     }
 }

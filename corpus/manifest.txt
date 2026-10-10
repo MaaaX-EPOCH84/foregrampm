@@ -16,6 +16,8 @@
 #   licence  licence constatée, et où
 #   node_size  taille donnée à chaque nœud à l'import (GraphML), en centièmes
 #              de pixel : le format n'en porte aucune
+#   imported   nombre de fichiers que l'import doit convertir (ELK) ; les
+#              autres sont refusés pour une raison que `check-corpus` affiche
 #
 # Les licences ont été lues le 2026-10-10.
 
@@ -46,4 +48,5 @@ version = 2024-05-22
 commit = ac5af2ba511c0037e4f347e8bd91f013950951c7
 pattern = *.elkt
 count = 898
+imported = 898
 licence = EPL-2.0 (LICENSE.md, NOTICE.md); realworld/ptolemy/ under the Ptolemy II licence, BSD-style, Regents of the University of California 1997-2013 (realworld/ptolemy/README.txt)

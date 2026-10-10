@@ -230,7 +230,7 @@ fn a_refused_graphml_file_says_where_in_the_graphml() {
 
 #[test]
 fn a_corpus_that_matches_its_graph_log_exits_zero() {
-    let cache = scratch("corpus-ok");
+    let cache = scratch("corpus-ok").join("cache");
     let corpora = [
         ("rome", [("grafo1.3", 3), ("grafo2.4", 4)]),
         ("north", [("g.3.1", 3), ("g.4.1", 4)]),
@@ -246,19 +246,96 @@ fn a_corpus_that_matches_its_graph_log_exits_zero() {
         }
         write(&cache.join(corpus).join("Graph.log"), &log);
     }
+    let elk = cache.join("elk-models");
+    write(&elk.join("examples").join("a.elkt"), ELKT);
+    write(
+        &elk.join("tests").join("deep").join("b.elkt"),
+        "node x\nlabel \"L\"",
+    );
+    write(&elk.join("notes.txt"), "not a graph");
+    write(
+        &cache.join("../manifest.txt"),
+        "[rome]\ncount = 2\n\n[elk-models]\ncount = 2\nimported = 2\n",
+    );
     let (code, out, err) = run(&["check-corpus", &cache.display().to_string()]);
     assert_eq!(code, 0, "{err}");
     assert_eq!(
         out,
         "rome: 2 graphs, 7 nodes, 5 edges, all valid and as in Graph.log\n\
-         north: 2 graphs, 7 nodes, 5 edges, all valid and as in Graph.log\n"
+         north: 2 graphs, 7 nodes, 5 edges, all valid and as in Graph.log\n\
+         elk-models: 2 graphs, 4 nodes, 2 edges, all valid; not carried: 2 labels, \
+         1 node without size, given 1 × 1, 0 fixed port positions on a container\n"
     );
     assert_eq!(err, "");
 }
 
+/// Un `.elkt` qui emploie ce que l'import porte : conteneur, ports, côtés,
+/// étiquette de lien avec sa taille, et une étiquette de nœud, qui ne passe pas.
+const ELKT: &str = "elk.direction: RIGHT\n\
+    node sys {\n\
+    \x20 node core { layout [size: 10, 5] portConstraints: FIXED_SIDE port in { side: WEST } label \"Core\" }\n\
+    \x20 node store { layout [size: 8, 4] }\n\
+    \x20 edge core -> store\n\
+    }\n\
+    edge e: sys.store -> sys.core.in { label \"x\" { layout [size: 3, 1] } }\n";
+
+#[test]
+fn an_elkt_file_comes_out_as_a_canonical_graph() {
+    let dir = scratch("elkt-one");
+    let path = write(&dir.join("sample.elkt"), ELKT);
+    let (code, out, err) = run(&["elkt", &path]);
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(
+        out,
+        "{\n  \"format\": \"foregram-graph\",\n  \"version\": 2,\n  \"name\": \"sample\",\n  \
+         \"direction\": \"right\",\n  \
+         \"nodes\": [\n    \
+         {\"id\": \"sys\", \"children\": [\n      \
+         {\"id\": \"core\", \"width\": 1000, \"height\": 500, \"ports\": [{\"id\": \"in\", \"side\": \"west\"}]},\n      \
+         {\"id\": \"store\", \"width\": 800, \"height\": 400}\n    ]}\n  ],\n  \
+         \"edges\": [\n    \
+         {\"id\": \"e1\", \"source\": \"core\", \"target\": \"store\"},\n    \
+         {\"id\": \"e\", \"source\": \"store\", \"target\": \"core\", \"target_port\": \"in\", \
+         \"labels\": [{\"width\": 300, \"height\": 100, \"at\": \"center\"}]}\n  ]\n}\n"
+    );
+    assert_eq!(
+        err,
+        format!(
+            "{path}: not carried: 1 label, 0 nodes without size, given 1 × 1, 0 fixed port positions on a container\n"
+        )
+    );
+
+    // Ce qui sort se relit tel quel ; un fichier sans perte ne dit rien.
+    let json = write(&dir.join("sample.graph.json"), &out);
+    let (code, _, err) = run(&["validate", &json]);
+    assert_eq!(code, 0, "{err}");
+    let plain = write(
+        &dir.join("plain.elkt"),
+        "node a { layout [size: 1, 1] }\nedge a -> a",
+    );
+    let (code, _, err) = run(&["elkt", &plain]);
+    assert_eq!((code, err.as_str()), (0, ""));
+
+    // Un refus pointe dans le `.elkt`.
+    let bad = write(
+        &dir.join("bad.elkt"),
+        "node a { layout [size: 1, 1] }\nedge a -> b\n",
+    );
+    let (code, out, err) = run(&["elkt", &bad]);
+    assert_eq!((code, out.as_str()), (1, ""));
+    assert_eq!(
+        err,
+        format!(
+            "{bad}:2:11: error[E007]: `b` refers to no node or port\n{bad}: refused (1 error)\n"
+        )
+    );
+    let (code, _, _) = run(&["elkt", &dir.join("absent.elkt").display().to_string()]);
+    assert_eq!(code, 2);
+}
+
 #[test]
 fn every_disagreement_with_graph_log_is_reported() {
-    let cache = scratch("corpus-bad");
+    let cache = scratch("corpus-bad").join("cache");
     let rome = cache.join("rome");
     let differs = write(&rome.join("differs.graphml"), &chain(3));
     let absent = write(&rome.join("absent.graphml"), &chain(2));
@@ -274,6 +351,19 @@ fn every_disagreement_with_graph_log_is_reported() {
         ),
     );
     write(&cache.join("north").join("Graph.log"), "");
+    let elk = cache.join("elk-models");
+    let unresolved = write(&elk.join("unresolved.elkt"), "node a\nedge a -> b\n");
+    write(&elk.join("ok.elkt"), "node a\n");
+    write(
+        &cache.join("../manifest.txt"),
+        "[elk-models]\ncount = 3\nimported = 3\n",
+    );
+    let manifest = cache
+        .parent()
+        .unwrap()
+        .join("manifest.txt")
+        .display()
+        .to_string();
     let (code, out, err) = run(&["check-corpus", &cache.display().to_string()]);
     assert_eq!(code, 1);
     assert_eq!(
@@ -289,16 +379,20 @@ fn every_disagreement_with_graph_log_is_reported() {
              {refused}:1:1: error[X004]: `graphml` must contain exactly one `graph`, it contains 0\n\
              {refused}: refused (1 error)\n\
              {log}: lists graph \"orphan\", which has no file\n\
-             rome: 3 graphs, 5 problems\n"
+             rome: 3 graphs, 5 problems\n\
+             {unresolved}:2:11: error[E007]: `b` refers to no node or port\n\
+             {unresolved}: refused (1 error)\n\
+             {manifest}: 2 files found and 1 imported, the manifest says 3 files and 3\n\
+             elk-models: 2 graphs, 2 problems\n"
         )
     );
 }
 
 #[test]
 fn a_cache_without_its_corpora_exits_two() {
-    let cache = scratch("corpus-empty");
+    let cache = scratch("corpus-empty").join("cache");
     let (code, out, err) = run(&["check-corpus", &cache.display().to_string()]);
     assert_eq!(code, 2);
     assert_eq!(out, "");
-    assert_eq!(err.matches("cannot read").count(), 2, "{err}");
+    assert_eq!(err.matches("cannot read").count(), 3, "{err}");
 }

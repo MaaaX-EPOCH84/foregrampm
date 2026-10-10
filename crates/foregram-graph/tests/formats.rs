@@ -530,7 +530,7 @@ fn doc() -> String {
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path} : {e}"))
 }
 
-/// Les codes cités dans un texte : une lettre parmi J, S, G, L, X, puis trois chiffres.
+/// Les codes cités dans un texte : une lettre parmi J, S, G, L, X, E, puis trois chiffres.
 fn codes_in(text: &str, quoted: bool) -> std::collections::BTreeSet<String> {
     let chars: Vec<char> = text.chars().collect();
     let mut found = std::collections::BTreeSet::new();
@@ -544,7 +544,7 @@ fn codes_in(text: &str, quoted: bool) -> std::collections::BTreeSet<String> {
         } else {
             window
         };
-        if "JSGLX".contains(code[0]) && code[1..].iter().all(char::is_ascii_digit) {
+        if "JSGLXE".contains(code[0]) && code[1..].iter().all(char::is_ascii_digit) {
             found.insert(code.iter().collect());
         }
     }
@@ -583,13 +583,18 @@ fn the_documentation_lists_every_code_and_no_other() {
         .join("\n");
     let documented = codes_in(&table, false);
     assert_eq!(produced, documented);
-    assert_eq!(produced.len(), 55);
+    assert_eq!(produced.len(), 66);
 
     // Chaque refus que le code sait prononcer est provoqué par un test au moins :
     // ceux de ce fichier, et ceux qui suivent le code dans json.rs et dans
-    // l'import GraphML du banc.
+    // les imports GraphML et ELK du banc.
     let mut tests = String::new();
-    for source in ["src/json.rs", "../foregram-bench/src/graphml.rs"] {
+    for source in [
+        "src/json.rs",
+        "../foregram-bench/src/graphml.rs",
+        "../foregram-bench/src/elkt.rs",
+        "../foregram-bench/src/elk.rs",
+    ] {
         let path = format!("{}/{source}", env!("CARGO_MANIFEST_DIR"));
         let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path} : {e}"));
         tests.push_str(text.split(MARK).last().unwrap());

@@ -310,10 +310,10 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
     assert!(bare.render(catalog).starts_with("error[J002]: "));
     reached.insert("diag.bare");
 
-    // Les entrées du banc, ligne de commande et import GraphML, que ses propres
-    // tests exercent.
+    // Les entrées du banc, ligne de commande et imports GraphML et ELK, que
+    // ses propres tests exercent.
     let mut bench_keys = BTreeSet::new();
-    for name in ["main.rs", "graphml.rs"] {
+    for name in ["main.rs", "graphml.rs", "elkt.rs", "elk.rs"] {
         let path = format!(
             "{}/../foregram-bench/src/{name}",
             env!("CARGO_MANIFEST_DIR")
@@ -366,8 +366,15 @@ fn every_key_written_in_the_library_exists_in_the_catalogue() {
 }
 
 /// Les chaînes littérales qui ont la forme d'une clé de catalogue :
-/// un code (`G003`, `J005.zero`) ou un fragment pointé (`subject.node`).
+/// un code (`G003`, `J005.zero`) ou un fragment pointé (`subject.node`) dont
+/// la famille, le premier segment, est une de celles du catalogue — ce qui
+/// écarte les identifiants d'options d'ELK, pointés eux aussi.
 fn key_literals(source: &str) -> BTreeSet<String> {
+    let families: BTreeSet<&str> = Catalog::english()
+        .keys()
+        .filter_map(|key| key.split('.').next())
+        .filter(|family| family.chars().all(char::is_lowercase))
+        .collect();
     let mut keys = BTreeSet::new();
     for literal in string_literals(source) {
         let word = |s: &str| {
@@ -378,10 +385,11 @@ fn key_literals(source: &str) -> BTreeSet<String> {
         let parts: Vec<&str> = literal.split('.').collect();
         let head = parts[0].as_bytes();
         let code = head.len() == 4
-            && b"JSGLX".contains(&head[0])
+            && b"JSGLXE".contains(&head[0])
             && head[1..].iter().all(u8::is_ascii_digit)
             && parts[1..].iter().all(|p| word(p));
-        let fragment = parts.len() >= 2 && parts.iter().all(|p| word(p));
+        let fragment =
+            parts.len() >= 2 && parts.iter().all(|p| word(p)) && families.contains(parts[0]);
         if code || fragment {
             keys.insert(literal);
         }

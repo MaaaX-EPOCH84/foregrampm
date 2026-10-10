@@ -369,6 +369,107 @@ GraphML import:
 | X007 | `id` of a node or an edge, `source` or `target` missing |
 | X008 | `edgedefault` or `directed` with an invalid value |
 
+## Importing ELK text
+
+The elk-models corpus is written in ELK's text format, `.elkt`. The
+benchmark reads it with its own reader, written from the official grammar
+`ElkGraph.xtext` of `eclipse-elk/elk` (`plugins/org.eclipse.elk.graph.text`,
+commit `60b6846`), and imports the result in memory, like GraphML.
+
+```
+foregram-bench elkt <file.elkt>
+foregram-bench check-corpus <cache>
+```
+
+`elkt` converts one file and writes the graph, in canonical form, on the
+standard output; what the graph could not carry is counted on the standard
+error. `check-corpus` also converts every `.elkt` under `elk-models` in the
+cache. There is no `Graph.log` there: the independent source is
+`corpus/manifest.txt`, next to the cache, which gives the number of files
+(`count`) and the number that must import (`imported`); a difference counts
+as a problem, and every imported graph is validated.
+
+The reader follows the grammar to the letter: keywords (`node`, `port`,
+`edge`, `label`, `layout`, `position`, `size`, `start`, `end`…) are not
+identifiers unless escaped with `^`, which is removed (`^port.side` is the
+key `port.side`); a `layout` group takes each of its keys at most once, in
+any order; a property key has no blank between its segments; a string is
+read without its quotes and with Java escapes decoded; numbers are kept as
+written. The reader keeps everything, properties included, as typed values;
+the import then takes what the format can say.
+
+The conversion:
+
+- the graph is named after the file, without `.elkt`;
+- **nesting** is kept: a `node` inside a `node` is a child; the root of the
+  file is the graph, not a node, so an edge to the root, or a port on the
+  root, is refused;
+- **identifiers**: ELK's are unique within their container, the format's in
+  the whole graph. Nodes keep their written identifier when all of them are
+  distinct, otherwise every node takes its path from the top level
+  (`parent.child`); ports likewise, prefixed with their node's identifier
+  (`node.port`) when needed; edges likewise, prefixed with the path of the
+  container they are written in. An edge without an identifier gets the
+  first free `e1`, `e2`…, in file order;
+- **references** (`edge a.b -> c`) resolve as in ELK: relative to the
+  container the edge is written in, then to each of its ancestors, then
+  absolute;
+- **sizes**: `layout [size: w, h]` of a leaf, in pixels, becomes `width` and
+  `height` in hundredths of a pixel, rounded to the nearest, halves away from
+  zero. A leaf without a size — ELK gives it size zero — gets **1 × 1**, the
+  smallest size the format allows, and is counted. A container's size is not
+  carried: the layout gives it;
+- **ports**: kept with their box (`layout [size]`). What else is carried
+  depends on the node's `portConstraints`, read as ELK does it: under `FREE`
+  (or none) nothing, even a written `side`; under `FIXED_SIDE` and above, the
+  `side` — the written one, or the one ELK infers from the port's position
+  (`ElkUtil.calcPortSide`, the layout direction, `RIGHT` by default, breaking
+  ties); under `FIXED_ORDER`, `ports_ordered` and the list in ELK's order,
+  side by side, by `port.index` when every port has one, else by position
+  clockwise, else as written; under `FIXED_POS`, the anchor point: the centre
+  of the port box, which ELK places by its corner, brought onto the border of
+  its side, a missing position meaning (0, 0) as in ELK. A container cannot
+  pin its ports in the format: the side is kept, the position dropped and
+  counted. `FIXED_RATIO` is refused;
+- `direction` of the root (`UNDEFINED` meaning none);
+- **edge labels** with a size become labels, `edgeLabels.placement` giving
+  `at` (`HEAD` the target, `TAIL` the source, otherwise the centre); labels
+  without a size, and all labels of nodes and ports, are not carried and are
+  counted;
+- everything else — layout options, node and port positions, edge sections,
+  which are results of a layout — is not carried.
+
+Option keys match ELK's whole identifier or any suffix of it from a dot:
+`org.eclipse.elk.port.side`, `elk.port.side`, `port.side`, `side`. When a key
+is given twice on one element, the last one wins, as in ELK.
+
+A refusal points into the `.elkt` file. A syntax error stops the reading at
+the first one; import refusals are all reported; the graph is then validated
+like any other, and those refusals point into the `.elkt` as well.
+
+### Codes
+
+ELK text reader:
+
+| Code | Refusal |
+|---|---|
+| E001 | Text that is not UTF-8 |
+| E002 | Unterminated string or comment |
+| E003 | Unexpected character |
+| E004 | Unexpected token or end of text, with what was expected |
+| E005 | Unknown escape sequence in a string |
+| E006 | A `layout` key given twice |
+
+ELK import:
+
+| Code | Refusal |
+|---|---|
+| E007 | Edge end that refers to no node or port |
+| E008 | Hyperedge: more than one source or one target |
+| E009 | Number that cannot be carried in hundredths of a pixel |
+| E010 | Option value outside the words the import knows |
+| E011 | Edge end on the root graph itself, or ports on the root |
+
 ## Limits of version 2
 
 - **Rectangular nodes.** Any other shape is described by its bounding

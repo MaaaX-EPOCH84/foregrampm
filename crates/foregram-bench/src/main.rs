@@ -2,7 +2,10 @@
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+mod elk;
+mod elkt;
 mod graphml;
+mod lines;
 
 use std::collections::BTreeMap;
 use std::ffi::OsString;
@@ -32,6 +35,7 @@ fn main() -> ExitCode {
         }
         (Some("validate"), [graph, layouts @ ..]) => validate(graph.as_ref(), layouts),
         (Some("graphml"), [path]) => import_graphml(path.as_ref()),
+        (Some("elkt"), [path]) => import_elkt(path.as_ref()),
         (Some("check-corpus"), [cache]) => check_corpus(cache.as_ref()),
         _ => {
             eprintln!("{}", say(Message::new("bench.usage")));
@@ -110,7 +114,38 @@ fn import_graphml(path: &Path) -> u8 {
     status
 }
 
-/// Le nom du graphe importé : celui du fichier, sans `.graphml`.
+/// Convertit un fichier `.elkt` et écrit le graphe obtenu, sous sa forme
+/// canonique, sur la sortie standard. Ce qui n'est pas passé est dit sur la
+/// sortie d'erreur.
+fn import_elkt(path: &Path) -> u8 {
+    let mut status = VALID;
+    let Some(bytes) = load(path, &mut status) else {
+        return status;
+    };
+    match elk::import(&graph_name(path), &bytes) {
+        Ok(imported) => {
+            print!("{}", imported.graph.to_json());
+            if imported.notes != elk::Notes::default() {
+                eprintln!("{}", say(notes(path, imported.notes)));
+            }
+        }
+        Err(diags) => refuse(path, &diags, &mut status),
+    }
+    status
+}
+
+fn notes(path: &Path, notes: elk::Notes) -> Message {
+    Message::new("bench.not-carried")
+        .text("path", path.display())
+        .msg("labels", count(notes.labels, "label"))
+        .msg("sizeless", count(notes.sizeless, "sizeless"))
+        .msg(
+            "container-ports",
+            count(notes.container_ports, "container-port"),
+        )
+}
+
+/// Le nom du graphe importé : celui du fichier, sans son extension.
 fn graph_name(path: &Path) -> String {
     path.file_stem()
         .map(|stem| stem.to_string_lossy().into_owned())
@@ -133,7 +168,7 @@ fn check_corpus(cache: &Path) -> u8 {
         };
         let mut problems = 0;
         let mut expected = read_graph_log(&log_path, &log, &mut problems);
-        let files = match graphml_files(&dir) {
+        let files = match files_with(&dir, "graphml") {
             Ok(files) => files,
             Err(error) => {
                 let message = Message::new("bench.unreadable")
@@ -200,19 +235,129 @@ fn check_corpus(cache: &Path) -> u8 {
             status = status.max(REFUSED);
         }
     }
+    status.max(check_elk_models(cache))
+}
+
+/// Le manifeste des corpus, voisin du cache : `corpus/manifest.txt`.
+const MANIFEST: &str = concat!("manifest", ".txt");
+
+/// Convertit chaque `.elkt` d'elk-models. Pas de `Graph.log` ici : la
+/// source indépendante est le manifeste, voisin du cache, qui dit combien de
+/// fichiers il y a et combien doivent s'importer ; chaque graphe importé est
+/// validé.
+fn check_elk_models(cache: &Path) -> u8 {
+    let mut status = VALID;
+    let dir = cache.join("elk-models");
+    let manifest = cache.parent().unwrap_or(cache).join(MANIFEST);
+    let Some(bytes) = load(&manifest, &mut status) else {
+        return status;
+    };
+    let expected = manifest_counts(&bytes);
+    let files = match files_with(&dir, "elkt") {
+        Ok(files) => files,
+        Err(error) => {
+            let message = Message::new("bench.unreadable")
+                .text("path", dir.display())
+                .text("error", error);
+            eprintln!("{}", say(message));
+            return UNUSABLE;
+        }
+    };
+    let mut problems = 0;
+    let (mut imported, mut nodes, mut edges) = (0, 0, 0);
+    let mut notes = elk::Notes::default();
+    for path in &files {
+        let Some(bytes) = load(path, &mut status) else {
+            problems += 1;
+            continue;
+        };
+        match elk::import(&graph_name(path), &bytes) {
+            Ok(result) => {
+                imported += 1;
+                nodes += result.graph.all_nodes().len();
+                edges += result.graph.edges.len();
+                notes.labels += result.notes.labels;
+                notes.sizeless += result.notes.sizeless;
+                notes.container_ports += result.notes.container_ports;
+            }
+            Err(diags) => {
+                refuse(path, &diags, &mut status);
+                problems += 1;
+            }
+        }
+    }
+    if (files.len(), imported) != expected {
+        let message = Message::new("bench.manifest-differs")
+            .text("path", manifest.display())
+            .msg("files", count(files.len(), "file"))
+            .text("imported", imported)
+            .msg("manifest-files", count(expected.0, "file"))
+            .text("manifest-imported", expected.1);
+        eprintln!("{}", say(message));
+        problems += 1;
+    }
+    let graphs = count(files.len(), "graph");
+    if problems == 0 {
+        let message = Message::new("bench.elk-ok")
+            .text("corpus", "elk-models")
+            .msg("graphs", graphs)
+            .msg("nodes", count(nodes, "node"))
+            .msg("edges", count(edges, "edge"))
+            .msg("labels", count(notes.labels, "label"))
+            .msg("sizeless", count(notes.sizeless, "sizeless"))
+            .msg(
+                "container-ports",
+                count(notes.container_ports, "container-port"),
+            );
+        println!("{}", say(message));
+    } else {
+        let message = Message::new("bench.corpus-failed")
+            .text("corpus", "elk-models")
+            .msg("graphs", graphs)
+            .msg("problems", count(problems, "problem"));
+        eprintln!("{}", say(message));
+        status = status.max(REFUSED);
+    }
     status
 }
 
-/// Les `.graphml` d'un répertoire, triés par nom : l'ordre de parcours du
-/// système de fichiers ne doit rien changer à la sortie.
-fn graphml_files(dir: &Path) -> std::io::Result<Vec<PathBuf>> {
-    let mut files = Vec::new();
-    for entry in std::fs::read_dir(dir)? {
-        let path = entry?.path();
-        if path.extension().is_some_and(|ext| ext == "graphml") {
-            files.push(path);
+/// Dans la section `[elk-models]` du manifeste, `count` et `imported`.
+fn manifest_counts(bytes: &[u8]) -> (usize, usize) {
+    let text = String::from_utf8_lossy(bytes);
+    let section = text.split("[elk-models]").nth(1).unwrap_or("");
+    let section = section.split("\n[").next().unwrap_or("");
+    let value = |key: &str| {
+        section
+            .lines()
+            .find_map(|line| {
+                line.strip_prefix(key)?
+                    .trim()
+                    .strip_prefix('=')?
+                    .trim()
+                    .parse::<usize>()
+                    .ok()
+            })
+            .unwrap_or(0)
+    };
+    (value("count"), value("imported"))
+}
+
+/// Les fichiers d'une extension sous un répertoire, sous-répertoires
+/// compris, triés par chemin.
+fn files_with(dir: &Path, extension: &str) -> std::io::Result<Vec<PathBuf>> {
+    fn walk(dir: &Path, extension: &str, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
+        for entry in std::fs::read_dir(dir)? {
+            let path = entry?.path();
+            if path.is_dir() {
+                walk(&path, extension, out)?;
+            } else if path.extension().is_some_and(|ext| ext == extension) {
+                out.push(path);
+            }
         }
+        Ok(())
     }
+    let mut files = Vec::new();
+    walk(dir, extension, &mut files)?;
     files.sort();
     Ok(files)
 }
@@ -299,6 +444,14 @@ fn count(number: usize, noun: &str) -> Message {
         ("graph", _) => "count.graph.other",
         ("problem", 1) => "count.problem.one",
         ("problem", _) => "count.problem.other",
+        ("label", 1) => "count.label.one",
+        ("label", _) => "count.label.other",
+        ("sizeless", 1) => "count.sizeless.one",
+        ("sizeless", _) => "count.sizeless.other",
+        ("container-port", 1) => "count.container-port.one",
+        ("container-port", _) => "count.container-port.other",
+        ("file", 1) => "count.file.one",
+        ("file", _) => "count.file.other",
         (_, 1) => "count.error.one",
         _ => "count.error.other",
     };
