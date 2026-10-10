@@ -470,6 +470,65 @@ ELK import:
 | E010 | Option value outside the words the import knows |
 | E011 | Edge end on the root graph itself, or ports on the root |
 
+## Importing a conceptual data model
+
+The in-house corpus is made of Merise conceptual data models (CDM),
+written in the small text format of the first prototype, `.mcd`; they are
+in `corpus/mcd/`. Models that cannot be published stay in `corpus/local/`,
+which Git ignores.
+
+```
+foregram-bench mcd <file.mcd>
+```
+
+`mcd` converts one file and writes the graph, in canonical form, on the
+standard output.
+
+The format, keywords in French as in the models it describes:
+
+```
+# a comment, in column one
+entite MEMBRE
+  #id_membre        a leading # marks the identifier
+  nom               a property
+association PRET
+  date_pret         a property carried by the association
+  MEMBRE 0,n        a link: entity, then cardinality
+```
+
+A block starts in column one, its content is indented with spaces or tabs.
+A cardinality is `0,1`, `0,n`, `1,1` or `1,n`.
+
+The conversion:
+
+- the graph is named after the file, without `.mcd`; its `direction` is
+  `right`;
+- every entity and every association is a node, named as written, in file
+  order;
+- every link is an edge from the entity to the association, named
+  `ASSOCIATION.ENTITY`; a reflexive association links the same entity
+  twice, and the second edge is named `ASSOCIATION.ENTITY.2`;
+- the cardinality is a label against the entity (`at: source`).
+
+Sizes follow a provisional rule, until text is measured with the embedded
+font: a node is as wide as its longest line (its name or a property,
+without `#`) at 7 pixels per character, as high as its lines at 18 pixels
+each, plus 8 pixels of margin on every side; a cardinality is 7 pixels per
+character plus 2 on each side, 18 pixels high.
+
+### Codes
+
+| Code | Refusal |
+|---|---|
+| M001 | Text that is not UTF-8 |
+| M002 | Line in column one other than `entite NAME` or `association NAME` |
+| M003 | Indented line before any block |
+| M004 | Link inside an entity |
+| M005 | Indented line that is neither a property nor a link |
+| M006 | Entity or association declared twice |
+| M007 | Link to something that is not a declared entity |
+| M008 | Association with fewer than two links |
+
 ## Limits of version 2
 
 - **Rectangular nodes.** Any other shape is described by its bounding

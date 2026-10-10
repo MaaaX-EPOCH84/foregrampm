@@ -396,3 +396,63 @@ fn a_cache_without_its_corpora_exits_two() {
     assert_eq!(out, "");
     assert_eq!(err.matches("cannot read").count(), 3, "{err}");
 }
+
+// ------------------------------------------------------------------- MCD
+
+/// Le corpus maison versionné, et ce que chaque modèle doit donner, compté
+/// à la main dans le `.mcd` : entités plus associations, liens.
+const IN_HOUSE: [(&str, usize, usize); 4] = [
+    ("commande.mcd", 10 + 9, 18),
+    ("employe.mcd", 2 + 4, 8),
+    ("gestpret.mcd", 2 + 1, 2),
+    ("interpreteur_wl.mcd", 11 + 4, 8),
+];
+
+#[test]
+fn every_in_house_model_converts_to_a_valid_graph() {
+    let corpus = format!("{}/../../corpus/mcd", env!("CARGO_MANIFEST_DIR"));
+    let mut found: Vec<String> = std::fs::read_dir(&corpus)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .collect();
+    found.sort();
+    let listed: Vec<&str> = IN_HOUSE.iter().map(|(name, _, _)| *name).collect();
+    assert_eq!(found, listed, "corpus maison et liste du test divergent");
+
+    let dir = scratch("mcd-corpus");
+    for (name, nodes, edges) in IN_HOUSE {
+        let (code, out, err) = run(&["mcd", &format!("{corpus}/{name}")]);
+        assert_eq!(code, 0, "{name} : {err}");
+        assert_eq!(err, "");
+        // Ce qui sort se relit tel quel, et compte ce que le `.mcd` déclare.
+        let json = write(&dir.join(format!("{name}.graph.json")), &out);
+        let (code, said, err) = run(&["validate", &json]);
+        assert_eq!(code, 0, "{name} : {err}");
+        assert_eq!(
+            said,
+            format!("{json}: valid graph ({nodes} nodes, {edges} edges)\n")
+        );
+    }
+}
+
+#[test]
+fn a_refused_model_says_where_in_the_mcd() {
+    let dir = scratch("mcd-refused");
+    let path = write(
+        &dir.join("bad.mcd"),
+        "entite A\nassociation R\n  A 0,n\n  B 1,1\n",
+    );
+    let (code, out, err) = run(&["mcd", &path]);
+    assert_eq!(code, 1);
+    assert_eq!(out, "");
+    assert_eq!(
+        err,
+        format!(
+            "{path}:4:3: error[M007]: `B` is not a declared entity\n\
+             {path}: refused (1 error)\n"
+        )
+    );
+    let missing = dir.join("absent.mcd").display().to_string();
+    let (code, _, _) = run(&["mcd", &missing]);
+    assert_eq!(code, 2);
+}

@@ -6,6 +6,7 @@ mod elk;
 mod elkt;
 mod graphml;
 mod lines;
+mod mcd;
 
 use std::collections::BTreeMap;
 use std::ffi::OsString;
@@ -36,6 +37,7 @@ fn main() -> ExitCode {
         (Some("validate"), [graph, layouts @ ..]) => validate(graph.as_ref(), layouts),
         (Some("graphml"), [path]) => import_graphml(path.as_ref()),
         (Some("elkt"), [path]) => import_elkt(path.as_ref()),
+        (Some("mcd"), [path]) => import_mcd(path.as_ref()),
         (Some("check-corpus"), [cache]) => check_corpus(cache.as_ref()),
         _ => {
             eprintln!("{}", say(Message::new("bench.usage")));
@@ -129,6 +131,20 @@ fn import_elkt(path: &Path) -> u8 {
                 eprintln!("{}", say(notes(path, imported.notes)));
             }
         }
+        Err(diags) => refuse(path, &diags, &mut status),
+    }
+    status
+}
+
+/// Convertit un MCD et écrit le graphe obtenu, sous sa forme canonique, sur
+/// la sortie standard.
+fn import_mcd(path: &Path) -> u8 {
+    let mut status = VALID;
+    let Some(bytes) = load(path, &mut status) else {
+        return status;
+    };
+    match mcd::import(&graph_name(path), &bytes) {
+        Ok(graph) => print!("{}", graph.to_json()),
         Err(diags) => refuse(path, &diags, &mut status),
     }
     status

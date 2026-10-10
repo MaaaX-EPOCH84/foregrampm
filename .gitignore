@@ -5,3 +5,6 @@
 
 # Corpus publics téléchargés par corpus/fetch.sh : jamais versionnés.
 /corpus/cache/
+
+# Corpus maison qui ne se publie pas : reste sur le poste.
+/corpus/local/
