@@ -14,6 +14,8 @@
 #   pattern  motif des fichiers de graphe
 #   count    nombre exact de fichiers attendus pour ce motif
 #   licence  licence constatée, et où
+#   node_size  taille donnée à chaque nœud à l'import (GraphML), en centièmes
+#              de pixel : le format n'en porte aucune
 #
 # Les licences ont été lues le 2026-10-10.
 
@@ -25,6 +27,7 @@ sha256 = 94f0b300a347d4856b37e4650b6cdf6d2999d22159f5cc0d7aa9bedc42b16d89
 pattern = *.graphml
 count = 11534
 licence = none displayed on graphdrawing.unipg.it/data.html (graphdrawing.org redirects there), none in the archive
+node_size = 4950 x 3500
 
 [north]
 source = archive
@@ -34,6 +37,7 @@ sha256 = 90d37399676041b07c68006f6a7e1a94c56fab17adea24a732c176a39b9df2a5
 pattern = *.graphml
 count = 1277
 licence = none displayed on graphdrawing.unipg.it/data.html (graphdrawing.org redirects there), none in the archive
+node_size = 4950 x 3500
 
 [elk-models]
 source = git

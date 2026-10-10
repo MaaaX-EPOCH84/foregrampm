@@ -314,6 +314,61 @@ Layout:
 | L016 | Route end off its port |
 | L017 | Route starting with a curve |
 
+## Importing GraphML
+
+The Rome and North corpora are GraphML files; the benchmark converts them
+in memory, on every run, and keeps no converted copy.
+
+```
+foregram-bench graphml <file.graphml>
+foregram-bench check-corpus <cache>
+```
+
+`graphml` converts one file and writes the graph, in canonical form, on
+the standard output. `check-corpus` converts every graph of Rome and
+North in the cache filled by `corpus/fetch.sh` (`corpus/cache`), and
+compares the number of nodes and edges of each with what the archive's
+`Graph.log` announces: a source independent of the reader, which sees what
+an import would have lost and the validator cannot. Exit codes as above;
+a graph that differs from its `Graph.log` counts as refused.
+
+The conversion:
+
+- the graph is named after the file, without `.graphml`; nodes and edges
+  keep their GraphML identifiers;
+- every node is 4950 × 3500 (49.5 × 35 pixels), the exact proportion of an
+  A4 sheet, 99/70, in landscape; GraphML gives no size, and the same size
+  is recorded in `corpus/manifest.txt`;
+- an edge goes from its `source` to its `target` as written, directed or
+  not: undirected edges keep the order of the file; no `direction` is set.
+
+Only what the exchange format can say is accepted: a `graphml` root, with
+or without the GraphML namespace, holding one `graph`, holding `node` and
+`edge` elements without content. Anything else — `key`, `data`, `port`,
+`hyperedge`, a nested graph, an unknown attribute — is refused rather than
+dropped, since a silently trimmed graph would skew the benchmark.
+Attributes in the `xsi` namespace, comments and processing instructions
+are ignored; the document type declaration is read but never fetched.
+
+A refusal points into the `.graphml` file. Once the file is read, the
+graph is validated like any other, and those refusals point into the
+`.graphml` as well.
+
+### Codes
+
+GraphML import:
+
+| Code | Refusal |
+|---|---|
+| X001 | Text that is not UTF-8 |
+| X002 | Malformed XML, with the parser's own detail |
+| X003 | Root element other than `graphml` |
+| X004 | Not exactly one `graph` in `graphml` |
+| X005 | Element not supported, or text where none is expected |
+| X006 | Attribute not supported |
+| X007 | `id` of a node or an edge, `source` or `target` missing |
+| X008 | `edgedefault` or `directed` with an invalid value |
+
 ## Limits of version 2
 
 - **Rectangular nodes.** Any other shape is described by its bounding

@@ -32,6 +32,15 @@ needs `curl`, `git`, `tar` and `sha256sum`.
 corpus/fetch.sh [rome] [north] [elk-models]
 ```
 
+Rome and North are GraphML; the benchmark converts them in memory. The
+check below converts all 12,811 graphs and compares each with the
+`Graph.log` of its archive:
+
+```
+cargo run --release -p foregram-bench -- check-corpus corpus/cache
+cargo run -p foregram-bench -- graphml <file.graphml>
+```
+
 ## Licence
 
 GPL v3 or later — see [LICENSE](LICENSE).

@@ -310,13 +310,18 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
     assert!(bare.render(catalog).starts_with("error[J002]: "));
     reached.insert("diag.bare");
 
-    // Les entrées de la ligne de commande du banc, que ses propres tests exercent.
-    let bench = format!(
-        "{}/../foregram-bench/src/main.rs",
-        env!("CARGO_MANIFEST_DIR")
-    );
-    let bench = std::fs::read_to_string(&bench).unwrap();
-    let bench_keys = key_literals(&bench);
+    // Les entrées du banc, ligne de commande et import GraphML, que ses propres
+    // tests exercent.
+    let mut bench_keys = BTreeSet::new();
+    for name in ["main.rs", "graphml.rs"] {
+        let path = format!(
+            "{}/../foregram-bench/src/{name}",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        let text = std::fs::read_to_string(&path).unwrap();
+        let mark = concat!("#[cfg", "(test)]");
+        bench_keys.extend(key_literals(text.split(mark).next().unwrap()));
+    }
     for key in &bench_keys {
         assert!(catalog.get(key).is_some(), "clé du banc absente : {key}");
     }
@@ -373,7 +378,7 @@ fn key_literals(source: &str) -> BTreeSet<String> {
         let parts: Vec<&str> = literal.split('.').collect();
         let head = parts[0].as_bytes();
         let code = head.len() == 4
-            && b"JSGL".contains(&head[0])
+            && b"JSGLX".contains(&head[0])
             && head[1..].iter().all(u8::is_ascii_digit)
             && parts[1..].iter().all(|p| word(p));
         let fragment = parts.len() >= 2 && parts.iter().all(|p| word(p));

@@ -100,6 +100,18 @@ L016.start = edge "{id}": the route starts at ({x}, {y}), off port "{port}"
 L016.end = edge "{id}": the route ends at ({x}, {y}), off port "{port}"
 L017 = {subject}: a route starts with a point [x, y], not a curve
 
+# GraphML import
+X001 = text that is not UTF-8
+X002 = malformed XML: {detail}
+X003 = root element `{name}`: `graphml` expected
+X004 = `graphml` must contain exactly one `graph`, it contains {count}
+X005 = element `{name}` not supported inside `{parent}`
+X005.text = text not expected inside `{parent}`
+X006 = attribute `{name}` not supported on `{element}`
+X007 = `{element}` without its `{name}` attribute
+X008.edgedefault = `edgedefault` is "{value}": `directed` or `undirected` expected
+X008.directed = `directed` is "{value}": `true` or `false` expected
+
 # Types of a JSON value
 type.null = null
 type.boolean = boolean
@@ -139,15 +151,25 @@ diag.at = {line}:{col}: error[{code}]: {text}
 diag.bare = error[{code}]: {text}
 
 # The benchmark command line
-bench.usage = usage: foregram-bench validate <graph.json> [<layout.json>...]\n       foregram-bench --help | --version\n\n  validate  Validates a graph, then each layout against that graph.\n\nexit codes: 0 everything is valid, 1 a file is refused,\n            2 wrong call or unreadable file
+bench.usage = usage: foregram-bench validate <graph.json> [<layout.json>...]\n       foregram-bench graphml <file.graphml>\n       foregram-bench check-corpus <cache>\n       foregram-bench --help | --version\n\n  validate      Validates a graph, then each layout against that graph.\n  graphml       Converts a GraphML file and writes the graph on the output.\n  check-corpus  Converts every graph of Rome and North found in the cache\n                of corpus/fetch.sh, and compares each with its Graph.log.\n\nexit codes: 0 everything is valid, 1 a file is refused or a graph differs,\n            2 wrong call or unreadable file
 bench.valid-graph = {path}: valid graph ({nodes}, {edges})
 bench.valid-layout = {path}: valid layout of graph "{graph}" (engine {engine} {version})
 bench.not-checked = {path}: not checked against the graph, which is not valid
 bench.unreadable = {path}: cannot read: {error}
 bench.refused = {path}: refused ({count})
+bench.log-absent = {path}: absent from Graph.log
+bench.log-differs = {path}: {nodes} and {edges}, Graph.log says {log-nodes} and {log-edges}
+bench.log-orphan = {path}: lists graph "{name}", which has no file
+bench.log-unreadable = {path}:{line}: line not understood
+bench.corpus-ok = {corpus}: {graphs}, {nodes}, {edges}, all valid and as in Graph.log
+bench.corpus-failed = {corpus}: {graphs}, {problems}
 count.node.one = {n} node
 count.node.other = {n} nodes
 count.edge.one = {n} edge
 count.edge.other = {n} edges
 count.error.one = {n} error
 count.error.other = {n} errors
+count.graph.one = {n} graph
+count.graph.other = {n} graphs
+count.problem.one = {n} problem
+count.problem.other = {n} problems
