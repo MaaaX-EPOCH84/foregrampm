@@ -150,6 +150,11 @@ R005 = {engine} output not understood: {detail}
 R006 = {engine} output: number `{text}` cannot be carried in hundredths of a pixel
 R007 = {engine} changed the size of leaf "{id}" to {width} × {height}
 
+# Rendering
+V001 = scale {scale} outside the range 1 to {max}
+V002 = image of {width} × {height} pixels exceeds {max} pixels
+V003 = PNG encoding failed: {error}
+
 # What the ELK text reader expected
 expect.literal = `{text}`
 expect.ident = an identifier
@@ -198,7 +203,7 @@ diag.at = {line}:{col}: error[{code}]: {text}
 diag.bare = error[{code}]: {text}
 
 # The benchmark command line
-bench.usage = usage: foregram-bench validate <graph.json> [<layout.json>...]\n       foregram-bench graphml <file.graphml>\n       foregram-bench elkt <file.elkt>\n       foregram-bench mcd <file.mcd>\n       foregram-bench check-corpus <cache>\n       foregram-bench layout <engine> <cache> <graph>\n       foregram-bench layout-corpus <engine> <cache> <out>\n       foregram-bench metrics <graph> <layout.json>...\n       foregram-bench --help | --version\n\n  validate       Validates a graph, then each layout against that graph.\n  graphml        Converts a GraphML file and writes the graph on the output.\n  elkt           Converts an ELK text file and writes the graph on the output.\n  mcd            Converts a conceptual data model and writes the graph on the\n                 output.\n  check-corpus   Converts every graph of Rome, North and elk-models found in\n                 the cache of corpus/fetch.sh; compares Rome and North with\n                 their Graph.log, elk-models with corpus/manifest.txt.\n  layout         Lays out one graph (.graph.json, .graphml, .elkt or .mcd) with\n                 a reference engine, `dot` or `elk`, taken from the cache at\n                 the version the manifest pins; writes the layout on the\n                 output, refusals on the error output.\n  layout-corpus  Lays out every graph of the corpora with a reference engine;\n                 writes the layouts under <out>/<engine>/ and lists every\n                 failure in <out>/<engine>/failures.txt.\n  metrics        Checks each layout against the graph (.graph.json, .graphml,\n                 .elkt or .mcd) and writes its metrics, one line per measure.\n\nexit codes: 0 everything is valid, 1 a file is refused or a graph differs,\n            2 wrong call, unreadable file or engine missing
+bench.usage = usage: foregram-bench validate <graph.json> [<layout.json>...]\n       foregram-bench graphml <file.graphml>\n       foregram-bench elkt <file.elkt>\n       foregram-bench mcd <file.mcd>\n       foregram-bench check-corpus <cache>\n       foregram-bench layout <engine> <cache> <graph>\n       foregram-bench layout-corpus <engine> <cache> <out>\n       foregram-bench metrics <graph> <layout.json>...\n       foregram-bench render <graph> <layout.json> <out.svg|out.png> [--scale <n>]\n       foregram-bench --help | --version\n\n  validate       Validates a graph, then each layout against that graph.\n  graphml        Converts a GraphML file and writes the graph on the output.\n  elkt           Converts an ELK text file and writes the graph on the output.\n  mcd            Converts a conceptual data model and writes the graph on the\n                 output.\n  check-corpus   Converts every graph of Rome, North and elk-models found in\n                 the cache of corpus/fetch.sh; compares Rome and North with\n                 their Graph.log, elk-models with corpus/manifest.txt.\n  layout         Lays out one graph (.graph.json, .graphml, .elkt or .mcd) with\n                 a reference engine, `dot` or `elk`, taken from the cache at\n                 the version the manifest pins; writes the layout on the\n                 output, refusals on the error output.\n  layout-corpus  Lays out every graph of the corpora with a reference engine;\n                 writes the layouts under <out>/<engine>/ and lists every\n                 failure in <out>/<engine>/failures.txt.\n  metrics        Checks each layout against the graph (.graph.json, .graphml,\n                 .elkt or .mcd) and writes its metrics, one line per measure.\n  render         Checks the layout against the graph and draws it, with the\n                 same neutral look for every engine, into an SVG or a PNG file\n                 chosen by its extension; --scale gives the PNG its pixels per\n                 pixel of the drawing, 1 to 8.\n\nexit codes: 0 everything is valid, 1 a file is refused or a graph differs,\n            2 wrong call, unreadable file or engine missing
 bench.valid-graph = {path}: valid graph ({nodes}, {edges})
 bench.valid-layout = {path}: valid layout of graph "{graph}" (engine {engine} {version})
 bench.not-checked = {path}: not checked against the graph, which is not valid
@@ -219,6 +224,7 @@ bench.unwritable = {path}: cannot write: {error}
 bench.corpus-laid-out = {engine} on {corpus}: {graphs}, {valid} valid, {failed}; {moved} brought onto their border, by {max} hundredths at most
 bench.failures-listed = failures listed in {path}
 bench.measured = {path}: metrics of graph "{graph}" (engine {engine} {version})
+bench.rendered = {path}: rendered into {out}, graph "{graph}" (engine {engine} {version})
 
 # Metrics report, one line per measure
 metrics.crossings = crossings: {n}

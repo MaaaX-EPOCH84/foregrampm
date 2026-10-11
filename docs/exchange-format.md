@@ -660,6 +660,69 @@ dropped.
 | extent | The bounding box of every node, route point and label: width, height and area; the proportion, width over height in thousandths (1414 is a landscape 1:√2 sheet); the density, area of the leaves over area of the box, in thousandths |
 | constraints broken | Pairs of nodes with a `layer` whose layers and whose centres along `direction` are not in the same order (`right` when the graph has no direction); pairs of nodes of the same layer with an `order` whose orders and whose centres across the direction are not in the same order; pairs of ports of the same side, on a node with `ports_ordered`, whose anchors do not follow the list order clockwise — left to right on the north side, top to bottom on the east, right to left on the south, bottom to top on the west |
 
+## Neutral rendering
+
+A layout is drawn from its coordinates alone, with the same look for every
+engine, so that the eye compares the layout and not the style. The drawing
+lives in the `foregram-render` crate; the benchmark exposes it:
+
+```
+foregram-bench render <graph> <layout.json> <out.svg|out.png> [--scale <n>]
+```
+
+The command checks the layout against the graph, which may be a
+`.graph.json`, `.graphml`, `.elkt` or `.mcd` file, and writes the drawing
+into the output file, SVG or PNG by its extension. A layout that fails the
+check is refused, not drawn.
+
+**What is drawn**, in this order, each from the layout's coordinates:
+
+| Element | Drawn as |
+|---|---|
+| sheet | A white background over the whole view |
+| leaf | A light grey rectangle with a dark border, 1 px |
+| container | A thin, lighter border, 0.5 px, no fill |
+| edge | A dark 1 px line along the route; curves are drawn as curves in the SVG and as the 16-step polyline of the metrics in the PNG, so the image shows what was measured |
+| arrow | A dark triangle at the end of the route, 8 px long and 5 px wide, pointing along the last segment of the polyline |
+| label | A dashed 0.5 px rectangle, empty: the format carries no text |
+| port | A dark square of 4 px centred on the anchor, or the port's own box when the graph gives one |
+
+No text is drawn, since the graph carries none. In the SVG, every node, edge
+and port carries its identifier in a `<title>`, shown on hover and found by
+a search; the drawing's own title is the graph name and the engine.
+
+**The view** is the bounding box of the metrics' extent, plus a margin of
+10 px on every side; its origin may be negative. An empty layout gives a
+20 × 20 px sheet. Fixed proportions and fixed sizes will come with the
+source format.
+
+**SVG.** Coordinates are written in pixels, from the hundredths of the
+format by integer arithmetic (`4950` is written `49.5`), never through a
+floating-point number. Each element carries a class — `sheet`, `leaf`,
+`container`, `edge`, `arrow`, `label`, `port` — styled by one `<style>`
+block at the top, so a page that embeds several drawings can restyle them
+together. Nothing in the file depends on the machine, the date or the
+engine, beyond the title.
+
+**PNG.** The image is rasterised here, in integers: every element is a
+polygon — a rectangle, the ring of a border, a quadrilateral per segment of a
+line with an octagon at each joint, the dashes of a label, the triangle of an
+arrow — filled by the non-zero winding rule, with anti-aliasing from 16
+sub-scanlines per row and exact horizontal coverage in 256ths of a pixel.
+One grey channel, 8 bits. `--scale` gives the pixels per pixel of the
+drawing, 1 by default and 8 at most; an image of more than 50,000,000
+pixels is refused. Only the encoding — chunks, CRC, deflate — comes from the
+`png` crate, at a pinned version, so the same layout gives the same bytes on
+every machine.
+
+### Codes
+
+| Code | Refusal |
+|---|---|
+| V001 | Scale outside 1 to 8 |
+| V002 | Image larger than 50,000,000 pixels |
+| V003 | PNG encoder failure |
+
 ## Limits of version 2
 
 - **Rectangular nodes.** Any other shape is described by its bounding

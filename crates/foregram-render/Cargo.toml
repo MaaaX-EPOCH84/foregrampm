@@ -1,0 +1,29 @@
+# ForegramPM — rendu neutre d'un placement
+# Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+[package]
+name = "foregram-render"
+description = "Rendu d'un placement de ForegramPM : SVG, et PNG par un rastériseur en entiers."
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[features]
+# Le PNG seul apporte une dépendance : sans la feature, la crate n'en a aucune.
+png = ["dep:png"]
+
+[dependencies]
+foregram-graph = { path = "../foregram-graph" }
+# Encodage PNG : morceaux, CRC, deflate. L'image est déjà rastérisée ici.
+png = { version = "0.18.1", optional = true }
+
+[dev-dependencies]
+# Les tests relisent le PNG produit.
+png = "0.18.1"
+
+[lints]
+workspace = true

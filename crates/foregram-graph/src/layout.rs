@@ -208,6 +208,41 @@ impl Layout {
         diags
     }
 
+    /// Le rectangle absolu de chaque nœud placé, conteneurs compris, par
+    /// identifiant. Un nœud sans taille, ou dont le parent n'est pas placé,
+    /// n'en a pas ; un placement qui passe [`Layout::check`] en donne un à
+    /// chaque nœud du graphe.
+    pub fn absolute_rects<'a>(&self, graph: &'a Graph) -> BTreeMap<&'a str, Rect> {
+        let mut rects: BTreeMap<&str, Rect> = BTreeMap::new();
+        let places: BTreeMap<&str, _> = self.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
+        for (node, parent) in graph.all_nodes() {
+            let Some(place) = places.get(node.id.as_str()) else {
+                continue;
+            };
+            let size = if node.is_container() {
+                place.size
+            } else {
+                node.size
+            };
+            let origin = match parent {
+                None => Some((0, 0)),
+                Some(parent) => rects.get(parent.id.as_str()).map(|r| (r.x, r.y)),
+            };
+            if let (Some(size), Some((ox, oy))) = (size, origin) {
+                rects.insert(
+                    &node.id,
+                    Rect {
+                        x: ox + place.x,
+                        y: oy + place.y,
+                        width: size.width,
+                        height: size.height,
+                    },
+                );
+            }
+        }
+        rects
+    }
+
     /// Confronte le placement à son graphe. Les deux doivent être valides.
     /// Une liste vide signifie que le placement couvre le graphe, tout le
     /// graphe et rien d'autre, que chaque enfant tient dans son parent, que

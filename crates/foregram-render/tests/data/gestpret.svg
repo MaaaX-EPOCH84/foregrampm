@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="460" height="392" viewBox="-10 -10 460 392">
+<title>gestpret · main 1</title>
+<style>
+.sheet{fill:#ffffff}
+.leaf{fill:#e0e0e0;stroke:#333333;stroke-width:1}
+.container{fill:none;stroke:#999999;stroke-width:0.5}
+.edge{fill:none;stroke:#333333;stroke-width:1;stroke-linejoin:round}
+.arrow{fill:#333333}
+.label{fill:none;stroke:#333333;stroke-width:0.5;stroke-dasharray:3 2}
+.port{fill:#333333}
+</style>
+<rect class="sheet" x="-10" y="-10" width="460" height="392"/>
+<rect class="leaf" x="0" y="0" width="140" height="156"><title>MEMBRE</title></rect>
+<rect class="leaf" x="0" y="216" width="140" height="156"><title>MATERIEL</title></rect>
+<rect class="leaf" x="260" y="142" width="180" height="88"><title>PRET</title></rect>
+<path class="edge" d="M140 78 L200 78 L200 164 L260 164"><title>membre-pret</title></path>
+<polygon class="arrow" points="260,164 252,166.5 252,161.5"/>
+<path class="edge" d="M140 294 L200 294 L200 208 L260 208"><title>materiel-pret</title></path>
+<polygon class="arrow" points="260,208 252,210.5 252,205.5"/>
+<rect class="label" x="146" y="58" width="26" height="16"/>
+<rect class="label" x="146" y="274" width="26" height="16"/>
+</svg>

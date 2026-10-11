@@ -530,7 +530,7 @@ fn doc() -> String {
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path} : {e}"))
 }
 
-/// Les codes cités dans un texte : une lettre parmi J, S, G, L, X, E, M, R, puis trois chiffres.
+/// Les codes cités dans un texte : une lettre parmi J, S, G, L, X, E, M, R, V, puis trois chiffres.
 fn codes_in(text: &str, quoted: bool) -> std::collections::BTreeSet<String> {
     let chars: Vec<char> = text.chars().collect();
     let mut found = std::collections::BTreeSet::new();
@@ -544,7 +544,7 @@ fn codes_in(text: &str, quoted: bool) -> std::collections::BTreeSet<String> {
         } else {
             window
         };
-        if "JSGLXEMR".contains(code[0]) && code[1..].iter().all(char::is_ascii_digit) {
+        if "JSGLXEMRV".contains(code[0]) && code[1..].iter().all(char::is_ascii_digit) {
             found.insert(code.iter().collect());
         }
     }
@@ -583,11 +583,12 @@ fn the_documentation_lists_every_code_and_no_other() {
         .join("\n");
     let documented = codes_in(&table, false);
     assert_eq!(produced, documented);
-    assert_eq!(produced.len(), 81);
+    assert_eq!(produced.len(), 84);
 
     // Chaque refus que le code sait prononcer est provoqué par un test au moins :
     // ceux de ce fichier, et ceux qui suivent le code dans json.rs, dans les
-    // imports GraphML, ELK et MCD du banc et dans ses moteurs de référence.
+    // imports GraphML, ELK et MCD du banc, dans ses moteurs de référence et
+    // dans le rendu.
     let mut tests = String::new();
     for source in [
         "src/json.rs",
@@ -598,6 +599,8 @@ fn the_documentation_lists_every_code_and_no_other() {
         "../foregram-bench/src/engine/mod.rs",
         "../foregram-bench/src/engine/dot.rs",
         "../foregram-bench/src/engine/elk.rs",
+        "../foregram-render/src/raster.rs",
+        "../foregram-render/tests/render.rs",
     ] {
         let path = format!("{}/{source}", env!("CARGO_MANIFEST_DIR"));
         let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path} : {e}"));

@@ -317,23 +317,25 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
     }
 
     // Les entrées du banc — ligne de commande, imports GraphML, ELK et MCD,
-    // moteurs de référence —, que ses propres tests exercent.
+    // moteurs de référence — et celles du rendu, que leurs propres tests
+    // exercent.
     let mut bench_keys = BTreeSet::new();
     for name in [
-        "main.rs",
-        "graphml.rs",
-        "elkt.rs",
-        "elk.rs",
-        "mcd.rs",
-        "engine/mod.rs",
-        "engine/dot.rs",
-        "engine/elk.rs",
-        "engine/fit.rs",
+        "foregram-bench/src/main.rs",
+        "foregram-bench/src/graphml.rs",
+        "foregram-bench/src/elkt.rs",
+        "foregram-bench/src/elk.rs",
+        "foregram-bench/src/mcd.rs",
+        "foregram-bench/src/engine/mod.rs",
+        "foregram-bench/src/engine/dot.rs",
+        "foregram-bench/src/engine/elk.rs",
+        "foregram-bench/src/engine/fit.rs",
+        "foregram-render/src/lib.rs",
+        "foregram-render/src/scene.rs",
+        "foregram-render/src/svg.rs",
+        "foregram-render/src/raster.rs",
     ] {
-        let path = format!(
-            "{}/../foregram-bench/src/{name}",
-            env!("CARGO_MANIFEST_DIR")
-        );
+        let path = format!("{}/../{name}", env!("CARGO_MANIFEST_DIR"));
         let text = std::fs::read_to_string(&path).unwrap();
         let mark = concat!("#[cfg", "(test)]");
         bench_keys.extend(key_literals(text.split(mark).next().unwrap()));
@@ -402,7 +404,7 @@ fn key_literals(source: &str) -> BTreeSet<String> {
         let parts: Vec<&str> = literal.split('.').collect();
         let head = parts[0].as_bytes();
         let code = head.len() == 4
-            && b"JSGLXEMR".contains(&head[0])
+            && b"JSGLXEMRV".contains(&head[0])
             && head[1..].iter().all(u8::is_ascii_digit)
             && parts[1..].iter().all(|p| word(p));
         let fragment =

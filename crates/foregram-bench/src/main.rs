@@ -51,6 +51,15 @@ fn main() -> ExitCode {
         (Some("metrics"), [graph, layouts @ ..]) if !layouts.is_empty() => {
             metrics(graph.as_ref(), layouts)
         }
+        (Some("render"), [graph, layout, out]) => {
+            render(graph.as_ref(), layout.as_ref(), out.as_ref(), 1)
+        }
+        (Some("render"), [graph, layout, out, flag, scale]) if flag == "--scale" => {
+            match scale.to_str().and_then(|s| s.parse::<i64>().ok()) {
+                Some(scale) => render(graph.as_ref(), layout.as_ref(), out.as_ref(), scale),
+                None => usage(),
+            }
+        }
         _ => usage(),
     };
     ExitCode::from(status)
@@ -334,6 +343,65 @@ fn metrics(graph_path: &Path, layout_paths: &[OsString]) -> u8 {
             println!("  {}", say(line));
         }
     }
+    status
+}
+
+/// Dessine un placement pour son graphe, en SVG ou en PNG selon l'extension
+/// du fichier de sortie. Un placement qui ne passe pas la confrontation au
+/// graphe est refusé, pas dessiné.
+fn render(graph_path: &Path, layout_path: &Path, out: &Path, scale: i64) -> u8 {
+    let mut status = VALID;
+    let Some(bytes) = load(graph_path, &mut status) else {
+        return status;
+    };
+    let graph = match import_any(graph_path, &bytes) {
+        Ok(graph) => graph,
+        Err(diags) => {
+            refuse(graph_path, &diags, &mut status);
+            return status;
+        }
+    };
+    let Some(bytes) = load(layout_path, &mut status) else {
+        return status;
+    };
+    let layout = match Layout::parse(&bytes) {
+        Ok(layout) => layout,
+        Err(diags) => {
+            refuse(layout_path, &diags, &mut status);
+            return status;
+        }
+    };
+    let diags = layout.check(&graph);
+    if !diags.is_empty() {
+        refuse(layout_path, &diags, &mut status);
+        return status;
+    }
+    let style = foregram_render::Style::default();
+    let image = match out.extension().and_then(|e| e.to_str()) {
+        Some("svg") => foregram_render::svg(&graph, &layout, &style).into_bytes(),
+        Some("png") => match foregram_render::png(&graph, &layout, &style, scale) {
+            Ok(image) => image,
+            Err(diag) => {
+                refuse(out, &[diag], &mut status);
+                return status;
+            }
+        },
+        _ => return usage(),
+    };
+    if let Err(error) = write_file(out, &image) {
+        let message = Message::new("bench.unwritable")
+            .text("path", out.display())
+            .text("error", error);
+        eprintln!("{}", say(message));
+        return UNUSABLE;
+    }
+    let message = Message::new("bench.rendered")
+        .text("path", layout_path.display())
+        .text("out", out.display())
+        .text("graph", &layout.graph)
+        .text("engine", &layout.engine.name)
+        .text("version", &layout.engine.version);
+    println!("{}", say(message));
     status
 }
 

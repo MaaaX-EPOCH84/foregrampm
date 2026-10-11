@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="500" height="120" viewBox="-10 -10 500 120">
+<title>components · hand 1</title>
+<style>
+.sheet{fill:#ffffff}
+.leaf{fill:#e0e0e0;stroke:#333333;stroke-width:1}
+.container{fill:none;stroke:#999999;stroke-width:0.5}
+.edge{fill:none;stroke:#333333;stroke-width:1;stroke-linejoin:round}
+.arrow{fill:#333333}
+.label{fill:none;stroke:#333333;stroke-width:0.5;stroke-dasharray:3 2}
+.port{fill:#333333}
+</style>
+<rect class="sheet" x="-10" y="-10" width="500" height="120"/>
+<rect class="leaf" x="0" y="20" width="100" height="60"><title>Client</title></rect>
+<rect class="container" x="160" y="0" width="320" height="100"><title>System</title></rect>
+<rect class="leaf" x="170" y="10" width="120" height="60"><title>Core</title></rect>
+<rect class="leaf" x="350" y="20" width="80" height="50"><title>Store</title></rect>
+<path class="edge" d="M100 50 L135 50 L135 40 L170 40"><title>e1</title></path>
+<polygon class="arrow" points="170,40 162,42.5 162,37.5"/>
+<path class="edge" d="M290 40 L350 40"><title>e2</title></path>
+<polygon class="arrow" points="350,40 342,42.5 342,37.5"/>
+<path class="edge" d="M390 70 C390 85 400 90 410 100"><title>e3</title></path>
+<polygon class="arrow" points="410,100 402.53,96.21 406.01,92.63"/>
+<rect class="label" x="110" y="34" width="30" height="14"/>
+<rect class="port" x="98" y="48" width="4" height="4"><title>req</title></rect>
+<rect class="port" x="168" y="38" width="4" height="4"><title>in</title></rect>
+<rect class="port" x="287" y="37" width="6" height="6"><title>out</title></rect>
+</svg>

@@ -4,8 +4,8 @@
 
 use std::collections::BTreeMap;
 
-use crate::graph::{Direction, Graph, Node, Point, Rect, Side};
-use crate::layout::{Layout, Segment};
+use crate::graph::{Direction, Edge, Graph, Node, Point, Rect, Side};
+use crate::layout::{EdgePlace, Layout, Segment};
 use crate::msg::Message;
 
 /// Nombre de pas de l'aplatissement d'une courbe de Bézier : toute mesure
@@ -82,7 +82,7 @@ impl Metrics {
     /// Mesure un placement valide pour son graphe.
     pub fn measure<'a>(graph: &'a Graph, layout: &Layout) -> Metrics {
         let all = graph.all_nodes();
-        let rects = absolute_rects(graph, layout);
+        let rects = layout.absolute_rects(graph);
         let parents: BTreeMap<&str, &str> = all
             .iter()
             .filter_map(|(node, parent)| parent.map(|p| (node.id.as_str(), p.id.as_str())))
@@ -109,17 +109,7 @@ impl Metrics {
                     .copied()
                     .filter(|id| *id != edge.source && *id != edge.target)
                     .collect();
-                let labels = edge
-                    .labels
-                    .iter()
-                    .zip(&place.labels)
-                    .map(|(label, at)| Rect {
-                        x: at.x,
-                        y: at.y,
-                        width: label.width,
-                        height: label.height,
-                    })
-                    .collect();
+                let labels = label_rects(edge, place);
                 Some(Measured {
                     points,
                     corner,
@@ -305,45 +295,19 @@ impl Metrics {
         rects: &BTreeMap<&str, Rect>,
         edges: &[Measured<'_>],
     ) {
-        let mut bound: Option<Rect> = None;
-        let mut grow = |rect: Rect| {
-            bound = Some(match bound {
-                None => rect,
-                Some(b) => {
-                    let x = b.x.min(rect.x);
-                    let y = b.y.min(rect.y);
-                    Rect {
-                        x,
-                        y,
-                        width: (b.x + b.width).max(rect.x + rect.width) - x,
-                        height: (b.y + b.height).max(rect.y + rect.height) - y,
-                    }
-                }
-            });
-        };
         let mut leaves: i128 = 0;
         for (node, _) in all {
-            let Some(rect) = rects.get(node.id.as_str()) else {
-                continue;
-            };
-            grow(*rect);
-            if !node.is_container() {
+            if let Some(rect) = rects.get(node.id.as_str())
+                && !node.is_container()
+            {
                 leaves += i128::from(rect.width) * i128::from(rect.height);
             }
         }
-        for edge in edges {
-            for p in &edge.points {
-                grow(Rect {
-                    x: p.x,
-                    y: p.y,
-                    width: 0,
-                    height: 0,
-                });
-            }
-            for label in &edge.labels {
-                grow(*label);
-            }
-        }
+        let bound = bounds(
+            rects.values().copied(),
+            edges.iter().flat_map(|e| e.points.iter().copied()),
+            edges.iter().flat_map(|e| e.labels.iter().copied()),
+        );
         let Some(bound) = bound else {
             return;
         };
@@ -423,37 +387,75 @@ impl Metrics {
     }
 }
 
-/// Le rectangle absolu de chaque nœud placé, conteneurs compris. Un nœud
-/// sans taille, ou dont le parent n'est pas placé, n'en a pas.
-fn absolute_rects<'a>(graph: &'a Graph, layout: &Layout) -> BTreeMap<&'a str, Rect> {
-    let mut rects: BTreeMap<&str, Rect> = BTreeMap::new();
-    let places: BTreeMap<&str, _> = layout.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
-    for (node, parent) in graph.all_nodes() {
-        let Some(place) = places.get(node.id.as_str()) else {
-            continue;
-        };
-        let size = if node.is_container() {
-            place.size
-        } else {
-            node.size
-        };
-        let origin = match parent {
-            None => Some((0, 0)),
-            Some(parent) => rects.get(parent.id.as_str()).map(|r| (r.x, r.y)),
-        };
-        if let (Some(size), Some((ox, oy))) = (size, origin) {
-            rects.insert(
-                &node.id,
+/// Les rectangles des étiquettes d'un lien, en absolu, dans l'ordre du graphe.
+pub(crate) fn label_rects(edge: &Edge, place: &EdgePlace) -> Vec<Rect> {
+    edge.labels
+        .iter()
+        .zip(&place.labels)
+        .map(|(label, at)| Rect {
+            x: at.x,
+            y: at.y,
+            width: label.width,
+            height: label.height,
+        })
+        .collect()
+}
+
+/// La boîte englobante de rectangles et de points ; aucune sans rien.
+fn bounds(
+    rects: impl Iterator<Item = Rect>,
+    points: impl Iterator<Item = Point>,
+    labels: impl Iterator<Item = Rect>,
+) -> Option<Rect> {
+    let mut bound: Option<Rect> = None;
+    let dots = points.map(|p| Rect {
+        x: p.x,
+        y: p.y,
+        width: 0,
+        height: 0,
+    });
+    for rect in rects.chain(dots).chain(labels) {
+        bound = Some(match bound {
+            None => rect,
+            Some(b) => {
+                let x = b.x.min(rect.x);
+                let y = b.y.min(rect.y);
                 Rect {
-                    x: ox + place.x,
-                    y: oy + place.y,
-                    width: size.width,
-                    height: size.height,
-                },
-            );
-        }
+                    x,
+                    y,
+                    width: (b.x + b.width).max(rect.x + rect.width) - x,
+                    height: (b.y + b.height).max(rect.y + rect.height) - y,
+                }
+            }
+        });
     }
-    rects
+    bound
+}
+
+/// La boîte englobante de tout ce qui est dessiné : nœuds, sommets des
+/// tracés aplatis, étiquettes. La même que celle des mesures. Aucune pour
+/// un placement vide.
+pub fn extent(graph: &Graph, layout: &Layout) -> Option<Rect> {
+    let rects = layout.absolute_rects(graph);
+    let routed: Vec<(&Edge, &EdgePlace)> = graph
+        .edges
+        .iter()
+        .filter_map(|edge| Some((edge, layout.edges.iter().find(|e| e.id == edge.id)?)))
+        .collect();
+    bounds(
+        rects.values().copied(),
+        routed.iter().flat_map(|(_, place)| polyline(&place.route)),
+        routed
+            .iter()
+            .flat_map(|(edge, place)| label_rects(edge, place)),
+    )
+}
+
+/// Aplatit un tracé en polyligne : chaque courbe devient [`CURVE_STEPS`]
+/// segments, les points répétés sont retirés. C'est la polyligne que les
+/// mesures lisent, et celle que le rendu dessine.
+pub fn polyline(route: &[Segment]) -> Vec<Point> {
+    flatten(route).0
 }
 
 /// Aplatit un tracé en polyligne : chaque courbe devient [`CURVE_STEPS`]

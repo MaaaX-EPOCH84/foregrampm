@@ -33,6 +33,6 @@ pub use graph::{
     Anchor, Direction, Edge, GRAPH_FORMAT, Graph, Label, Node, Point, Port, Rect, Side, Size,
 };
 pub use layout::{EdgePlace, Engine, LAYOUT_FORMAT, Layout, NodePlace, PortPlace, Segment};
-pub use metrics::{CURVE_STEPS, Metrics};
+pub use metrics::{CURVE_STEPS, Metrics, extent, polyline};
 pub use msg::{Arg, Catalog, Message};
 pub use read::{COORD_MAX, FORMAT_VERSION, IDENT_MAX_CHARS, LAYER_MAX};
