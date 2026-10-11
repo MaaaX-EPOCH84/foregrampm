@@ -8,7 +8,7 @@
 .edge{fill:none;stroke:#333333;stroke-width:1;stroke-linejoin:round}
 .arrow{fill:#333333}
 .label{fill:none;stroke:#333333;stroke-width:0.5;stroke-dasharray:3 2}
-.port{fill:#333333}
+.port{fill:#ffffff;stroke:#333333;stroke-width:0.5}
 </style>
 <rect class="sheet" x="-10" y="-10" width="460" height="392"/>
 <rect class="leaf" x="0" y="0" width="140" height="156"><title>MEMBRE</title></rect>

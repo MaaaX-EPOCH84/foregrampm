@@ -107,7 +107,12 @@ impl Canvas {
             (Class::Label, Shape::Rect(rect)) => {
                 self.fill(&dashes(*rect, style), style.ink);
             }
-            (Class::Port, Shape::Rect(rect)) => self.fill(&[corners(*rect)], style.ink),
+            // Un carré creux : le fond de la feuille, puis un bord fin, pour
+            // que le port se détache du bord du nœud et du bout du lien.
+            (Class::Port, Shape::Rect(rect)) => {
+                self.fill(&[corners(*rect)], style.sheet);
+                self.fill(&ring(*rect, style.thin), style.ink);
+            }
             (Class::Edge, Shape::Route(route)) => {
                 self.fill(&stroke(&polyline(route), style.thick), style.ink);
             }

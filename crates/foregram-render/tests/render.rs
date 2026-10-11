@@ -125,6 +125,11 @@ fn the_png_has_the_size_of_the_view_and_the_leaf_grey_inside_a_leaf() {
     // Le bord de `Client`, à x = 0 du dessin, donc x = 10 de l'image, est
     // un trait de 1 px centré sur le contour : deux pixels à moitié.
     assert!(at(9, 60) < style.sheet && at(10, 60) < style.leaf_fill);
+    // Le port `req`, carré de 4 px centré sur (100, 50) du dessin, est
+    // creux : son cœur a le fond de la feuille, par-dessus le lien et le
+    // bord de `Client`, et son bord est sombre.
+    assert_eq!(at(110, 60), style.sheet);
+    assert!(at(108, 60) < style.sheet);
     assert_eq!(bytes, png(&graph, &layout, &style, 1).unwrap());
 
     let (width, height, _) = decode(&png(&graph, &layout, &style, 3).unwrap());

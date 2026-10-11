@@ -103,7 +103,15 @@ fn stylesheet(style: &Style) -> String {
                 px(style.gap)
             ),
         ),
-        (Class::Port, format!("fill:{}", gray(style.ink))),
+        (
+            Class::Port,
+            format!(
+                "fill:{};stroke:{};stroke-width:{}",
+                gray(style.sheet),
+                gray(style.ink),
+                px(style.thin)
+            ),
+        ),
     ];
     let mut out = String::from("<style>\n");
     for (class, rule) in rules {

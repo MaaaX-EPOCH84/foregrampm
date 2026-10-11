@@ -685,7 +685,7 @@ check is refused, not drawn.
 | edge | A dark 1 px line along the route; curves are drawn as curves in the SVG and as the 16-step polyline of the metrics in the PNG, so the image shows what was measured |
 | arrow | A dark triangle at the end of the route, 8 px long and 5 px wide, pointing along the last segment of the polyline |
 | label | A dashed 0.5 px rectangle, empty: the format carries no text |
-| port | A dark square of 4 px centred on the anchor, or the port's own box when the graph gives one |
+| port | A hollow square of 4 px centred on the anchor, or the port's own box when the graph gives one: filled with the sheet's white and outlined with a thin dark border, 0.5 px, so it stands out from the node border and the edge end |
 
 No text is drawn, since the graph carries none. In the SVG, every node, edge
 and port carries its identifier in a `<title>`, shown on hover and found by

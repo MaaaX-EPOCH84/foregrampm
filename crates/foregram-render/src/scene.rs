@@ -15,13 +15,13 @@ pub struct Style {
     pub sheet: u8,
     /// Fond d'une feuille du graphe (un nœud sans enfant).
     pub leaf_fill: u8,
-    /// Encre des traits pleins : bord des feuilles, liens, flèches, ports.
+    /// Encre des traits pleins : bord des feuilles et des ports, liens, flèches.
     pub ink: u8,
     /// Encre d'un conteneur, plus claire pour que le contenu se lise.
     pub container_ink: u8,
     /// Épaisseur des traits forts : bord des feuilles, liens.
     pub thick: i64,
-    /// Épaisseur des traits fins : conteneurs, étiquettes.
+    /// Épaisseur des traits fins : conteneurs, étiquettes, ports.
     pub thin: i64,
     /// Longueur de la flèche, et largeur de sa base.
     pub arrow_length: i64,
@@ -67,7 +67,7 @@ pub enum Class {
     Arrow,
     /// Une étiquette : rectangle en tirets, vide.
     Label,
-    /// Un port : un carré plein, ou sa boîte.
+    /// Un port : un carré creux, ou sa boîte, au fond de la feuille.
     Port,
 }
 
