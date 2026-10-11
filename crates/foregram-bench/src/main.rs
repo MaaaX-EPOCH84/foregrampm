@@ -14,7 +14,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use foregram_graph::{Catalog, Diagnostic, Graph, Layout, Message};
+use foregram_graph::{Catalog, Diagnostic, Graph, Layout, Message, Metrics};
 
 /// Tout est valide.
 const VALID: u8 = 0;
@@ -48,6 +48,9 @@ fn main() -> ExitCode {
             Some(kind) => layout_corpus(kind, cache.as_ref(), out.as_ref()),
             None => usage(),
         },
+        (Some("metrics"), [graph, layouts @ ..]) if !layouts.is_empty() => {
+            metrics(graph.as_ref(), layouts)
+        }
         _ => usage(),
     };
     ExitCode::from(status)
@@ -284,6 +287,51 @@ fn validate(graph_path: &Path, layout_paths: &[OsString]) -> u8 {
             println!("{}", say(message));
         } else {
             refuse(path, &diags, &mut status);
+        }
+    }
+    status
+}
+
+/// Mesure chaque placement pour le graphe, quel que soit le format de
+/// celui-ci. Un placement qui ne passe pas la confrontation au graphe est
+/// refusé, pas mesuré.
+fn metrics(graph_path: &Path, layout_paths: &[OsString]) -> u8 {
+    let mut status = VALID;
+    let Some(bytes) = load(graph_path, &mut status) else {
+        return status;
+    };
+    let graph = match import_any(graph_path, &bytes) {
+        Ok(graph) => graph,
+        Err(diags) => {
+            refuse(graph_path, &diags, &mut status);
+            return status;
+        }
+    };
+    for path in layout_paths {
+        let path: &Path = path.as_ref();
+        let Some(bytes) = load(path, &mut status) else {
+            continue;
+        };
+        let layout = match Layout::parse(&bytes) {
+            Ok(layout) => layout,
+            Err(diags) => {
+                refuse(path, &diags, &mut status);
+                continue;
+            }
+        };
+        let diags = layout.check(&graph);
+        if !diags.is_empty() {
+            refuse(path, &diags, &mut status);
+            continue;
+        }
+        let message = Message::new("bench.measured")
+            .text("path", path.display())
+            .text("graph", &layout.graph)
+            .text("engine", &layout.engine.name)
+            .text("version", &layout.engine.version);
+        println!("{}", say(message));
+        for line in Metrics::measure(&graph, &layout).report() {
+            println!("  {}", say(line));
         }
     }
     status

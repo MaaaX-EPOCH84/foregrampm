@@ -10,8 +10,8 @@ mod common;
 use std::collections::BTreeSet;
 
 use foregram_graph::{
-    Catalog, Diagnostic, Edge, EdgePlace, Engine, Graph, Layout, Node, NodePlace, Point, Port,
-    PortPlace, Pos, Segment, Size,
+    Catalog, Diagnostic, Edge, EdgePlace, Engine, Graph, Layout, Metrics, Node, NodePlace, Point,
+    Port, PortPlace, Pos, Segment, Size,
 };
 
 fn graph_refusals(text: &[u8]) -> Vec<Diagnostic> {
@@ -310,6 +310,12 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
     assert!(bare.render(catalog).starts_with("error[J002]: "));
     reached.insert("diag.bare");
 
+    // Le rapport des mesures, une ligne par mesure.
+    for line in Metrics::default().report() {
+        assert_eq!(line.check(catalog), Ok(()));
+        reached.extend(line.keys());
+    }
+
     // Les entrées du banc — ligne de commande, imports GraphML, ELK et MCD,
     // moteurs de référence —, que ses propres tests exercent.
     let mut bench_keys = BTreeSet::new();
@@ -360,6 +366,7 @@ fn every_key_written_in_the_library_exists_in_the_catalogue() {
         "graph.rs",
         "json.rs",
         "layout.rs",
+        "metrics.rs",
         "read.rs",
         "msg.rs",
     ] {

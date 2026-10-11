@@ -626,6 +626,40 @@ is not square; it also rejects a few compound graphs of its own test corpus.
 | R006 | Number in the output that cannot be carried in hundredths of a pixel |
 | R007 | ELK changed the size of a leaf |
 
+## Metrics
+
+The benchmark compares engines on numbers read off a layout confronted with
+its graph. The layout must pass the validation above; the metrics then
+measure what validation does not judge.
+
+```
+foregram-bench metrics <graph> <layout.json>...
+```
+
+The command checks each layout against the graph, which may be a
+`.graph.json`, `.graphml`, `.elkt` or `.mcd` file, and writes one line per
+measure. A layout that fails the check is refused, not measured. All
+numbers are integers: lengths in hundredths of a pixel, areas in square
+hundredths, ratios in thousandths. The same layout gives the same numbers on
+every machine.
+
+**Every curve is first flattened** into 16 straight segments, its points
+taken at sixteenths of the parameter and rounded to the nearest hundredth;
+every measure below reads the polyline obtained. Repeated points are
+dropped.
+
+| Measure | Definition |
+|---|---|
+| crossings | Pairs of segments of two distinct edges that meet in a single point interior to both routes. A route that passes through a vertex of the other — its neighbours on either side — counts once; a route that touches the other and comes back on the same side does not. A point shared by the ends of two edges never counts, nor does an edge with itself |
+| shared stretches | Pairs of segments of two distinct edges that are collinear and overlap over a positive length, with the length of all overlaps added up |
+| bends | Vertices between two straight segments where the direction changes. A curve, and its junction with a straight segment, is never a bend; a vertex where the route continues straight on is not one either |
+| edge length | The length of every route added up, each segment rounded to the nearest hundredth, and the length of the longest route |
+| node overlaps | Pairs of nodes, at any depth, whose rectangles overlap over a positive area, with the areas added up. A node and one of its ancestors are not a pair; touching is not overlapping |
+| edges through a foreign node | Pairs of an edge and a node that is neither one of its ends nor an ancestor of one of them, where a segment of the route enters the inside of the node. Running along the border does not enter |
+| label overlaps | Pairs of a label and a node that is not a container of its edge, of two labels, or of a label and an edge other than its own, where they overlap or the route enters the label |
+| extent | The bounding box of every node, route point and label: width, height and area; the proportion, width over height in thousandths (1414 is a landscape 1:√2 sheet); the density, area of the leaves over area of the box, in thousandths |
+| constraints broken | Pairs of nodes with a `layer` whose layers and whose centres along `direction` are not in the same order (`right` when the graph has no direction); pairs of nodes of the same layer with an `order` whose orders and whose centres across the direction are not in the same order; pairs of ports of the same side, on a node with `ports_ordered`, whose anchors do not follow the list order clockwise — left to right on the north side, top to bottom on the east, right to left on the south, bottom to top on the west |
+
 ## Limits of version 2
 
 - **Rectangular nodes.** Any other shape is described by its bounding

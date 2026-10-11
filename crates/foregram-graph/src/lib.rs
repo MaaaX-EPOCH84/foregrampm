@@ -9,6 +9,9 @@
 //!   ce que l'auteur a voulu fixer ;
 //! - [`Layout`] : la position de chaque nœud, le tracé de chaque lien.
 //!
+//! [`Metrics`] mesure un placement pour son graphe : croisements, coudes,
+//! longueurs, recouvrements, encombrement, contraintes honorées.
+//!
 //! La bibliothèque lit des octets et rend des valeurs ou des refus. Elle ne
 //! touche ni fichier, ni horloge, ni environnement, et n'emploie que des
 //! entiers : la même entrée donne les mêmes octets sur toute machine.
@@ -21,6 +24,7 @@ mod diag;
 mod graph;
 pub mod json;
 mod layout;
+mod metrics;
 mod msg;
 mod read;
 
@@ -29,5 +33,6 @@ pub use graph::{
     Anchor, Direction, Edge, GRAPH_FORMAT, Graph, Label, Node, Point, Port, Rect, Side, Size,
 };
 pub use layout::{EdgePlace, Engine, LAYOUT_FORMAT, Layout, NodePlace, PortPlace, Segment};
+pub use metrics::{CURVE_STEPS, Metrics};
 pub use msg::{Arg, Catalog, Message};
 pub use read::{COORD_MAX, FORMAT_VERSION, IDENT_MAX_CHARS, LAYER_MAX};
