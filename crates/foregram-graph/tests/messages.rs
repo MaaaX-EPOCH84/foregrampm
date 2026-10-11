@@ -310,10 +310,20 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
     assert!(bare.render(catalog).starts_with("error[J002]: "));
     reached.insert("diag.bare");
 
-    // Les entrées du banc, ligne de commande et imports GraphML, ELK et MCD, que
-    // ses propres tests exercent.
+    // Les entrées du banc — ligne de commande, imports GraphML, ELK et MCD,
+    // moteurs de référence —, que ses propres tests exercent.
     let mut bench_keys = BTreeSet::new();
-    for name in ["main.rs", "graphml.rs", "elkt.rs", "elk.rs", "mcd.rs"] {
+    for name in [
+        "main.rs",
+        "graphml.rs",
+        "elkt.rs",
+        "elk.rs",
+        "mcd.rs",
+        "engine/mod.rs",
+        "engine/dot.rs",
+        "engine/elk.rs",
+        "engine/fit.rs",
+    ] {
         let path = format!(
             "{}/../foregram-bench/src/{name}",
             env!("CARGO_MANIFEST_DIR")
@@ -385,7 +395,7 @@ fn key_literals(source: &str) -> BTreeSet<String> {
         let parts: Vec<&str> = literal.split('.').collect();
         let head = parts[0].as_bytes();
         let code = head.len() == 4
-            && b"JSGLXEM".contains(&head[0])
+            && b"JSGLXEMR".contains(&head[0])
             && head[1..].iter().all(u8::is_ascii_digit)
             && parts[1..].iter().all(|p| word(p));
         let fragment =

@@ -141,6 +141,15 @@ M006 = `{name}` already declared (line {line})
 M007 = `{name}` is not a declared entity
 M008 = association `{name}` needs two links at least, it has {count}
 
+# Reference engines of the benchmark
+R001 = {engine}: not found at {path}; run corpus/fetch.sh
+R002 = {engine}: version {found} found, the manifest pins {pinned}
+R003 = {engine} failed: {detail}
+R004 = {engine} timed out after {millis} ms
+R005 = {engine} output not understood: {detail}
+R006 = {engine} output: number `{text}` cannot be carried in hundredths of a pixel
+R007 = {engine} changed the size of leaf "{id}" to {width} × {height}
+
 # What the ELK text reader expected
 expect.literal = `{text}`
 expect.ident = an identifier
@@ -189,7 +198,7 @@ diag.at = {line}:{col}: error[{code}]: {text}
 diag.bare = error[{code}]: {text}
 
 # The benchmark command line
-bench.usage = usage: foregram-bench validate <graph.json> [<layout.json>...]\n       foregram-bench graphml <file.graphml>\n       foregram-bench elkt <file.elkt>\n       foregram-bench mcd <file.mcd>\n       foregram-bench check-corpus <cache>\n       foregram-bench --help | --version\n\n  validate      Validates a graph, then each layout against that graph.\n  graphml       Converts a GraphML file and writes the graph on the output.\n  elkt          Converts an ELK text file and writes the graph on the output.\n  mcd           Converts a conceptual data model and writes the graph on the\n                output.\n  check-corpus  Converts every graph of Rome, North and elk-models found in\n                the cache of corpus/fetch.sh; compares Rome and North with\n                their Graph.log, elk-models with corpus/manifest.txt.\n\nexit codes: 0 everything is valid, 1 a file is refused or a graph differs,\n            2 wrong call or unreadable file
+bench.usage = usage: foregram-bench validate <graph.json> [<layout.json>...]\n       foregram-bench graphml <file.graphml>\n       foregram-bench elkt <file.elkt>\n       foregram-bench mcd <file.mcd>\n       foregram-bench check-corpus <cache>\n       foregram-bench layout <engine> <cache> <graph>\n       foregram-bench layout-corpus <engine> <cache> <out>\n       foregram-bench --help | --version\n\n  validate       Validates a graph, then each layout against that graph.\n  graphml        Converts a GraphML file and writes the graph on the output.\n  elkt           Converts an ELK text file and writes the graph on the output.\n  mcd            Converts a conceptual data model and writes the graph on the\n                 output.\n  check-corpus   Converts every graph of Rome, North and elk-models found in\n                 the cache of corpus/fetch.sh; compares Rome and North with\n                 their Graph.log, elk-models with corpus/manifest.txt.\n  layout         Lays out one graph (.graph.json, .graphml, .elkt or .mcd) with\n                 a reference engine, `dot` or `elk`, taken from the cache at\n                 the version the manifest pins; writes the layout on the\n                 output, refusals on the error output.\n  layout-corpus  Lays out every graph of the corpora with a reference engine;\n                 writes the layouts under <out>/<engine>/ and lists every\n                 failure in <out>/<engine>/failures.txt.\n\nexit codes: 0 everything is valid, 1 a file is refused or a graph differs,\n            2 wrong call, unreadable file or engine missing
 bench.valid-graph = {path}: valid graph ({nodes}, {edges})
 bench.valid-layout = {path}: valid layout of graph "{graph}" (engine {engine} {version})
 bench.not-checked = {path}: not checked against the graph, which is not valid
@@ -204,6 +213,11 @@ bench.corpus-failed = {corpus}: {graphs}, {problems}
 bench.elk-ok = {corpus}: {graphs}, {nodes}, {edges}, all valid; not carried: {labels}, {sizeless}, {container-ports}
 bench.manifest-differs = {path}: {files} found and {imported} imported, the manifest says {manifest-files} and {manifest-imported}
 bench.not-carried = {path}: not carried: {labels}, {sizeless}, {container-ports}
+bench.laid-out = {path}: laid out by {engine}, valid
+bench.fitted = {path}: {moved} brought onto their border, by {max} hundredths at most
+bench.unwritable = {path}: cannot write: {error}
+bench.corpus-laid-out = {engine} on {corpus}: {graphs}, {valid} valid, {failed}; {moved} brought onto their border, by {max} hundredths at most
+bench.failures-listed = failures listed in {path}
 count.node.one = {n} node
 count.node.other = {n} nodes
 count.edge.one = {n} edge
@@ -222,3 +236,7 @@ count.container-port.one = {n} fixed port position on a container
 count.container-port.other = {n} fixed port positions on a container
 count.file.one = {n} file
 count.file.other = {n} files
+count.end.one = {n} route end
+count.end.other = {n} route ends
+count.failure.one = {n} failure
+count.failure.other = {n} failures

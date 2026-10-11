@@ -4,6 +4,7 @@
 
 mod elk;
 mod elkt;
+mod engine;
 mod graphml;
 mod lines;
 mod mcd;
@@ -39,12 +40,198 @@ fn main() -> ExitCode {
         (Some("elkt"), [path]) => import_elkt(path.as_ref()),
         (Some("mcd"), [path]) => import_mcd(path.as_ref()),
         (Some("check-corpus"), [cache]) => check_corpus(cache.as_ref()),
-        _ => {
-            eprintln!("{}", say(Message::new("bench.usage")));
-            UNUSABLE
-        }
+        (Some("layout"), [engine, cache, graph]) => match engine_kind(engine) {
+            Some(kind) => layout_one(kind, cache.as_ref(), graph.as_ref()),
+            None => usage(),
+        },
+        (Some("layout-corpus"), [engine, cache, out]) => match engine_kind(engine) {
+            Some(kind) => layout_corpus(kind, cache.as_ref(), out.as_ref()),
+            None => usage(),
+        },
+        _ => usage(),
     };
     ExitCode::from(status)
+}
+
+fn usage() -> u8 {
+    eprintln!("{}", say(Message::new("bench.usage")));
+    UNUSABLE
+}
+
+fn engine_kind(word: &OsString) -> Option<engine::Kind> {
+    word.to_str().and_then(engine::Kind::parse)
+}
+
+/// Place un graphe avec un moteur de référence et écrit le placement, sous sa
+/// forme canonique, sur la sortie standard — même refusé : les refus vont sur
+/// la sortie d'erreur, et se lisent mieux avec le fichier sous les yeux.
+fn layout_one(kind: engine::Kind, cache: &Path, graph_path: &Path) -> u8 {
+    let mut status = VALID;
+    let Some(bytes) = load(graph_path, &mut status) else {
+        return status;
+    };
+    let graph = match import_any(graph_path, &bytes) {
+        Ok(graph) => graph,
+        Err(diags) => {
+            refuse(graph_path, &diags, &mut status);
+            return status;
+        }
+    };
+    let mut runner = match engine::Tools::locate(kind, cache).and_then(engine::Runner::start) {
+        Ok(runner) => runner,
+        Err(diag) => {
+            eprintln!("{diag}");
+            return UNUSABLE;
+        }
+    };
+    let outcome = runner.layout(&graph);
+    if let Some(layout) = &outcome.layout {
+        print!("{}", layout.to_json());
+    }
+    if outcome.fit.moved > 0 {
+        eprintln!("{}", say(fitted(graph_path, outcome.fit)));
+    }
+    if outcome.diags.is_empty() {
+        let message = Message::new("bench.laid-out")
+            .text("path", graph_path.display())
+            .text("engine", kind.name());
+        eprintln!("{}", say(message));
+    } else {
+        refuse(graph_path, &outcome.diags, &mut status);
+    }
+    status
+}
+
+fn fitted(path: &Path, fit: engine::fit::Stats) -> Message {
+    Message::new("bench.fitted")
+        .text("path", path.display())
+        .msg("moved", count(fit.moved, "end"))
+        .text("max", fit.max)
+}
+
+/// Lit un graphe quel que soit son format, d'après l'extension du fichier.
+fn import_any(path: &Path, bytes: &[u8]) -> Result<Graph, Vec<Diagnostic>> {
+    let name = graph_name(path);
+    match path.extension().and_then(|e| e.to_str()) {
+        Some("graphml") => graphml::import(&name, bytes, graphml::NODE_SIZE),
+        Some("elkt") => elk::import(&name, bytes).map(|imported| imported.graph),
+        Some("mcd") => mcd::import(&name, bytes),
+        _ => Graph::parse(bytes),
+    }
+}
+
+/// Les corpus que les moteurs de référence placent : répertoire sous le cache
+/// (ou à côté, pour le corpus maison) et extension des fichiers.
+const LAYOUT_CORPORA: [(&str, &str); 4] = [
+    ("rome", "graphml"),
+    ("north", "graphml"),
+    ("elk-models", "elkt"),
+    ("../mcd", "mcd"),
+];
+
+/// Place chaque graphe des corpus avec un moteur de référence. Les placements
+/// vont dans `<out>/<moteur>/<corpus>/…layout.json`, refusés compris ; chaque
+/// échec est listé dans `<out>/<moteur>/failures.txt`, et compté.
+fn layout_corpus(kind: engine::Kind, cache: &Path, out: &Path) -> u8 {
+    let mut status = VALID;
+    let mut runner = match engine::Tools::locate(kind, cache).and_then(engine::Runner::start) {
+        Ok(runner) => runner,
+        Err(diag) => {
+            eprintln!("{diag}");
+            return UNUSABLE;
+        }
+    };
+    let engine_dir = out.join(kind.name());
+    let failures_path = engine_dir.join("failures.txt");
+    let mut failures = String::new();
+    for (corpus, extension) in LAYOUT_CORPORA {
+        let dir = cache.join(corpus);
+        let files = match files_with(&dir, extension) {
+            Ok(files) => files,
+            Err(error) => {
+                let message = Message::new("bench.unreadable")
+                    .text("path", dir.display())
+                    .text("error", error);
+                eprintln!("{}", say(message));
+                status = status.max(UNUSABLE);
+                continue;
+            }
+        };
+        let corpus_name = corpus.trim_start_matches("../");
+        let (mut valid, mut failed) = (0, 0);
+        let mut fit = engine::fit::Stats::default();
+        for path in &files {
+            let shown = path.strip_prefix(&dir).unwrap_or(path);
+            let shown = Path::new(corpus_name).join(shown);
+            let Some(bytes) = load(path, &mut status) else {
+                failed += 1;
+                continue;
+            };
+            let graph = match import_any(path, &bytes) {
+                Ok(graph) => graph,
+                Err(diags) => {
+                    list_failure(&mut failures, &shown, &diags);
+                    failed += 1;
+                    continue;
+                }
+            };
+            let outcome = runner.layout(&graph);
+            if let Some(layout) = &outcome.layout {
+                let target = engine_dir.join(&shown).with_extension("layout.json");
+                if let Err(error) = write_file(&target, layout.to_json().as_bytes()) {
+                    let message = Message::new("bench.unwritable")
+                        .text("path", target.display())
+                        .text("error", error);
+                    eprintln!("{}", say(message));
+                    return UNUSABLE;
+                }
+            }
+            fit.moved += outcome.fit.moved;
+            fit.max = fit.max.max(outcome.fit.max);
+            if outcome.diags.is_empty() {
+                valid += 1;
+            } else {
+                list_failure(&mut failures, &shown, &outcome.diags);
+                failed += 1;
+            }
+        }
+        let message = Message::new("bench.corpus-laid-out")
+            .text("engine", kind.name())
+            .text("corpus", corpus_name)
+            .msg("graphs", count(files.len(), "graph"))
+            .text("valid", valid)
+            .msg("failed", count(failed, "failure"))
+            .msg("moved", count(fit.moved, "end"))
+            .text("max", fit.max);
+        println!("{}", say(message));
+        if failed > 0 {
+            status = status.max(REFUSED);
+        }
+    }
+    if let Err(error) = write_file(&failures_path, failures.as_bytes()) {
+        let message = Message::new("bench.unwritable")
+            .text("path", failures_path.display())
+            .text("error", error);
+        eprintln!("{}", say(message));
+        return UNUSABLE;
+    }
+    let message = Message::new("bench.failures-listed").text("path", failures_path.display());
+    println!("{}", say(message));
+    status
+}
+
+fn list_failure(failures: &mut String, shown: &Path, diags: &[Diagnostic]) {
+    for diag in diags {
+        let separator = if diag.pos.is_none() { ": " } else { ":" };
+        failures.push_str(&format!("{}{separator}{diag}\n", shown.display()));
+    }
+}
+
+fn write_file(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(path, bytes)
 }
 
 /// Valide un graphe et ses placements. Va au bout : un fichier refusé
@@ -468,6 +655,10 @@ fn count(number: usize, noun: &str) -> Message {
         ("container-port", _) => "count.container-port.other",
         ("file", 1) => "count.file.one",
         ("file", _) => "count.file.other",
+        ("end", 1) => "count.end.one",
+        ("end", _) => "count.end.other",
+        ("failure", 1) => "count.failure.one",
+        ("failure", _) => "count.failure.other",
         (_, 1) => "count.error.one",
         _ => "count.error.other",
     };

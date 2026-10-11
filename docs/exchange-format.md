@@ -529,6 +529,103 @@ character plus 2 on each side, 18 pixels high.
 | M007 | Link to something that is not a declared entity |
 | M008 | Association with fewer than two links |
 
+## Reference engines
+
+The benchmark measures its own layout engine against two references, run at
+pinned versions and brought back into the layout format: `dot`, of Graphviz,
+and ELK Layered. `corpus/fetch.sh` installs both in the cache from
+`corpus/manifest.txt` — the Graphviz Debian package of the pinned release,
+unpacked without installing; the ELK jars from Maven Central, each with its
+SHA-256, and the benchmark's small Java driver compiled against them with
+`javac`. Running ELK needs a Java runtime on the `PATH`; nothing else is
+installed on the machine.
+
+```
+foregram-bench layout <engine> <cache> <graph>
+foregram-bench layout-corpus <engine> <cache> <out>
+```
+
+`<engine>` is `dot` or `elk`. `layout` takes one graph — a `.graph.json`, or
+a `.graphml`, `.elkt` or `.mcd` file converted on the fly —, lays it out and
+writes the layout on the standard output, in canonical form, refused or not;
+refusals go on the error output. `layout-corpus` lays out every graph of Rome,
+North, elk-models and the in-house corpus, writes each layout under
+`<out>/<engine>/<corpus>/`, and lists every failure, with its code, in
+`<out>/<engine>/failures.txt`; a summary per corpus says how many graphs were
+laid out and valid, how many failed. **A failure is listed, never hidden**: a
+graph the engine rejects, one whose output cannot be read, one whose layout
+the validator refuses, each appears with its reason, and the layout file is
+written whenever it could be built. Exit codes as above; one failure makes
+the run exit with 1.
+
+Before anything runs, the engine's version is read — `dot -V`, the name of
+the ELK core jar — and compared with the manifest: a missing engine or another
+version stops the command with exit code 2.
+
+The layout's `engine` records the name, the pinned version and the settings,
+enough to replay it. Both engines run with their defaults, plus what the
+graph says:
+
+- **`dot`**: the graph becomes a `digraph` with `compound=true`, `rankdir` from
+  `direction`, nodes `shape=box fixedsize=true` with their size in inches, a
+  container as a `cluster` whose `margin` is its `padding` (8 points, dot's
+  default, when it has none), edges without arrowheads. An imposed side, of
+  an edge or of a port, becomes a compass point (`n`, `e`, `s`, `w`); an edge
+  to a container attaches to its first leaf with `lhead` or `ltail`, which
+  dot clips at the cluster border; a label becomes an empty HTML table of
+  fixed size, in whole points. `dot -Tjson0` gives the result: node centres
+  and cluster boxes in points, with the y axis pointing up, which the import
+  turns over; one point is one pixel. dot has no ports: the layout gives each
+  port the position the graph fixes, else the end of the first edge that uses
+  it, else the middle of its side — so a port used by two edges that dot
+  attached at different points is refused by the validator, and listed.
+  Layers, orders and the order of ports are not passed.
+- **ELK**: the graph goes to the driver as it is — nesting, `padding`,
+  `direction`, sizes, ports and labels. Each node's `portConstraints` is the
+  most demanding level its ports ask for: `FIXED_POS` with a pinned position,
+  `FIXED_ORDER` with `ports_ordered` (the ports then carry their `index`),
+  `FIXED_SIDE` with a side on a port or on an edge end, else `FREE`. A side
+  imposed on an edge without a port becomes a nameless port fixed on that
+  side, dropped from the layout. ELK places a port by the corner of its box
+  and keeps it outside the border; the import sets `portBorderOffset` to
+  minus half the box, so the box stays centred on the border as the format
+  wants, and an edge ends on the outer edge of the box, inside it. A nested
+  graph runs with `hierarchyHandling=INCLUDE_CHILDREN`, without which ELK does
+  not route an edge across a container. Layers and orders are not passed.
+  The driver returns absolute coordinates; a child's position relative to
+  its parent is the difference of the two rounded absolutes, so that borders
+  and route ends fall on the same hundredth.
+
+Both engines compute in floating point, `dot` clips its curves by
+approximation and attaches a compass point exactly one point outside the
+node: a route end lands up to a point from the border it should touch, and
+the validator would refuse every layout. **A route end at most a pixel and a
+half away from its target is brought onto it**: the border of its node, the
+imposed side, the anchor of a point port, the box of a sized port. Every
+move is counted and the largest one is reported, by graph with `layout`, by
+corpus with `layout-corpus`. An end farther away stays where the engine put
+it, and the validator lists it.
+
+What the engines cannot do with this format is listed the same way. `dot`
+fails on some compound graphs (`triangulation failed`), ignores `lhead` on an
+edge whose tail is inside the cluster, and gives a sizeless 1 × 1 node a
+larger minimum size, so the route ends off it. ELK spreads the ports of a
+side evenly and beyond the node when they do not fit, since the format fixes
+the size of a leaf, and cannot centre on the border a sideless port whose box
+is not square; it also rejects a few compound graphs of its own test corpus.
+
+### Codes
+
+| Code | Refusal |
+|---|---|
+| R001 | Engine not found in the cache |
+| R002 | Engine version differs from the manifest |
+| R003 | Engine failed on the graph, with its message |
+| R004 | Engine timed out (60 s) |
+| R005 | Engine output not understood |
+| R006 | Number in the output that cannot be carried in hundredths of a pixel |
+| R007 | ELK changed the size of a leaf |
+
 ## Limits of version 2
 
 - **Rectangular nodes.** Any other shape is described by its bounding

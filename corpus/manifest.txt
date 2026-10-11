@@ -1,16 +1,21 @@
-# ForegramPM — manifeste des corpus publics du banc.
+# ForegramPM — manifeste de ce que le banc télécharge : corpus publics et
+# moteurs de référence.
 # Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Rien de ces corpus n'est versionné : `corpus/fetch.sh` les télécharge
-# dans `corpus/cache/`, ignoré par Git, et refuse tout écart avec ce
-# manifeste. Une section par corpus, une clé `nom = valeur` par ligne.
+# Rien de tout cela n'est versionné : `corpus/fetch.sh` le télécharge dans
+# `corpus/cache/`, ignoré par Git, et refuse tout écart avec ce manifeste.
+# Une section par corpus ou moteur, une clé `nom = valeur` par ligne.
 #
-#   source   archive (tar gzip, empreinte SHA-256) ou git (commit figé)
-#   url      adresse de l'archive ou du dépôt
-#   version  date de publication constatée
-#   sha256   empreinte de l'archive (source archive)
+#   source   archive (tar gzip, empreinte SHA-256), git (commit figé),
+#            deb (paquet Debian dépaqueté sans installation) ou maven (jars)
+#   url      adresse de l'archive, du dépôt ou du paquet
+#   version  date de publication constatée (corpus), version figée (moteur) ;
+#            le banc refuse un moteur d'une autre version
+#   sha256   empreinte de l'archive ou du paquet
 #   commit   commit complet (source git)
+#   jar      adresse d'un jar puis son empreinte SHA-256, une ligne par jar
+#            (source maven) ; le pilote Java du banc est compilé contre eux
 #   pattern  motif des fichiers de graphe
 #   count    nombre exact de fichiers attendus pour ce motif
 #   licence  licence constatée, et où
@@ -19,7 +24,7 @@
 #   imported   nombre de fichiers que l'import doit convertir (ELK) ; les
 #              autres sont refusés pour une raison que `check-corpus` affiche
 #
-# Les licences ont été lues le 2026-10-10.
+# Les licences ont été lues le 2026-10-10 (corpus) et le 2026-10-11 (moteurs).
 
 [rome]
 source = archive
@@ -50,3 +55,27 @@ pattern = *.elkt
 count = 898
 imported = 898
 licence = EPL-2.0 (LICENSE.md, NOTICE.md); realworld/ptolemy/ under the Ptolemy II licence, BSD-style, Regents of the University of California 1997-2013 (realworld/ptolemy/README.txt)
+
+[graphviz]
+source = deb
+url = https://gitlab.com/api/v4/projects/4207231/packages/generic/graphviz-releases/16.1.0/ubuntu_24.04_graphviz-16.1.0-cmake.deb
+version = 16.1.0
+sha256 = fe344258d6171d4679bd6ed02fb8f41b3cb9a59ec35fef5f77684dd09512a7c8
+licence = EPL-1.0 (graphviz.org/license), tool run by the benchmark, never linked
+
+[elk]
+source = maven
+version = 0.12.0
+jar = https://repo1.maven.org/maven2/org/eclipse/elk/org.eclipse.elk.core/0.12.0/org.eclipse.elk.core-0.12.0.jar d56dc3cc650c1f346675f2180e64efed458d264ae221ec677e60f6edc7526502
+jar = https://repo1.maven.org/maven2/org/eclipse/elk/org.eclipse.elk.graph/0.12.0/org.eclipse.elk.graph-0.12.0.jar 44b0263d6206ab9c2d6a96e8db596a89c934f1223fabd2f209ada1b7300222eb
+jar = https://repo1.maven.org/maven2/org/eclipse/elk/org.eclipse.elk.alg.layered/0.12.0/org.eclipse.elk.alg.layered-0.12.0.jar 11774d76e4855f181335ba61c268e9b7434f2ddf5c6b87e82dd1dc51d6e6821d
+jar = https://repo1.maven.org/maven2/org/eclipse/elk/org.eclipse.elk.alg.common/0.12.0/org.eclipse.elk.alg.common-0.12.0.jar e7fe9dd838f2ab33b30e4da639ba710c44c8734e9c25b06d715a91a7880e6172
+jar = https://repo1.maven.org/maven2/org/eclipse/emf/org.eclipse.emf.common/2.12.0/org.eclipse.emf.common-2.12.0.jar 80b9ddd0174bbc5623767ed9f4c96b17ae98ffaefb8edbcc780d59b0d7efef83
+jar = https://repo1.maven.org/maven2/org/eclipse/emf/org.eclipse.emf.ecore/2.12.0/org.eclipse.emf.ecore-2.12.0.jar 2ac691cc4fa09fdf18beef6bdd457b7bdfe4d301f9707a8c89c6cb209139f4f9
+jar = https://repo1.maven.org/maven2/org/eclipse/emf/org.eclipse.emf.ecore.xmi/2.12.0/org.eclipse.emf.ecore.xmi-2.12.0.jar b8c305ee775d885a089256c5b681f64dce78fc821d2714a2194c894048c03e11
+jar = https://repo1.maven.org/maven2/org/eclipse/xtext/org.eclipse.xtext.xbase.lib/2.36.0/org.eclipse.xtext.xbase.lib-2.36.0.jar e94d17a7e8f2f27c4f9cceabca5f639e1d83214c38cb964f3a9c974c05297c5f
+jar = https://repo1.maven.org/maven2/org/eclipse/xtend/org.eclipse.xtend.lib/2.36.0/org.eclipse.xtend.lib-2.36.0.jar ac53dfb1a9bc49500350d8d2d0f7b6d7c733bde58eb504f5c441140aade98675
+jar = https://repo1.maven.org/maven2/org/eclipse/xtend/org.eclipse.xtend.lib.macro/2.36.0/org.eclipse.xtend.lib.macro-2.36.0.jar be6b0addefc8c1a93c7eb690a6367c2ba3bcc29c7f14518a30baeaa1c2d89acd
+jar = https://repo1.maven.org/maven2/com/google/guava/guava/33.7.2-jre/guava-33.7.2-jre.jar b530942257fb935f8b2cfaa5f8eb5bd59c555fd8e8d01b8ce98912e077ea606c
+jar = https://repo1.maven.org/maven2/com/google/guava/failureaccess/1.0.3/failureaccess-1.0.3.jar cbfc3906b19b8f55dd7cfd6dfe0aa4532e834250d7f080bd8d211a3e246b59cb
+licence = ELK EPL-2.0 (LICENSE.md of eclipse-elk/elk); EMF and Xtext EPL-2.0; Guava Apache-2.0; tools run by the benchmark, never linked

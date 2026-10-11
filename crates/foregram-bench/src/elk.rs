@@ -200,38 +200,7 @@ fn choice<T: Copy>(
 /// 1250. Au-delà de deux décimales, arrondi au plus près, la moitié vers
 /// l'extérieur. `None` si le nombre ne tient pas dans un `i64`.
 pub fn hundredths(number: &Number) -> Option<i64> {
-    let text = number.text.as_str();
-    let (negative, rest) = match text.strip_prefix('-') {
-        Some(rest) => (true, rest),
-        None => (false, text.strip_prefix('+').unwrap_or(text)),
-    };
-    let (mantissa, exponent) = match rest.split_once(['e', 'E']) {
-        Some((mantissa, exponent)) => (mantissa, exponent.parse::<i64>().ok()?),
-        None => (rest, 0),
-    };
-    let (whole, fraction) = mantissa.split_once('.').unwrap_or((mantissa, ""));
-    let digits: Vec<u8> = whole
-        .bytes()
-        .chain(fraction.bytes())
-        .map(|b| b.wrapping_sub(b'0'))
-        .collect();
-    // Valeur = chiffres × 10^(exposant − décimales) ; en centièmes, deux de plus.
-    let shift = exponent
-        .checked_sub(i64::try_from(fraction.len()).ok()?)?
-        .checked_add(2)?;
-    let kept = i64::try_from(digits.len()).ok()?.checked_add(shift)?;
-    let kept = usize::try_from(kept.max(0)).ok()?;
-    let mut value: i128 = 0;
-    for &digit in digits.iter().take(kept) {
-        value = value.checked_mul(10)?.checked_add(i128::from(digit))?;
-    }
-    for _ in digits.len()..kept {
-        value = value.checked_mul(10)?;
-    }
-    if digits.get(kept).is_some_and(|&d| d >= 5) {
-        value += 1;
-    }
-    i64::try_from(if negative { -value } else { value }).ok()
+    crate::engine::hundredths(&number.text)
 }
 
 // ------------------------------------------------------------------- index
