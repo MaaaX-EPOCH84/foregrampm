@@ -45,7 +45,7 @@ impl Kind {
     }
 
     /// La section du manifeste qui fige sa version.
-    fn section(self) -> &'static str {
+    pub fn section(self) -> &'static str {
         match self {
             Kind::Dot => "graphviz",
             Kind::Elk => "elk",

@@ -9,3 +9,6 @@
 # Corpus maison qui ne se publie pas : reste sur le poste.
 /corpus/local/
 /corpus/layouts/
+
+# Planche et rapport du banc, régénérés par `foregram-bench board`.
+/corpus/board/

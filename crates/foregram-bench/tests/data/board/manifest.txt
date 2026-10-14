@@ -1,0 +1,7 @@
+# Versions des moteurs, comme dans corpus/manifest.txt.
+
+[graphviz]
+version = 16.1.0
+
+[elk]
+version = 0.12.0

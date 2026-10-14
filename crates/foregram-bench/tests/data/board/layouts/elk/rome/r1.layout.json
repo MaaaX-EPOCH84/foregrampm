@@ -1,0 +1,18 @@
+{
+  "format": "foregram-layout",
+  "version": 2,
+  "graph": "r1",
+  "engine": {"name": "elk", "version": "0.12.0", "options": "org.eclipse.elk.layered; hierarchyHandling=INCLUDE_CHILDREN when nested; portConstraints from the ports; portBorderOffset=-size/2; direction from the graph"},
+  "nodes": [
+    {"id": "n0", "x": 1200, "y": 6700},
+    {"id": "n1", "x": 1200, "y": 1200},
+    {"id": "n2", "x": 10150, "y": 1200},
+    {"id": "n3", "x": 10150, "y": 6700}
+  ],
+  "edges": [
+    {"id": "e0", "route": [[6150, 7867], [8150, 7867], [8150, 3533], [10150, 3533]]},
+    {"id": "e1", "route": [[6150, 9033], [10150, 9033]]},
+    {"id": "e2", "route": [[6150, 2367], [10150, 2367]]},
+    {"id": "e3", "route": [[6150, 3533], [7150, 3533], [7150, 5700], [9150, 5700], [9150, 7867], [10150, 7867]]}
+  ]
+}

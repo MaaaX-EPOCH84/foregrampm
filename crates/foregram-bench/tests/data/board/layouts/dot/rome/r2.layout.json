@@ -1,0 +1,13 @@
+{
+  "format": "foregram-layout",
+  "version": 2,
+  "graph": "r2",
+  "engine": {"name": "dot", "version": "16.1.0", "options": "dot -Tjson0; shape=box fixedsize=true; arrowhead=none; compound=true; labels as fixed-size HTML tables; rankdir from direction"},
+  "nodes": [
+    {"id": "n0", "x": 0, "y": 0},
+    {"id": "n1", "x": 0, "y": 7100}
+  ],
+  "edges": [
+    {"id": "e0", "route": [[2475, 3500], [[2475, 4605], [2475, 6013], [2475, 7100]]]}
+  ]
+}

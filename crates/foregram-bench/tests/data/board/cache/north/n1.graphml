@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<graphml>
+<graph id="G">
+<node id="n0"/>
+<node id="n1"/>
+<node id="n2"/>
+<edge id="e0" source="n0" target="n1"/>
+<edge id="e1" source="n0" target="n2"/>
+<edge id="e2" source="n1" target="n2"/>
+</graph>
+</graphml>

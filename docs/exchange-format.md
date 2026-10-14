@@ -723,6 +723,79 @@ every machine.
 | V002 | Image larger than 50,000,000 pixels |
 | V003 | PNG encoder failure |
 
+## Board and report
+
+One command lays out every corpus with both reference engines, measures
+every layout and writes what compares them:
+
+```
+foregram-bench board <cache> <out> [--layouts <dir>]
+```
+
+Without `--layouts`, the command first runs `layout-corpus` for `dot` then
+for `elk` into `<out>/layouts/`, which takes minutes. With it, it reads the
+layouts that `layout-corpus` already wrote into `<dir>`, failures included.
+In both cases it then writes into `<out>`:
+
+| File | Content |
+|---|---|
+| `metrics.json` | Every graph and engine: its metrics, or its refusals counted by code |
+| `report.md` | Per corpus: graphs laid out and refused, refusals by code, four statistics per measure and per engine, and the comparison on the graphs both engines laid out |
+| `board.md` | Per corpus, a sample of graphs, each drawn by both engines side by side, with its crossings and bends |
+| `svg/<engine>/<corpus>/…svg` | The drawings of the board, with the neutral look; replaced as a whole on every run |
+
+**Outcomes.** A graph is laid out by an engine when its layout file exists
+and passes the check against the graph; it is refused otherwise, with the
+codes of the check, of the import, or of `failures.txt` when the engine gave
+no layout. A layout neither present nor listed among the failures, or
+written by another engine version than the one the manifest pins, would make
+the board wrong: the command then writes nothing and exits with code 2.
+Failures of the engines are data, not errors: the command exits with code 0.
+
+**`metrics.json`** is in the strict JSON of this format. The engines and their
+versions come first, then one line per graph and engine, in path order:
+
+```
+{
+  "format": "foregram-board",
+  "version": 1,
+  "engines": [
+    {"name": "dot", "version": "16.1.0"},
+    {"name": "elk", "version": "0.12.0"}
+  ],
+  "results": [
+    {"corpus": "rome", "graph": "rome/r1.graphml", "engine": "dot", "metrics": {"crossings": 1, …}},
+    {"corpus": "elk-models", "graph": "elk-models/e1.elkt", "engine": "dot", "refused": {"L016": 1}}
+  ]
+}
+```
+
+`metrics` carries one integer per measure of the section "Metrics", under the
+names `crossings`, `shared_segments`, `shared_length`, `bends`,
+`edge_length`, `longest_edge`, `node_overlaps`, `node_overlap_area`,
+`edge_node_overlaps`, `label_overlaps`, `width`, `height`, `area`,
+`proportion`, `density`, `layer_violations`, `order_violations`,
+`port_order_violations`, in that order. `refused` maps each code to the
+number of refusals with it.
+
+**Statistics.** Per measure and per engine, over the graphs that engine laid
+out: the total, the median, the 90th percentile and the maximum. Quantiles
+take the nearest rank, without interpolation, so they are always values that
+were measured: the median is the value of rank ⌈n/2⌉ in increasing order,
+the 90th percentile that of rank ⌈9n/10⌉. **The comparison** counts, over the
+graphs laid out by both engines only, how often each engine has the lower
+value, or both the same, for crossings, bends, edge length and area. An
+engine that fails on the hard graphs would otherwise look better on the rest.
+
+**The sample** of the board is fixed, without randomness: per corpus, 8
+graphs at regular intervals in path order (the graph of rank ⌊k·n/8⌋ for k
+from 0 to 7), all of them when there are 8 or fewer; then, for each engine,
+the 3 other graphs, laid out by both, on which that engine is furthest ahead
+in crossings, widest gap first, path order between equal gaps.
+
+Nothing written depends on the machine, the date or the time taken: the same
+layouts give the same bytes.
+
 ## Limits of version 2
 
 - **Rectangular nodes.** Any other shape is described by its bounding

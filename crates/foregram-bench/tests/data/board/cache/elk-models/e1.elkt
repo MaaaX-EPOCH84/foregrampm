@@ -1,0 +1,15 @@
+// Un port emprunté par deux liens : dot, qui n'a pas de ports, le refuse.
+node a {
+	layout [ size: 40, 30 ]
+	port p {
+		layout [ size: 4, 4 ]
+	}
+}
+node b {
+	layout [ size: 40, 30 ]
+}
+node c {
+	layout [ size: 40, 30 ]
+}
+edge a.p -> b
+edge a.p -> c

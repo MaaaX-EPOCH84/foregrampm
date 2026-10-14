@@ -1,0 +1,13 @@
+{
+  "format": "foregram-layout",
+  "version": 2,
+  "graph": "e2",
+  "engine": {"name": "elk", "version": "0.12.0", "options": "org.eclipse.elk.layered; hierarchyHandling=INCLUDE_CHILDREN when nested; portConstraints from the ports; portBorderOffset=-size/2; direction from the graph"},
+  "nodes": [
+    {"id": "a", "x": 1200, "y": 1200},
+    {"id": "b", "x": 7200, "y": 1200}
+  ],
+  "edges": [
+    {"id": "e1", "route": [[5200, 2700], [7200, 2700]]}
+  ]
+}

@@ -317,7 +317,7 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
     }
 
     // Les entrées du banc — ligne de commande, imports GraphML, ELK et MCD,
-    // moteurs de référence — et celles du rendu, que leurs propres tests
+    // moteurs de référence, planche — et celles du rendu, que leurs propres tests
     // exercent.
     let mut bench_keys = BTreeSet::new();
     for name in [
@@ -330,6 +330,7 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
         "foregram-bench/src/engine/dot.rs",
         "foregram-bench/src/engine/elk.rs",
         "foregram-bench/src/engine/fit.rs",
+        "foregram-bench/src/board.rs",
         "foregram-render/src/lib.rs",
         "foregram-render/src/scene.rs",
         "foregram-render/src/svg.rs",

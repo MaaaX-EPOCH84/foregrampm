@@ -203,7 +203,7 @@ diag.at = {line}:{col}: error[{code}]: {text}
 diag.bare = error[{code}]: {text}
 
 # The benchmark command line
-bench.usage = usage: foregram-bench validate <graph.json> [<layout.json>...]\n       foregram-bench graphml <file.graphml>\n       foregram-bench elkt <file.elkt>\n       foregram-bench mcd <file.mcd>\n       foregram-bench check-corpus <cache>\n       foregram-bench layout <engine> <cache> <graph>\n       foregram-bench layout-corpus <engine> <cache> <out>\n       foregram-bench metrics <graph> <layout.json>...\n       foregram-bench render <graph> <layout.json> <out.svg|out.png> [--scale <n>]\n       foregram-bench --help | --version\n\n  validate       Validates a graph, then each layout against that graph.\n  graphml        Converts a GraphML file and writes the graph on the output.\n  elkt           Converts an ELK text file and writes the graph on the output.\n  mcd            Converts a conceptual data model and writes the graph on the\n                 output.\n  check-corpus   Converts every graph of Rome, North and elk-models found in\n                 the cache of corpus/fetch.sh; compares Rome and North with\n                 their Graph.log, elk-models with corpus/manifest.txt.\n  layout         Lays out one graph (.graph.json, .graphml, .elkt or .mcd) with\n                 a reference engine, `dot` or `elk`, taken from the cache at\n                 the version the manifest pins; writes the layout on the\n                 output, refusals on the error output.\n  layout-corpus  Lays out every graph of the corpora with a reference engine;\n                 writes the layouts under <out>/<engine>/ and lists every\n                 failure in <out>/<engine>/failures.txt.\n  metrics        Checks each layout against the graph (.graph.json, .graphml,\n                 .elkt or .mcd) and writes its metrics, one line per measure.\n  render         Checks the layout against the graph and draws it, with the\n                 same neutral look for every engine, into an SVG or a PNG file\n                 chosen by its extension; --scale gives the PNG its pixels per\n                 pixel of the drawing, 1 to 8.\n\nexit codes: 0 everything is valid, 1 a file is refused or a graph differs,\n            2 wrong call, unreadable file or engine missing
+bench.usage = usage: foregram-bench validate <graph.json> [<layout.json>...]\n       foregram-bench graphml <file.graphml>\n       foregram-bench elkt <file.elkt>\n       foregram-bench mcd <file.mcd>\n       foregram-bench check-corpus <cache>\n       foregram-bench layout <engine> <cache> <graph>\n       foregram-bench layout-corpus <engine> <cache> <out>\n       foregram-bench metrics <graph> <layout.json>...\n       foregram-bench render <graph> <layout.json> <out.svg|out.png> [--scale <n>]\n       foregram-bench board <cache> <out> [--layouts <dir>]\n       foregram-bench --help | --version\n\n  validate       Validates a graph, then each layout against that graph.\n  graphml        Converts a GraphML file and writes the graph on the output.\n  elkt           Converts an ELK text file and writes the graph on the output.\n  mcd            Converts a conceptual data model and writes the graph on the\n                 output.\n  check-corpus   Converts every graph of Rome, North and elk-models found in\n                 the cache of corpus/fetch.sh; compares Rome and North with\n                 their Graph.log, elk-models with corpus/manifest.txt.\n  layout         Lays out one graph (.graph.json, .graphml, .elkt or .mcd) with\n                 a reference engine, `dot` or `elk`, taken from the cache at\n                 the version the manifest pins; writes the layout on the\n                 output, refusals on the error output.\n  layout-corpus  Lays out every graph of the corpora with a reference engine;\n                 writes the layouts under <out>/<engine>/ and lists every\n                 failure in <out>/<engine>/failures.txt.\n  metrics        Checks each layout against the graph (.graph.json, .graphml,\n                 .elkt or .mcd) and writes its metrics, one line per measure.\n  render         Checks the layout against the graph and draws it, with the\n                 same neutral look for every engine, into an SVG or a PNG file\n                 chosen by its extension; --scale gives the PNG its pixels per\n                 pixel of the drawing, 1 to 8.\n  board          Lays out every graph of the corpora with dot and with ELK\n                 under <out>/layouts/, or reads the layouts of layout-corpus\n                 from --layouts <dir>; measures them and writes into <out>\n                 metrics.json, report.md, the aggregated table, and board.md,\n                 a sample of graphs drawn side by side.\n\nexit codes: 0 everything is valid, 1 a file is refused or a graph differs,\n            2 wrong call, unreadable file or engine missing
 bench.valid-graph = {path}: valid graph ({nodes}, {edges})
 bench.valid-layout = {path}: valid layout of graph "{graph}" (engine {engine} {version})
 bench.not-checked = {path}: not checked against the graph, which is not valid
@@ -225,6 +225,31 @@ bench.corpus-laid-out = {engine} on {corpus}: {graphs}, {valid} valid, {failed};
 bench.failures-listed = failures listed in {path}
 bench.measured = {path}: metrics of graph "{graph}" (engine {engine} {version})
 bench.rendered = {path}: rendered into {out}, graph "{graph}" (engine {engine} {version})
+bench.board-unpinned = {path}: no version pinned for {engine}
+bench.board-missing = {path}: no layout by {engine}, and no failure listed
+bench.board-engine = {path}: laid out by {engine} {version}, the manifest pins {pinned}
+bench.board-incomplete = {path}: {problems}, nothing written
+bench.board-written = {path}: board written, {graphs}, {rows} rows drawn
+board.report-title = # Benchmark report\n\nEngines: {engines}.\n\nLengths and areas are in hundredths of a pixel, proportion and density in thousandths. Quantiles take the nearest rank, without interpolation: the median is the value of rank ⌈n/2⌉ in increasing order, the 90th percentile that of rank ⌈9n/10⌉, the maximum that of rank n.
+board.engine = {name} {version}
+board.corpus = ## {corpus} ({graphs})
+board.outcome-head = | graphs | {a} | {b} |\n|---|---:|---:|
+board.placed = | laid out and valid | {a} | {b} |
+board.refused = | refused | {a} | {b} |
+board.refused-code = | refused with `{code}` | {a} | {b} |
+board.metrics-head = | measure | {a} total | {a} median | {a} 90th | {a} max | {b} total | {b} median | {b} 90th | {b} max |\n|---|---:|---:|---:|---:|---:|---:|---:|---:|
+board.metrics-row = | {name} | {a-total} | {a-median} | {a-p90} | {a-max} | {b-total} | {b-median} | {b-p90} | {b-max} |
+board.none = –
+board.pairs-head = On the {graphs} laid out by both engines, how often each does better, lower being better:\n\n| measure | {a} better | equal | {b} better |\n|---|---:|---:|---:|
+board.pairs-row = | {name} | {a} | {equal} | {b} |
+board.pairs-none = No graph was laid out by both engines.
+board.board-title = # Benchmark board\n\nEach row is one graph laid out by {a} and by {b}, drawn with the same neutral look. Per corpus: {regular} graphs at regular intervals in path order, then the {ahead} graphs where each engine has the fewest crossings compared with the other.
+board.board-corpus = ## {corpus}\n\n| graph | {a} | {b} |\n|---|---|---|
+board.row = | `{graph}`<br>{why} | {a} | {b} |
+board.why-regular = regular sample
+board.why-ahead = {engine} has {n} fewer crossings
+board.cell = ![{engine}]({svg})<br>crossings {crossings} · bends {bends}
+board.cell-refused = refused: {codes}
 
 # Metrics report, one line per measure
 metrics.crossings = crossings: {n}

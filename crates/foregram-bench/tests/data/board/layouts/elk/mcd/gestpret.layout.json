@@ -1,0 +1,15 @@
+{
+  "format": "foregram-layout",
+  "version": 2,
+  "graph": "gestpret",
+  "engine": {"name": "elk", "version": "0.12.0", "options": "org.eclipse.elk.layered; hierarchyHandling=INCLUDE_CHILDREN when nested; portConstraints from the ports; portBorderOffset=-size/2; direction from the graph"},
+  "nodes": [
+    {"id": "MEMBRE", "x": 1200, "y": 17400},
+    {"id": "MATERIEL", "x": 1900, "y": 1200},
+    {"id": "PRET", "x": 16600, "y": 5367}
+  ],
+  "edges": [
+    {"id": "PRET.MEMBRE", "route": [[11900, 24500], [15600, 24500], [15600, 11233], [16600, 11233]], "labels": [[12100, 24800]]},
+    {"id": "PRET.MATERIEL", "route": [[11900, 8300], [16600, 8300]], "labels": [[12100, 8600]]}
+  ]
+}

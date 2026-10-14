@@ -61,6 +61,63 @@ pub struct Metrics {
     pub port_order_violations: u64,
 }
 
+/// Une boîte fermée, bords compris : deux boîtes qui se touchent ne sont
+/// pas disjointes.
+#[derive(Clone, Copy)]
+struct Bounds {
+    min: Point,
+    max: Point,
+}
+
+impl Bounds {
+    fn of(points: &[Point]) -> Bounds {
+        let mut b = Bounds {
+            min: Point {
+                x: i64::MAX,
+                y: i64::MAX,
+            },
+            max: Point {
+                x: i64::MIN,
+                y: i64::MIN,
+            },
+        };
+        for p in points {
+            b.min.x = b.min.x.min(p.x);
+            b.min.y = b.min.y.min(p.y);
+            b.max.x = b.max.x.max(p.x);
+            b.max.y = b.max.y.max(p.y);
+        }
+        b
+    }
+
+    fn disjoint(&self, other: &Bounds) -> bool {
+        self.max.x < other.min.x
+            || other.max.x < self.min.x
+            || self.max.y < other.min.y
+            || other.max.y < self.min.y
+    }
+}
+
+/// Un tracé prêt à être confronté aux autres : ses sommets, sa boîte, et
+/// celle de chacun de ses segments.
+struct Path {
+    points: Vec<Point>,
+    bounds: Bounds,
+    boxes: Vec<Bounds>,
+}
+
+impl Path {
+    fn new(points: Vec<Point>) -> Path {
+        let bounds = Bounds::of(&points);
+        let boxes = points.windows(2).map(Bounds::of).collect();
+        Path {
+            points,
+            bounds,
+            boxes,
+        }
+    }
+}
+
 /// Un lien tel qu'il est mesuré : son tracé aplati, et ce qui l'exempte
 /// des recouvrements.
 struct Measured<'a> {
@@ -160,6 +217,44 @@ impl Metrics {
         ]
     }
 
+    /// Les mesures sous leur nom, dans l'ordre de la structure : ce que le
+    /// JSON écrit et ce que le banc agrège. Un compte qui ne tiendrait pas
+    /// dans un `i64` y est ramené à `i64::MAX`.
+    pub fn fields(&self) -> [(&'static str, i64); 18] {
+        let n = |value: u64| i64::try_from(value).unwrap_or(i64::MAX);
+        [
+            ("crossings", n(self.crossings)),
+            ("shared_segments", n(self.shared_segments)),
+            ("shared_length", self.shared_length),
+            ("bends", n(self.bends)),
+            ("edge_length", self.edge_length),
+            ("longest_edge", self.longest_edge),
+            ("node_overlaps", n(self.node_overlaps)),
+            ("node_overlap_area", self.node_overlap_area),
+            ("edge_node_overlaps", n(self.edge_node_overlaps)),
+            ("label_overlaps", n(self.label_overlaps)),
+            ("width", self.width),
+            ("height", self.height),
+            ("area", self.area),
+            ("proportion", self.proportion),
+            ("density", self.density),
+            ("layer_violations", n(self.layer_violations)),
+            ("order_violations", n(self.order_violations)),
+            ("port_order_violations", n(self.port_order_violations)),
+        ]
+    }
+
+    /// Les mesures en un objet JSON sur une ligne, une clé par mesure, dans
+    /// l'ordre de [`Metrics::fields`].
+    pub fn to_json(&self) -> String {
+        let fields: Vec<String> = self
+            .fields()
+            .iter()
+            .map(|(name, value)| format!("\"{name}\": {value}"))
+            .collect();
+        format!("{{{}}}", fields.join(", "))
+    }
+
     fn measure_edges(&mut self, edges: &[Measured<'_>]) {
         for edge in edges {
             let mut length: i64 = 0;
@@ -178,18 +273,30 @@ impl Metrics {
         }
         // Les paires de liens : croisements et recouvrements, chaque paire
         // une fois.
-        let paths: Vec<Vec<Point>> = edges.iter().map(|e| merge_collinear(&e.points)).collect();
+        let paths: Vec<Path> = edges
+            .iter()
+            .map(|e| Path::new(merge_collinear(&e.points)))
+            .collect();
         for (i, p) in paths.iter().enumerate() {
             for q in &paths[i + 1..] {
+                // Deux tracés dont les boîtes sont disjointes ne se touchent
+                // nulle part : rien à compter, et rien à calculer.
+                if p.bounds.disjoint(&q.bounds) {
+                    continue;
+                }
                 self.pair(p, q);
             }
         }
     }
 
     /// Les croisements et recouvrements de deux tracés.
-    fn pair(&mut self, p: &[Point], q: &[Point]) {
-        for a in p.windows(2) {
-            for b in q.windows(2) {
+    fn pair(&mut self, p: &Path, q: &Path) {
+        for (a, ba) in p.points.windows(2).zip(&p.boxes) {
+            for (b, bb) in q.points.windows(2).zip(&q.boxes) {
+                // Même raison, segment par segment : `meet` ne trouverait rien.
+                if ba.disjoint(bb) {
+                    continue;
+                }
                 match meet(a[0], a[1], b[0], b[1]) {
                     Meet::Proper => self.crossings += 1,
                     Meet::Shared(length) => {
@@ -203,6 +310,7 @@ impl Metrics {
         // Un tracé qui passe par un sommet de l'autre : la paire de segments
         // ne le voit pas, le sommet le dit. Un sommet commun aux deux est
         // jugé une fois, du côté de `q`.
+        let (p, q) = (&p.points, &q.points);
         for i in 1..q.len().saturating_sub(1) {
             if passes_through(q[i - 1], q[i], q[i + 1], p) {
                 self.crossings += 1;

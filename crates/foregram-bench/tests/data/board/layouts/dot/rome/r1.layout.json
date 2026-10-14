@@ -1,0 +1,18 @@
+{
+  "format": "foregram-layout",
+  "version": 2,
+  "graph": "r1",
+  "engine": {"name": "dot", "version": "16.1.0", "options": "dot -Tjson0; shape=box fixedsize=true; arrowhead=none; compound=true; labels as fixed-size HTML tables; rankdir from direction"},
+  "nodes": [
+    {"id": "n0", "x": 0, "y": 0},
+    {"id": "n1", "x": 6800, "y": 0},
+    {"id": "n2", "x": 0, "y": 7100},
+    {"id": "n3", "x": 6800, "y": 7100}
+  ],
+  "edges": [
+    {"id": "e0", "route": [[2475, 3500], [[2475, 4605], [2475, 6013], [2475, 7100]]]},
+    {"id": "e1", "route": [[4121, 3500], [[5190, 4605], [6578, 6013], [7644, 7100]]]},
+    {"id": "e2", "route": [[7629, 3500], [[6560, 4605], [5172, 6013], [4106, 7100]]]},
+    {"id": "e3", "route": [[9275, 3500], [[9275, 4605], [9275, 6013], [9275, 7100]]]}
+  ]
+}

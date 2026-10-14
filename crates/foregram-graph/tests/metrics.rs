@@ -8,7 +8,7 @@
 mod common;
 
 use common::{LEAF_A, LEAF_B, data, graph, layout};
-use foregram_graph::{CURVE_STEPS, Catalog, Graph, Layout, Metrics};
+use foregram_graph::{CURVE_STEPS, Catalog, Graph, Layout, Metrics, json};
 
 /// Mesure un graphe et un placement écrits en JSON, après les avoir
 /// validés l'un pour l'autre.
@@ -267,6 +267,17 @@ fn collinear_stretches_are_shared_not_crossed() {
         "[[100, 50], [500, 50], [500, 500], [900, 500], [1050, 500], [1050, 1000]]",
     );
     assert_eq!((m.crossings, m.shared_segments), (0, 0));
+    // Un tronçon vertical, en x = 500, de 100 à 600 : les boîtes des deux
+    // segments sont plates et ne font que se toucher, elles sont confrontées
+    // quand même. `f` reste du même côté de `e` avant et après : 0.
+    let m = pair_of(
+        "[[100, 100], [500, 100], [500, 1000], [1000, 1000]]",
+        "[[100, 50], [500, 50], [500, 600], [1050, 600], [1050, 1000]]",
+    );
+    assert_eq!(
+        (m.crossings, m.shared_segments, m.shared_length),
+        (0, 1, 500)
+    );
 }
 
 #[test]
@@ -605,6 +616,51 @@ fn the_report_has_one_line_per_measure_from_the_catalogue() {
     assert_eq!(
         lines[8],
         "constraints broken: layer 0, order 0, port order 0"
+    );
+}
+
+#[test]
+fn the_json_has_one_integer_key_per_measure_in_a_fixed_order() {
+    let graph = Graph::parse(&data("components.graph.json")).unwrap();
+    let layout = Layout::parse(&data("components.layout.json")).unwrap();
+    let m = Metrics::measure(&graph, &layout);
+    let text = m.to_json();
+    assert!(!text.contains('\n'));
+    // Les valeurs vérifiées à la main pour `components`, aux bonnes clés.
+    assert!(
+        text.starts_with(
+            "{\"crossings\": 0, \"shared_segments\": 0, \"shared_length\": 0, \"bends\": 2, "
+        ),
+        "{text}"
+    );
+    assert!(text.contains(", \"longest_edge\": 8000, "), "{text}");
+    assert!(
+        text.contains(", \"width\": 48000, \"height\": 10000, \"area\": 480000000, \"proportion\": 4800, \"density\": 358, "),
+        "{text}"
+    );
+    assert!(text.ends_with(", \"port_order_violations\": 0}"), "{text}");
+    // Relu par le lecteur strict : un objet, chaque mesure une fois, en entier.
+    let value = json::parse(text.as_bytes()).unwrap();
+    let json::Kind::Object(members) = value.kind else {
+        panic!("{text}");
+    };
+    let read: Vec<(String, i64)> = members
+        .into_iter()
+        .map(|member| match member.value.kind {
+            json::Kind::Int(n) => (member.key, n),
+            other => panic!("{other:?}"),
+        })
+        .collect();
+    let fields: Vec<(String, i64)> = m
+        .fields()
+        .iter()
+        .map(|(name, value)| ((*name).to_string(), *value))
+        .collect();
+    assert_eq!(read, fields);
+    assert_eq!(read.len(), 18);
+    assert_eq!(
+        Metrics::default().fields().iter().map(|f| f.1).sum::<i64>(),
+        0
     );
 }
 

@@ -1,0 +1,8 @@
+// Deux nœuds, un lien.
+node a {
+	layout [ size: 40, 30 ]
+}
+node b {
+	layout [ size: 40, 30 ]
+}
+edge a -> b

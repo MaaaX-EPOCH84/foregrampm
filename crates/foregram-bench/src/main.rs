@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
+mod board;
 mod elk;
 mod elkt;
 mod engine;
@@ -59,6 +60,10 @@ fn main() -> ExitCode {
                 Some(scale) => render(graph.as_ref(), layout.as_ref(), out.as_ref(), scale),
                 None => usage(),
             }
+        }
+        (Some("board"), [cache, out]) => board_all(cache.as_ref(), out.as_ref()),
+        (Some("board"), [cache, out, flag, layouts]) if flag == "--layouts" => {
+            board::board(cache.as_ref(), layouts.as_ref(), out.as_ref())
         }
         _ => usage(),
     };
@@ -230,6 +235,20 @@ fn layout_corpus(kind: engine::Kind, cache: &Path, out: &Path) -> u8 {
     let message = Message::new("bench.failures-listed").text("path", failures_path.display());
     println!("{}", say(message));
     status
+}
+
+/// Place tous les corpus avec chaque moteur sous `<out>/layouts/`, puis
+/// écrit la planche et le rapport d'après ces placements : une commande pour
+/// tout régénérer. Les échecs des moteurs sont des données de la planche ;
+/// seul un moteur introuvable ou une écriture impossible l'arrêtent.
+fn board_all(cache: &Path, out: &Path) -> u8 {
+    let layouts = out.join("layouts");
+    for kind in board::ENGINES {
+        if layout_corpus(kind, cache, &layouts) == UNUSABLE {
+            return UNUSABLE;
+        }
+    }
+    board::board(cache, &layouts, out)
 }
 
 fn list_failure(failures: &mut String, shown: &Path, diags: &[Diagnostic]) {

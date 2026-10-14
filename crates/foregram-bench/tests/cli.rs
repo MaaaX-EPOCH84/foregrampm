@@ -456,3 +456,164 @@ fn a_refused_model_says_where_in_the_mcd() {
     let (code, _, _) = run(&["mcd", &missing]);
     assert_eq!(code, 2);
 }
+
+// ----------------------------------------------------------------- Planche
+
+/// Le jeu de la planche : quatre petits corpus écrits ici, leurs placements
+/// par dot et ELK, figés, et ce que la planche doit en tirer. Le placement de
+/// `elk-models/e2.elkt` par dot est retiré et son échec `R003` écrit à la
+/// main dans `failures.txt` : un moteur qui n'a rien rendu.
+fn board_data(name: &str) -> String {
+    format!("{}/tests/data/board/{name}", env!("CARGO_MANIFEST_DIR"))
+}
+
+fn copy_dir(from: &std::path::Path, to: &std::path::Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let path = entry.unwrap().path();
+        let target = to.join(path.file_name().unwrap());
+        if path.is_dir() {
+            copy_dir(&path, &target);
+        } else {
+            std::fs::copy(&path, &target).unwrap();
+        }
+    }
+}
+
+fn files_under(dir: &std::path::Path, base: &std::path::Path, out: &mut Vec<String>) {
+    for entry in std::fs::read_dir(dir).unwrap() {
+        let path = entry.unwrap().path();
+        if path.is_dir() {
+            files_under(&path, base, out);
+        } else {
+            out.push(path.strip_prefix(base).unwrap().display().to_string());
+        }
+    }
+}
+
+#[test]
+fn the_board_is_written_as_expected_and_again_the_same() {
+    let out = scratch("board").join("out");
+    let cache = board_data("cache");
+    let layouts = board_data("layouts");
+    let args = [
+        "board",
+        &cache,
+        &out.display().to_string(),
+        "--layouts",
+        &layouts,
+    ];
+    let (code, stdout, err) = run(&args);
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(err, "");
+    assert_eq!(
+        stdout,
+        format!("{}: board written, 6 graphs, 6 rows drawn\n", out.display())
+    );
+    for name in ["metrics.json", "report.md", "board.md"] {
+        let written = std::fs::read_to_string(out.join(name)).unwrap();
+        let expected = std::fs::read_to_string(board_data(&format!("expected/{name}"))).unwrap();
+        assert_eq!(written, expected, "{name}");
+    }
+    // Un rendu par placement mesuré : dot n'a rien pour elk-models.
+    let mut svgs = Vec::new();
+    files_under(&out.join("svg"), &out, &mut svgs);
+    svgs.sort();
+    assert_eq!(
+        svgs,
+        [
+            "svg/dot/mcd/gestpret.svg",
+            "svg/dot/north/n1.svg",
+            "svg/dot/rome/r1.svg",
+            "svg/dot/rome/r2.svg",
+            "svg/elk/elk-models/e1.svg",
+            "svg/elk/elk-models/e2.svg",
+            "svg/elk/mcd/gestpret.svg",
+            "svg/elk/north/n1.svg",
+            "svg/elk/rome/r1.svg",
+            "svg/elk/rome/r2.svg",
+        ]
+    );
+    // Un second passage rend les mêmes octets, et ne laisse aucun rendu
+    // d'un échantillon précédent.
+    let first: Vec<Vec<u8>> = svgs
+        .iter()
+        .map(|f| std::fs::read(out.join(f)).unwrap())
+        .collect();
+    write(&out.join("svg/dot/rome/old.svg"), "<svg/>");
+    let (code, _, err) = run(&args);
+    assert_eq!(code, 0, "{err}");
+    let mut again = Vec::new();
+    files_under(&out.join("svg"), &out, &mut again);
+    again.sort();
+    assert_eq!(again, svgs);
+    let second: Vec<Vec<u8>> = svgs
+        .iter()
+        .map(|f| std::fs::read(out.join(f)).unwrap())
+        .collect();
+    assert_eq!(first, second);
+    for name in ["metrics.json", "report.md", "board.md"] {
+        let written = std::fs::read_to_string(out.join(name)).unwrap();
+        let expected = std::fs::read_to_string(board_data(&format!("expected/{name}"))).unwrap();
+        assert_eq!(written, expected, "{name}");
+    }
+}
+
+#[test]
+fn a_board_with_a_layout_missing_and_unlisted_writes_nothing() {
+    let dir = scratch("board-missing");
+    let layouts = dir.join("layouts");
+    copy_dir(std::path::Path::new(&board_data("layouts")), &layouts);
+    std::fs::remove_file(layouts.join("elk/rome/r2.layout.json")).unwrap();
+    let out = dir.join("out");
+    let (code, stdout, err) = run(&[
+        "board",
+        &board_data("cache"),
+        &out.display().to_string(),
+        "--layouts",
+        &layouts.display().to_string(),
+    ]);
+    assert_eq!(code, 2);
+    assert_eq!(stdout, "");
+    assert_eq!(
+        err,
+        format!(
+            "rome/r2.graphml: no layout by elk, and no failure listed\n\
+             {}: 1 problem, nothing written\n",
+            layouts.display()
+        )
+    );
+    assert!(!out.exists());
+}
+
+#[test]
+fn a_board_with_a_layout_from_another_engine_version_writes_nothing() {
+    let dir = scratch("board-version");
+    let layouts = dir.join("layouts");
+    copy_dir(std::path::Path::new(&board_data("layouts")), &layouts);
+    let path = layouts.join("elk/north/n1.layout.json");
+    let text = std::fs::read_to_string(&path).unwrap();
+    assert!(text.contains("\"version\": \"0.12.0\""));
+    std::fs::write(
+        &path,
+        text.replace("\"version\": \"0.12.0\"", "\"version\": \"0.11.0\""),
+    )
+    .unwrap();
+    let out = dir.join("out");
+    let (code, _, err) = run(&[
+        "board",
+        &board_data("cache"),
+        &out.display().to_string(),
+        "--layouts",
+        &layouts.display().to_string(),
+    ]);
+    assert_eq!(code, 2);
+    assert!(
+        err.starts_with(&format!(
+            "{}: laid out by elk 0.11.0, the manifest pins elk 0.12.0\n",
+            path.display()
+        )),
+        "{err}"
+    );
+    assert!(!out.exists());
+}

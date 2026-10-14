@@ -1,0 +1,15 @@
+{
+  "format": "foregram-layout",
+  "version": 2,
+  "graph": "gestpret",
+  "engine": {"name": "dot", "version": "16.1.0", "options": "dot -Tjson0; shape=box fixedsize=true; arrowhead=none; compound=true; labels as fixed-size HTML tables; rankdir from direction"},
+  "nodes": [
+    {"id": "MEMBRE", "x": 0, "y": 0},
+    {"id": "MATERIEL", "x": 350, "y": 16000},
+    {"id": "PRET", "x": 14300, "y": 10700}
+  ],
+  "edges": [
+    {"id": "PRET.MEMBRE", "route": [[10700, 9764], [[11863, 10337], [13079, 10951], [14300, 11551]]], "labels": [[10728, 9764]]},
+    {"id": "PRET.MATERIEL", "route": [[10350, 20613], [[11605, 19993], [12944, 19317], [14300, 18658]]], "labels": [[10378, 20613]]}
+  ]
+}
