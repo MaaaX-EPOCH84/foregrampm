@@ -796,6 +796,81 @@ in crossings, widest gap first, path order between equal gaps.
 Nothing written depends on the machine, the date or the time taken: the same
 layouts give the same bytes.
 
+## Determinism
+
+Same input, same bytes. In the Rust code this holds by construction:
+integers only, ordered maps, no clock and no environment are read, and the
+tests of the rendering and of the board compare two runs byte for byte. The
+reference engines are not this code: dot computes in floating point against
+the C library of the machine, ELK in a JVM. Their reproducibility is
+therefore **measured**, on this machine and in a second environment, and the
+result is recorded below so that the figures of the bar to beat are known to
+be stable, or known not to be.
+
+`corpus/fingerprint.sh` is the instrument, in shell like `fetch.sh`:
+
+```
+corpus/fingerprint.sh env                    # describes the environment
+corpus/fingerprint.sh sums <dir> > sums.txt  # SHA-256 of every file under <dir>
+corpus/fingerprint.sh digest sums.txt        # one SHA-256 per group of files
+corpus/fingerprint.sh compare a.txt b.txt    # differences, group by group
+```
+
+`sums` lists every regular file under the directory, path relative and in
+byte order, so two outputs of `board` compare as two text files. A **group**
+is the first two components of a path — `layouts/dot`, `layouts/elk`,
+`svg/dot`, `svg/elk` — or the whole path when it has fewer, as `metrics.json`
+: that is the grain at which a difference reads, engine by engine. `digest`
+writes one SHA-256 per group, computed over the group's lines of `sums`, with
+its number of files: that is what the record below keeps. `compare` exits
+with code 1 when anything differs and names the first twenty files of each
+group that do.
+
+**The second environment** is a container, `corpus/docker/`: Debian trixie
+instead of Ubuntu 24.04, hence another C library and another build of the
+JDK, the Rust toolchain of the day, and the same CPU. `corpus/docker/run.sh
+<out>` builds the image, copies the sources and the cache in, has `fetch.sh`
+check the cache and recompile the ELK driver there, builds the bench, runs
+`board` and writes `<out>/sums.txt` and `<out>/env.txt`.
+
+**Recorded comparison, 2026-10-14**, three full runs of `board` with
+Graphviz 16.1.0 and ELK 0.12.0, 27 493 files each:
+
+| Group | Run 1 | Run 2 | Run 3 |
+|---|---|---|---|
+| Environment | Ubuntu 24.04 base, glibc 2.39, OpenJDK 21.0.12.1 (Ubuntu), rustc 1.97.1 | same machine, same day | Debian 13 container on the same machine, glibc 2.41, OpenJDK 21.0.12.1 (Debian), rustc 1.99.0 |
+| `layouts/dot`, 13 688 files | `63ecbc18…` | identical | identical |
+| `layouts/elk`, 13 713 files | `1e2dca7a…` | `cc653639…`, **46 differ** | identical to run 2 |
+| `svg/dot`, 43 files | `2f5aca42…` | identical | identical |
+| `svg/elk`, 46 files | `ca4a4489…` | `714b60fc…`, 2 differ | identical to run 2 |
+| `metrics.json` | `9d3e2616…` | `81f87cb5…`, differs | identical to run 2 |
+| `report.md` | `e1bef8ea…` | `ac753c07…`, differs | identical to run 2 |
+| `board.md` | `48ace46b…` | identical | identical |
+
+**dot is reproducible**, run to run and across the two C libraries, on all
+13 688 layouts. **The bench itself is**, across the two toolchains: the
+container run is identical to run 2 on all 27 493 files, and the SVG,
+`metrics.json` and `report.md` only differ where a layout differs.
+
+**ELK is not**, on 46 of the 898 elk-models graphs (45 Ptolemy models and
+`examples/edges/insideSelfLoops`), and this is independent of the
+environment: the same graph laid out twelve times on the same machine gave
+one result ten times and the other twice. Every difference is a self-loop
+between ports on two opposing sides of a node, drawn around the top of the
+node in one run and around its bottom in the other; the nodes it passes
+move accordingly. Crossings and bends are unchanged on all 46; the edge
+length changes on 31 of them, the area on 16, the longest edge on 19, and
+over the 46 the total edge length moves by 0.02 %. Cause, read in the
+source of ELK 0.12.0: `RoutingDirector` builds the two candidate routes of
+such a loop from `getSLPortsBySide().keySet()`, a `HashMap` keyed by the
+`PortSide` enum, whose hash code is the identity hash of the JVM, different
+on every launch; when both routes cost the same, the first one wins. Twelve
+runs with `JAVA_TOOL_OPTIONS="-XX:+UnlockExperimentalVMOptions
+-XX:hashCode=2"`, which gives every object the same identity hash, gave the
+same result twelve times. The bench does not set that flag: what the bar to
+beat does with these 46 graphs is decided there.
+
+
 ## Limits of version 2
 
 - **Rectangular nodes.** Any other shape is described by its bounding

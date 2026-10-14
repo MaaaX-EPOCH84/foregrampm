@@ -41,6 +41,11 @@ cargo run --release -p foregram-bench -- check-corpus corpus/cache
 cargo run -p foregram-bench -- graphml <file.graphml>
 ```
 
+`corpus/fingerprint.sh` takes the SHA-256 of everything the bench writes
+and compares two runs; `corpus/docker/run.sh` repeats a full run in a
+Debian container to compare environments. Both are described in the
+section "Determinism" of the format document.
+
 ## Licence
 
 GPL v3 or later — see [LICENSE](LICENSE).
