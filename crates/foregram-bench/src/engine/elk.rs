@@ -44,6 +44,25 @@ pub fn installed_version(dir: &Path) -> Option<String> {
     })
 }
 
+/// Options de la JVM : un hachage d'identité constant, pour qu'ELK rende
+/// toujours le même placement. `RoutingDirector` (ELK 0.12.0) tire les deux
+/// tracés candidats d'une boucle entre côtés opposés d'une `HashMap` à clés
+/// `PortSide`, dont le hachage est celui de l'objet, différent à chaque JVM ;
+/// à coût égal le premier gagne. Drapeau de HotSpot, mesuré en P8 : même
+/// placement sur le plus gros Ptolemy, 0,14 s de plus.
+pub const JVM_OPTIONS: [&str; 2] = ["-XX:+UnlockExperimentalVMOptions", "-XX:hashCode=2"];
+
+/// La ligne de commande du pilote, sur les jars et les classes du cache.
+fn command(classpath: &str) -> Command {
+    let mut command = Command::new("java");
+    command
+        .args(JVM_OPTIONS)
+        .arg("-cp")
+        .arg(classpath)
+        .arg("ElkDriver");
+    command
+}
+
 /// Le pilote en cours, prêt à placer le graphe suivant.
 pub struct Process {
     tools: Tools,
@@ -69,10 +88,7 @@ impl Process {
             .collect();
         classpath.sort();
         classpath.push(tools.path.join("classes").display().to_string());
-        let mut child = Command::new("java")
-            .arg("-cp")
-            .arg(classpath.join(":"))
-            .arg("ElkDriver")
+        let mut child = command(&classpath.join(":"))
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
@@ -472,6 +488,26 @@ mod tests {
         assert_eq!(refusal("label\te9\t1\t2").code, "R005");
         assert_eq!(refusal("what\tis\tthis").code, "R005");
         assert_eq!(refusal("node\tClient\t1e30\t0\t100.0\t60.0").code, "R006");
+    }
+
+    #[test]
+    fn the_driver_runs_with_a_constant_identity_hash() {
+        let command = command("a.jar:classes");
+        let args: Vec<String> = command
+            .get_args()
+            .map(|a| a.to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(command.get_program(), "java");
+        assert_eq!(
+            args,
+            [
+                "-XX:+UnlockExperimentalVMOptions",
+                "-XX:hashCode=2",
+                "-cp",
+                "a.jar:classes",
+                "ElkDriver"
+            ]
+        );
     }
 
     #[test]

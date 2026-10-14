@@ -538,7 +538,12 @@ and ELK Layered. `corpus/fetch.sh` installs both in the cache from
 unpacked without installing; the ELK jars from Maven Central, each with its
 SHA-256, and the benchmark's small Java driver compiled against them with
 `javac`. Running ELK needs a Java runtime on the `PATH`; nothing else is
-installed on the machine.
+installed on the machine. The driver is launched with
+`-XX:+UnlockExperimentalVMOptions -XX:hashCode=2`, a HotSpot flag that gives
+every object the same identity hash: without it ELK routes some self-loops
+differently from one launch to the next (section "Determinism"). The
+manifest pins ELK, not the JVM; a runtime that rejects the flag refuses to
+start, which the bench reports as R003.
 
 ```
 foregram-bench layout <engine> <cache> <graph>
@@ -796,6 +801,15 @@ in crossings, widest gap first, path order between equal gaps.
 Nothing written depends on the machine, the date or the time taken: the same
 layouts give the same bytes.
 
+**The bar to beat** is a recorded run of `board`, kept under `corpus/bar/`:
+`report.md` as the command wrote it, `digest.txt` as `corpus/fingerprint.sh
+digest` summarised the whole output, and a `README.md` that says which
+graphs each engine refused, how the figures are to be read, and the rule the
+layout engine starts from. The layouts and `metrics.json` of that run are not
+versioned: `board` regenerates them byte for byte, which `digest.txt`
+verifies. The bar is recorded again whenever an engine version in the
+manifest changes, or the corpora, or the metrics.
+
 ## Determinism
 
 Same input, same bytes. In the Rust code this holds by construction:
@@ -867,8 +881,12 @@ such a loop from `getSLPortsBySide().keySet()`, a `HashMap` keyed by the
 on every launch; when both routes cost the same, the first one wins. Twelve
 runs with `JAVA_TOOL_OPTIONS="-XX:+UnlockExperimentalVMOptions
 -XX:hashCode=2"`, which gives every object the same identity hash, gave the
-same result twelve times. The bench does not set that flag: what the bar to
-beat does with these 46 graphs is decided there.
+same result twelve times. **The bench sets that flag since the bar to beat
+was recorded**: with it, two further full runs on this machine were
+identical on all 27 493 files, as was a third in the container, and the
+bar is the first of them. The flag picks a side on each of the 46 graphs,
+29 of them as run 1 had it, 21 as run 2, 4 as neither; no other layout
+changes.
 
 
 ## Limits of version 2
