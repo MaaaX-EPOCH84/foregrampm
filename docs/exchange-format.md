@@ -19,6 +19,13 @@ By convention a graph is named `<name>.graph.json` and its layouts
 This format serves the benchmark and the layout engine. It is not the
 format diagrams will be written in: that one comes with the compiler.
 
+The product crates, `foregram-graph` and `foregram-render`, take bytes or
+strings and return values: they open no file, read no clock or
+environment, and write to no stream. The executables do the input and
+output. A test reads both crates' sources and refuses any use of
+`std::fs`, `std::env`, `std::time`, `std::io`, `std::process`, `std::net`,
+`std::thread` or of a printing macro outside unit tests.
+
 This is version 2 of the format. Version 1 files are still read: everything
 version 2 adds is optional. The library writes version 2.
 
