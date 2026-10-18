@@ -28,7 +28,7 @@ mod metrics;
 mod msg;
 mod read;
 
-pub use diag::{Diagnostic, Pos};
+pub use diag::{Diagnostic, Pos, file_report};
 pub use graph::{
     Anchor, Direction, Edge, GRAPH_FORMAT, Graph, Label, Node, Point, Port, Rect, Side, Size,
 };

@@ -15,7 +15,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
-use foregram_graph::{Catalog, Diagnostic, Graph, Layout, Message, Metrics};
+use foregram_graph::{Catalog, Diagnostic, Graph, Message, file_report};
 
 /// Tout est valide.
 const VALID: u8 = 0;
@@ -36,7 +36,6 @@ fn main() -> ExitCode {
             println!("foregram-bench {}", env!("CARGO_PKG_VERSION"));
             VALID
         }
-        (Some("validate"), [graph, layouts @ ..]) => validate(graph.as_ref(), layouts),
         (Some("graphml"), [path]) => import_graphml(path.as_ref()),
         (Some("elkt"), [path]) => import_elkt(path.as_ref()),
         (Some("mcd"), [path]) => import_mcd(path.as_ref()),
@@ -49,18 +48,6 @@ fn main() -> ExitCode {
             Some(kind) => layout_corpus(kind, cache.as_ref(), out.as_ref()),
             None => usage(),
         },
-        (Some("metrics"), [graph, layouts @ ..]) if !layouts.is_empty() => {
-            metrics(graph.as_ref(), layouts)
-        }
-        (Some("render"), [graph, layout, out]) => {
-            render(graph.as_ref(), layout.as_ref(), out.as_ref(), 1)
-        }
-        (Some("render"), [graph, layout, out, flag, scale]) if flag == "--scale" => {
-            match scale.to_str().and_then(|s| s.parse::<i64>().ok()) {
-                Some(scale) => render(graph.as_ref(), layout.as_ref(), out.as_ref(), scale),
-                None => usage(),
-            }
-        }
         (Some("board"), [cache, out]) => board_all(cache.as_ref(), out.as_ref()),
         (Some("board"), [cache, out, flag, layouts]) if flag == "--layouts" => {
             board::board(cache.as_ref(), layouts.as_ref(), out.as_ref())
@@ -263,165 +250,6 @@ fn write_file(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
         std::fs::create_dir_all(parent)?;
     }
     std::fs::write(path, bytes)
-}
-
-/// Valide un graphe et ses placements. Va au bout : un fichier refusé
-/// n'empêche pas de lire les suivants.
-fn validate(graph_path: &Path, layout_paths: &[OsString]) -> u8 {
-    let mut status = VALID;
-    let graph = match load(graph_path, &mut status) {
-        None => None,
-        Some(bytes) => match Graph::parse(&bytes) {
-            Ok(graph) => {
-                let message = Message::new("bench.valid-graph")
-                    .text("path", graph_path.display())
-                    .msg("nodes", count(graph.all_nodes().len(), "node"))
-                    .msg("edges", count(graph.edges.len(), "edge"));
-                println!("{}", say(message));
-                Some(graph)
-            }
-            Err(diags) => {
-                refuse(graph_path, &diags, &mut status);
-                None
-            }
-        },
-    };
-
-    for path in layout_paths {
-        let path: &Path = path.as_ref();
-        let Some(bytes) = load(path, &mut status) else {
-            continue;
-        };
-        let layout = match Layout::parse(&bytes) {
-            Ok(layout) => layout,
-            Err(diags) => {
-                refuse(path, &diags, &mut status);
-                continue;
-            }
-        };
-        let Some(graph) = &graph else {
-            let message = Message::new("bench.not-checked").text("path", path.display());
-            eprintln!("{}", say(message));
-            status = status.max(REFUSED);
-            continue;
-        };
-        let diags = layout.check(graph);
-        if diags.is_empty() {
-            let message = Message::new("bench.valid-layout")
-                .text("path", path.display())
-                .text("graph", &layout.graph)
-                .text("engine", &layout.engine.name)
-                .text("version", &layout.engine.version);
-            println!("{}", say(message));
-        } else {
-            refuse(path, &diags, &mut status);
-        }
-    }
-    status
-}
-
-/// Mesure chaque placement pour le graphe, quel que soit le format de
-/// celui-ci. Un placement qui ne passe pas la confrontation au graphe est
-/// refusé, pas mesuré.
-fn metrics(graph_path: &Path, layout_paths: &[OsString]) -> u8 {
-    let mut status = VALID;
-    let Some(bytes) = load(graph_path, &mut status) else {
-        return status;
-    };
-    let graph = match import_any(graph_path, &bytes) {
-        Ok(graph) => graph,
-        Err(diags) => {
-            refuse(graph_path, &diags, &mut status);
-            return status;
-        }
-    };
-    for path in layout_paths {
-        let path: &Path = path.as_ref();
-        let Some(bytes) = load(path, &mut status) else {
-            continue;
-        };
-        let layout = match Layout::parse(&bytes) {
-            Ok(layout) => layout,
-            Err(diags) => {
-                refuse(path, &diags, &mut status);
-                continue;
-            }
-        };
-        let diags = layout.check(&graph);
-        if !diags.is_empty() {
-            refuse(path, &diags, &mut status);
-            continue;
-        }
-        let message = Message::new("bench.measured")
-            .text("path", path.display())
-            .text("graph", &layout.graph)
-            .text("engine", &layout.engine.name)
-            .text("version", &layout.engine.version);
-        println!("{}", say(message));
-        for line in Metrics::measure(&graph, &layout).report() {
-            println!("  {}", say(line));
-        }
-    }
-    status
-}
-
-/// Dessine un placement pour son graphe, en SVG ou en PNG selon l'extension
-/// du fichier de sortie. Un placement qui ne passe pas la confrontation au
-/// graphe est refusé, pas dessiné.
-fn render(graph_path: &Path, layout_path: &Path, out: &Path, scale: i64) -> u8 {
-    let mut status = VALID;
-    let Some(bytes) = load(graph_path, &mut status) else {
-        return status;
-    };
-    let graph = match import_any(graph_path, &bytes) {
-        Ok(graph) => graph,
-        Err(diags) => {
-            refuse(graph_path, &diags, &mut status);
-            return status;
-        }
-    };
-    let Some(bytes) = load(layout_path, &mut status) else {
-        return status;
-    };
-    let layout = match Layout::parse(&bytes) {
-        Ok(layout) => layout,
-        Err(diags) => {
-            refuse(layout_path, &diags, &mut status);
-            return status;
-        }
-    };
-    let diags = layout.check(&graph);
-    if !diags.is_empty() {
-        refuse(layout_path, &diags, &mut status);
-        return status;
-    }
-    let style = foregram_render::Style::default();
-    let image = match out.extension().and_then(|e| e.to_str()) {
-        Some("svg") => foregram_render::svg(&graph, &layout, &style).into_bytes(),
-        Some("png") => match foregram_render::png(&graph, &layout, &style, scale) {
-            Ok(image) => image,
-            Err(diag) => {
-                refuse(out, &[diag], &mut status);
-                return status;
-            }
-        },
-        _ => return usage(),
-    };
-    if let Err(error) = write_file(out, &image) {
-        let message = Message::new("bench.unwritable")
-            .text("path", out.display())
-            .text("error", error);
-        eprintln!("{}", say(message));
-        return UNUSABLE;
-    }
-    let message = Message::new("bench.rendered")
-        .text("path", layout_path.display())
-        .text("out", out.display())
-        .text("graph", &layout.graph)
-        .text("engine", &layout.engine.name)
-        .text("version", &layout.engine.version);
-    println!("{}", say(message));
-    status
 }
 
 /// Convertit un fichier GraphML et écrit le graphe obtenu, sous sa forme
@@ -750,17 +578,10 @@ fn load(path: &Path, status: &mut u8) -> Option<Vec<u8>> {
 }
 
 fn refuse(path: &Path, diags: &[Diagnostic], status: &mut u8) {
-    for diag in diags {
-        if diag.pos.is_none() {
-            eprintln!("{}: {diag}", path.display());
-        } else {
-            eprintln!("{}:{diag}", path.display());
-        }
+    let file = path.display().to_string();
+    for line in file_report(&file, diags, Catalog::english()) {
+        eprintln!("{line}");
     }
-    let message = Message::new("bench.refused")
-        .text("path", path.display())
-        .msg("count", count(diags.len(), "error"));
-    eprintln!("{}", say(message));
     *status = (*status).max(REFUSED);
 }
 
@@ -773,29 +594,18 @@ fn say(message: Message) -> String {
 /// « 1 node », « 3 nodes ». Le choix suit la règle anglaise du pluriel,
 /// « one » pour 1 seulement ; une autre langue apportera sa propre règle.
 fn count(number: usize, noun: &str) -> Message {
-    let key = match (noun, number) {
-        ("node", 1) => "count.node.one",
-        ("node", _) => "count.node.other",
-        ("edge", 1) => "count.edge.one",
-        ("edge", _) => "count.edge.other",
-        ("graph", 1) => "count.graph.one",
-        ("graph", _) => "count.graph.other",
-        ("problem", 1) => "count.problem.one",
-        ("problem", _) => "count.problem.other",
-        ("label", 1) => "count.label.one",
-        ("label", _) => "count.label.other",
-        ("sizeless", 1) => "count.sizeless.one",
-        ("sizeless", _) => "count.sizeless.other",
-        ("container-port", 1) => "count.container-port.one",
-        ("container-port", _) => "count.container-port.other",
-        ("file", 1) => "count.file.one",
-        ("file", _) => "count.file.other",
-        ("end", 1) => "count.end.one",
-        ("end", _) => "count.end.other",
-        ("failure", 1) => "count.failure.one",
-        ("failure", _) => "count.failure.other",
-        (_, 1) => "count.error.one",
-        _ => "count.error.other",
+    let (one, other) = match noun {
+        "node" => ("count.node.one", "count.node.other"),
+        "edge" => ("count.edge.one", "count.edge.other"),
+        "graph" => ("count.graph.one", "count.graph.other"),
+        "problem" => ("count.problem.one", "count.problem.other"),
+        "label" => ("count.label.one", "count.label.other"),
+        "sizeless" => ("count.sizeless.one", "count.sizeless.other"),
+        "container-port" => ("count.container-port.one", "count.container-port.other"),
+        "file" => ("count.file.one", "count.file.other"),
+        "end" => ("count.end.one", "count.end.other"),
+        "failure" => ("count.failure.one", "count.failure.other"),
+        _ => ("count.error.one", "count.error.other"),
     };
-    Message::new(key).text("n", number)
+    Message::count(number, one, other)
 }

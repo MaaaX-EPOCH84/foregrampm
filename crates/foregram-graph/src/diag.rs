@@ -58,6 +58,25 @@ impl Diagnostic {
 
     /// Le refus entier — position, code, message — dans la langue du catalogue.
     pub fn render(&self, catalog: &Catalog) -> String {
+        self.line().render(catalog)
+    }
+
+    /// Le refus précédé du fichier où il a été lu, comme une ligne de
+    /// commande l'écrit : `g.json:7:5: error[G001]: …`, ou `g.json: error[…]`
+    /// sans position.
+    pub fn render_in_file(&self, file: &str, catalog: &Catalog) -> String {
+        let key = if self.pos.is_none() {
+            "diag.file-bare"
+        } else {
+            "diag.file-at"
+        };
+        Message::new(key)
+            .text("file", file)
+            .msg("diag", self.line())
+            .render(catalog)
+    }
+
+    fn line(&self) -> Message {
         let line = if self.pos.is_none() {
             Message::new("diag.bare")
         } else {
@@ -66,9 +85,25 @@ impl Diagnostic {
                 .text("col", self.pos.col)
         };
         line.text("code", self.code)
-            .text("text", self.text_in(catalog))
-            .render(catalog)
+            .msg("text", self.message.clone())
     }
+}
+
+/// Les refus d'un fichier tels qu'une ligne de commande les écrit : un par
+/// ligne, chacun précédé du fichier, puis une ligne qui les compte.
+pub fn file_report(file: &str, diags: &[Diagnostic], catalog: &Catalog) -> Vec<String> {
+    let mut lines: Vec<String> = diags
+        .iter()
+        .map(|diag| diag.render_in_file(file, catalog))
+        .collect();
+    let count = Message::count(diags.len(), "count.error.one", "count.error.other");
+    lines.push(
+        Message::new("diag.refused")
+            .text("file", file)
+            .msg("count", count)
+            .render(catalog),
+    );
+    lines
 }
 
 impl fmt::Display for Diagnostic {

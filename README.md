@@ -16,9 +16,22 @@ The layout engine is judged on a benchmark. Its exchange format — the
 graph an engine receives, the layout it returns — is described in
 [`docs/exchange-format.md`](docs/exchange-format.md).
 
+`foregram` is the product command line: it validates, rewrites in
+canonical form, measures and draws files of that format.
+
 ```
 cargo test
-cargo run -p foregram-bench -- validate <graph.json> [<layout.json>...]
+cargo run -p foregram -- validate <graph.json> [<layout.json>...]
+cargo run -p foregram -- canon <file.json>
+cargo run -p foregram -- metrics <graph.json> <layout.json>...
+cargo run -p foregram -- render <graph.json> <layout.json> <out.svg|out.png> [--scale <n>]
+```
+
+`foregram-bench` converts the third-party formats and drives the reference
+engines; a converted graph goes to `foregram` through the standard input:
+
+```
+cargo run -p foregram-bench -- graphml g.graphml | cargo run -p foregram -- validate -
 ```
 
 The public corpora — Rome, North and elk-models — are not versioned.

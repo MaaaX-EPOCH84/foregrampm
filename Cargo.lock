@@ -50,6 +50,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "foregram"
+version = "0.1.0"
+dependencies = [
+ "foregram-graph",
+ "foregram-render",
+]
+
+[[package]]
 name = "foregram-bench"
 version = "0.1.0"
 dependencies = [

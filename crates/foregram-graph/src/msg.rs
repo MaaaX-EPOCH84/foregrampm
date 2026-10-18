@@ -42,6 +42,13 @@ pub struct Message {
 }
 
 impl Message {
+    /// Un nombre et son nom, « 1 node » ou « 3 nodes » : la clé `one` pour 1,
+    /// la clé `other` sinon. C'est la règle anglaise du pluriel ; une deuxième
+    /// langue apportera la sienne.
+    pub fn count(number: usize, one: &'static str, other: &'static str) -> Message {
+        Message::new(if number == 1 { one } else { other }).text("n", number)
+    }
+
     pub fn new(key: &'static str) -> Message {
         Message {
             key,

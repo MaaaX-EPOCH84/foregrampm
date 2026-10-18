@@ -7,12 +7,7 @@
 
 use std::process::{Command, Output};
 
-fn data(name: &str) -> String {
-    format!(
-        "{}/../foregram-graph/tests/data/{name}",
-        env!("CARGO_MANIFEST_DIR")
-    )
-}
+use foregram_graph::Graph;
 
 fn run(args: &[&str]) -> (i32, String, String) {
     let Output {
@@ -31,91 +26,13 @@ fn run(args: &[&str]) -> (i32, String, String) {
 }
 
 #[test]
-fn a_valid_graph_and_its_layout_exit_zero() {
-    let graph = data("gestpret.graph.json");
-    let layout = data("gestpret.layout.json");
-    let (code, out, err) = run(&["validate", &graph, &layout]);
-    assert_eq!(code, 0, "{err}");
-    assert_eq!(
-        out,
-        format!(
-            "{graph}: valid graph (3 nodes, 2 edges)\n\
-             {layout}: valid layout of graph \"gestpret\" (engine main 1)\n"
-        )
-    );
-    assert_eq!(err, "");
-}
-
-#[test]
-fn a_refused_graph_exits_one_and_says_where() {
-    let graph = data("refuse-lien-orphelin.graph.json");
-    let (code, out, err) = run(&["validate", &graph]);
-    assert_eq!(code, 1);
-    assert_eq!(out, "");
-    assert_eq!(
-        err,
-        format!(
-            "{graph}:7:5: error[G001]: node identifier \"A\" already used (line 6)\n\
-             {graph}:7:5: error[S008]: node \"A\": `height`: 0 outside the range 1 to 1000000000\n\
-             {graph}:10:5: error[G003]: edge \"e1\": `target` refers to node \"B\", which does not exist\n\
-             {graph}: refused (3 errors)\n"
-        )
-    );
-}
-
-#[test]
-fn a_refused_layout_exits_one_while_its_graph_passes() {
-    let graph = data("gestpret.graph.json");
-    let layout = data("refuse-hors-bord.layout.json");
-    let (code, out, err) = run(&["validate", &graph, &layout]);
-    assert_eq!(code, 1);
-    assert_eq!(out, format!("{graph}: valid graph (3 nodes, 2 edges)\n"));
-    assert!(
-        err.contains(&format!("{layout}:12:5: error[L009]:")),
-        "{err}"
-    );
-    assert!(
-        err.ends_with(&format!("{layout}: refused (5 errors)\n")),
-        "{err}"
-    );
-}
-
-#[test]
-fn every_file_is_read_even_after_a_refusal() {
-    let bad = data("refuse-lien-orphelin.graph.json");
-    let layout = data("gestpret.layout.json");
-    let (code, out, err) = run(&["validate", &bad, &layout, &layout]);
-    assert_eq!(code, 1);
-    assert_eq!(out, "");
-    assert_eq!(
-        err.matches("not checked against the graph").count(),
-        2,
-        "{err}"
-    );
-}
-
-#[test]
-fn an_unreadable_file_exits_two() {
-    let missing = data("absent.graph.json");
-    let (code, out, err) = run(&["validate", &missing]);
-    assert_eq!(code, 2);
-    assert_eq!(out, "");
-    assert!(
-        err.starts_with(&format!("{missing}: cannot read: ")),
-        "{err}"
-    );
-
-    // Illisible l'emporte sur refusé : le code dit ce qu'il y a de plus grave.
-    let bad = data("refuse-lien-orphelin.graph.json");
-    let (code, _, _) = run(&["validate", &bad, &missing]);
-    assert_eq!(code, 2);
-}
-
-#[test]
 fn a_wrong_call_exits_two_with_the_usage() {
     for args in [
         &[][..],
-        &["validate"],
+        // Valider, mesurer et dessiner sont l'affaire de `foregram`.
+        &["validate", "x"],
+        &["metrics", "x", "y"],
+        &["render", "x", "y", "z.svg"],
         &["mesurer", "x"],
         &["--help", "x"],
         &["graphml"],
@@ -125,7 +42,7 @@ fn a_wrong_call_exits_two_with_the_usage() {
         let (code, out, err) = run(args);
         assert_eq!(code, 2, "{args:?}");
         assert_eq!(out, "");
-        assert!(err.starts_with("usage: foregram-bench validate"), "{err}");
+        assert!(err.starts_with("usage: foregram-bench graphml"), "{err}");
     }
 }
 
@@ -133,7 +50,7 @@ fn a_wrong_call_exits_two_with_the_usage() {
 fn help_and_version_exit_zero() {
     let (code, out, _) = run(&["--help"]);
     assert_eq!(code, 0);
-    assert!(out.starts_with("usage: foregram-bench validate"));
+    assert!(out.starts_with("usage: foregram-bench graphml"));
     let (code, out, _) = run(&["--version"]);
     assert_eq!(code, 0);
     assert_eq!(
@@ -201,9 +118,7 @@ fn a_graphml_file_comes_out_as_a_canonical_graph() {
     assert_eq!(err, "");
 
     // Ce qui sort se relit tel quel.
-    let json = write(&dir.join("grafo1.3.graph.json"), &out);
-    let (code, _, err) = run(&["validate", &json]);
-    assert_eq!(code, 0, "{err}");
+    assert!(Graph::parse(out.as_bytes()).is_ok());
 }
 
 #[test]
@@ -306,9 +221,7 @@ fn an_elkt_file_comes_out_as_a_canonical_graph() {
     );
 
     // Ce qui sort se relit tel quel ; un fichier sans perte ne dit rien.
-    let json = write(&dir.join("sample.graph.json"), &out);
-    let (code, _, err) = run(&["validate", &json]);
-    assert_eq!(code, 0, "{err}");
+    assert!(Graph::parse(out.as_bytes()).is_ok());
     let plain = write(
         &dir.join("plain.elkt"),
         "node a { layout [size: 1, 1] }\nedge a -> a",
@@ -419,19 +332,14 @@ fn every_in_house_model_converts_to_a_valid_graph() {
     let listed: Vec<&str> = IN_HOUSE.iter().map(|(name, _, _)| *name).collect();
     assert_eq!(found, listed, "corpus maison et liste du test divergent");
 
-    let dir = scratch("mcd-corpus");
     for (name, nodes, edges) in IN_HOUSE {
         let (code, out, err) = run(&["mcd", &format!("{corpus}/{name}")]);
         assert_eq!(code, 0, "{name} : {err}");
         assert_eq!(err, "");
         // Ce qui sort se relit tel quel, et compte ce que le `.mcd` déclare.
-        let json = write(&dir.join(format!("{name}.graph.json")), &out);
-        let (code, said, err) = run(&["validate", &json]);
-        assert_eq!(code, 0, "{name} : {err}");
-        assert_eq!(
-            said,
-            format!("{json}: valid graph ({nodes} nodes, {edges} edges)\n")
-        );
+        let graph = Graph::parse(out.as_bytes()).unwrap();
+        assert_eq!(graph.all_nodes().len(), nodes, "{name}");
+        assert_eq!(graph.edges.len(), edges, "{name}");
     }
 }
 

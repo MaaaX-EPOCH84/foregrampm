@@ -310,17 +310,32 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
     assert!(bare.render(catalog).starts_with("error[J002]: "));
     reached.insert("diag.bare");
 
+    // Les refus d'un fichier tels qu'une ligne de commande les écrit.
+    let report = foregram_graph::file_report("g.json", &[positioned[0].clone(), bare], catalog);
+    assert_eq!(
+        report,
+        [
+            "g.json:1:1: error[J002]: unexpected character `?`: a value is expected",
+            "g.json: error[J002]: unexpected character `?`: a value is expected",
+            "g.json: refused (2 errors)",
+        ]
+    );
+    let one = foregram_graph::file_report("g.json", &positioned, catalog);
+    assert_eq!(one.last().unwrap(), "g.json: refused (1 error)");
+    reached.extend(["diag.file-at", "diag.file-bare", "diag.refused"]);
+
     // Le rapport des mesures, une ligne par mesure.
     for line in Metrics::default().report() {
         assert_eq!(line.check(catalog), Ok(()));
         reached.extend(line.keys());
     }
 
-    // Les entrées du banc — ligne de commande, imports GraphML, ELK et MCD,
-    // moteurs de référence, planche — et celles du rendu, que leurs propres tests
-    // exercent.
+    // Les entrées de la ligne de commande du produit, du banc — ligne de
+    // commande, imports GraphML, ELK et MCD, moteurs de référence, planche — et
+    // du rendu, que leurs propres tests exercent.
     let mut bench_keys = BTreeSet::new();
     for name in [
+        "foregram/src/main.rs",
         "foregram-bench/src/main.rs",
         "foregram-bench/src/graphml.rs",
         "foregram-bench/src/elkt.rs",

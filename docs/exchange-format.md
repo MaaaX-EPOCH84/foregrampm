@@ -26,6 +26,17 @@ output. A test reads both crates' sources and refuses any use of
 `std::fs`, `std::env`, `std::time`, `std::io`, `std::process`, `std::net`,
 `std::thread` or of a printing macro outside unit tests.
 
+Two executables read and write these files. **`foregram`**, the product
+command line, reads the exchange format only: it validates, rewrites in
+canonical form, measures and draws. **`foregram-bench`** converts the
+third-party formats (GraphML, ELK text, conceptual data models) into the
+exchange format and drives the reference engines. A converted graph goes
+from one to the other through the standard input:
+
+```
+foregram-bench graphml g.graphml | foregram validate -
+```
+
 This is version 2 of the format. Version 1 files are still read: everything
 version 2 adds is optional. The library writes version 2.
 
@@ -217,20 +228,36 @@ string, only the quote, the backslash and control characters are escaped.
 Two equal contents therefore give the same bytes, and reading a canonical
 form then writing it back changes nothing.
 
+```
+foregram canon <file.json>
+```
+
+reads a graph or a layout, told apart by its `format` key, and writes it in
+canonical form, version 2, on the standard output. A file whose `format`
+does not name a layout is read as a graph, and its refusals say what is
+wrong. A refused file is not written.
+
 ## Validating
 
 ```
-foregram-bench validate <graph.json> [<layout.json>...]
+foregram [--lang <code>] [--json] validate <graph.json> [<layout.json>...]
 ```
 
 The graph is validated, then each layout is validated and confronted with
-the graph. Every file is read, even after a refusal.
+the graph. Every file is read, even after a refusal. A file named `-` is
+the standard input, which a call reads once at most; its refusals name it
+`<stdin>`.
 
 | Exit code | Meaning |
 |---|---|
 | 0 | Everything is valid |
 | 1 | At least one file is refused |
 | 2 | Wrong call, or unreadable file |
+
+`--lang` chooses the language of the messages; `en` is the only one for
+now, and any other is a wrong call. `--json` is reserved for diagnostics as
+JSON and is refused until they exist. Both come before the command, and so
+do they for `canon`, `metrics` and `render`, which share these exit codes.
 
 A refusal is written on the error output:
 
@@ -645,12 +672,12 @@ its graph. The layout must pass the validation above; the metrics then
 measure what validation does not judge.
 
 ```
-foregram-bench metrics <graph> <layout.json>...
+foregram metrics <graph.json> <layout.json>...
 ```
 
-The command checks each layout against the graph, which may be a
-`.graph.json`, `.graphml`, `.elkt` or `.mcd` file, and writes one line per
-measure. A layout that fails the check is refused, not measured. All
+The command checks each layout against the graph and writes one line per
+measure. A `.graphml`, `.elkt` or `.mcd` graph is converted first by the
+benchmark, then read from the standard input. A layout that fails the check is refused, not measured. All
 numbers are integers: lengths in hundredths of a pixel, areas in square
 hundredths, ratios in thousandths. The same layout gives the same numbers on
 every machine.
@@ -676,14 +703,13 @@ dropped.
 
 A layout is drawn from its coordinates alone, with the same look for every
 engine, so that the eye compares the layout and not the style. The drawing
-lives in the `foregram-render` crate; the benchmark exposes it:
+lives in the `foregram-render` crate; the command line exposes it:
 
 ```
-foregram-bench render <graph> <layout.json> <out.svg|out.png> [--scale <n>]
+foregram render <graph.json> <layout.json> <out.svg|out.png> [--scale <n>]
 ```
 
-The command checks the layout against the graph, which may be a
-`.graph.json`, `.graphml`, `.elkt` or `.mcd` file, and writes the drawing
+The command checks the layout against the graph and writes the drawing
 into the output file, SVG or PNG by its extension. A layout that fails the
 check is refused, not drawn.
 
