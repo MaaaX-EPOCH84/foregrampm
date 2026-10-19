@@ -25,6 +25,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;
 
+use crate::json::quote;
+
 /// Ce qui remplit un emplacement d'un modèle.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Arg {
@@ -127,6 +129,33 @@ impl Message {
             }
         }
         Ok(())
+    }
+
+    /// Le message en JSON, sur une ligne : `{"key": …, "args": {…}}`. Sans
+    /// phrase : elle se compose une fois, au sommet de l'objet qui le porte.
+    pub fn to_json(&self) -> String {
+        format!(
+            "{{\"key\": {}, \"args\": {}}}",
+            quote(self.key),
+            self.args_json()
+        )
+    }
+
+    /// Les arguments en un objet JSON, dans l'ordre où ils ont été donnés :
+    /// une chaîne pour un texte, `{"key": …, "args": {…}}` pour un message.
+    pub fn args_json(&self) -> String {
+        let args: Vec<String> = self
+            .args
+            .iter()
+            .map(|(name, arg)| {
+                let value = match arg {
+                    Arg::Text(text) => quote(text),
+                    Arg::Msg(inner) => inner.to_json(),
+                };
+                format!("{}: {value}", quote(name))
+            })
+            .collect();
+        format!("{{{}}}", args.join(", "))
     }
 
     /// Toutes les clés employées : la sienne, puis celles de ses arguments.

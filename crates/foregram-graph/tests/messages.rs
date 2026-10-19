@@ -324,6 +324,21 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
     assert_eq!(one.last().unwrap(), "g.json: refused (1 error)");
     reached.extend(["diag.file-at", "diag.file-bare", "diag.refused"]);
 
+    // Les mêmes refus en JSON : position ou `null`, clé, arguments, phrase.
+    let file = "a \"b\".json";
+    assert_eq!(
+        positioned[0].to_json(file, catalog),
+        "{\"kind\": \"diagnostic\", \"file\": \"a \\\"b\\\".json\", \"code\": \"J002\", \
+         \"line\": 1, \"col\": 1, \"key\": \"J002.value-char\", \"args\": {\"char\": \"?\"}, \
+         \"text\": \"unexpected character `?`: a value is expected\"}"
+    );
+    let bare_json = report_bare(&positioned[0]).to_json(file, catalog);
+    assert!(
+        bare_json.contains("\"line\": null, \"col\": null"),
+        "{bare_json}"
+    );
+    assert!(foregram_graph::json::parse(bare_json.as_bytes()).is_ok());
+
     // Le rapport des mesures, une ligne par mesure.
     for line in Metrics::default().report() {
         assert_eq!(line.check(catalog), Ok(()));
@@ -459,4 +474,11 @@ fn string_literals(source: &str) -> Vec<String> {
         }
     }
     out
+}
+
+/// Le même refus, sans position.
+fn report_bare(diag: &Diagnostic) -> Diagnostic {
+    let mut bare = diag.clone();
+    bare.pos = Pos::NONE;
+    bare
 }

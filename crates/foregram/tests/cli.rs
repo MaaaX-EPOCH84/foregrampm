@@ -9,6 +9,9 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
 
+use foregram_graph::json::{self, Kind, Value};
+use foregram_graph::{Graph, Layout, Metrics};
+
 fn data(name: &str) -> String {
     format!(
         "{}/../foregram-graph/tests/data/{name}",
@@ -336,15 +339,6 @@ fn english_is_the_only_language_for_now() {
 }
 
 #[test]
-fn json_output_is_refused_until_it_exists() {
-    let graph = data("gestpret.graph.json");
-    let (code, out, err) = run(&["--json", "validate", &graph]);
-    assert_eq!(code, 2);
-    assert_eq!(out, "");
-    assert!(err.starts_with("`--json` is not available yet"), "{err}");
-}
-
-#[test]
 fn a_wrong_call_exits_two_with_the_usage() {
     for args in [
         &[][..],
@@ -377,4 +371,230 @@ fn help_and_version_exit_zero() {
     let (code, out, _) = run(&["--version"]);
     assert_eq!(code, 0);
     assert_eq!(out, format!("foregram {}\n", env!("CARGO_PKG_VERSION")));
+}
+
+// -------------------------------------------------------------------- JSON
+
+/// Chaque ligne du flux, relue par le lecteur strict de la bibliothèque :
+/// ce qu'un programme lira.
+fn objects(out: &str) -> Vec<Value> {
+    out.lines()
+        .map(|line| json::parse(line.as_bytes()).unwrap_or_else(|d| panic!("{line} : {d}")))
+        .collect()
+}
+
+/// La valeur d'un membre de l'objet.
+fn field<'a>(value: &'a Value, key: &str) -> &'a Kind {
+    let Kind::Object(members) = &value.kind else {
+        panic!("pas un objet : {value:?}");
+    };
+    &members.iter().find(|m| m.key == key).unwrap().value.kind
+}
+
+fn string(value: &Value, key: &str) -> String {
+    match field(value, key) {
+        Kind::Str(text) => text.clone(),
+        other => panic!("{key} : {other:?}"),
+    }
+}
+
+/// Les clés de l'objet, dans l'ordre écrit.
+fn keys(value: &Value) -> Vec<&str> {
+    let Kind::Object(members) = &value.kind else {
+        panic!("pas un objet : {value:?}");
+    };
+    members.iter().map(|m| m.key.as_str()).collect()
+}
+
+#[test]
+fn json_results_are_one_object_per_line_on_the_standard_output() {
+    let graph = data("gestpret.graph.json");
+    let layout = data("gestpret.layout.json");
+    let (code, out, err) = run(&["--json", "validate", &graph, &layout]);
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(err, "");
+    let path = json::quote(&graph);
+    assert_eq!(
+        out.lines().next().unwrap(),
+        format!(
+            "{{\"kind\": \"valid\", \"file\": {path}, \"key\": \"cli.valid-graph\", \
+             \"args\": {{\"path\": {path}, \
+             \"nodes\": {{\"key\": \"count.node.other\", \"args\": {{\"n\": \"3\"}}}}, \
+             \"edges\": {{\"key\": \"count.edge.other\", \"args\": {{\"n\": \"2\"}}}}}}, \
+             \"text\": {}}}",
+            json::quote(&format!("{graph}: valid graph (3 nodes, 2 edges)"))
+        )
+    );
+    let all = objects(&out);
+    assert_eq!(all.len(), 2);
+    assert_eq!(string(&all[1], "kind"), "valid");
+    assert_eq!(string(&all[1], "file"), layout);
+    assert_eq!(string(&all[1], "key"), "cli.valid-layout");
+}
+
+#[test]
+fn json_refusals_carry_code_place_key_arguments_and_sentence() {
+    let graph = data("refuse-lien-orphelin.graph.json");
+    let layout = data("gestpret.layout.json");
+    let (code, out, err) = run(&["--json", "validate", &graph, &layout]);
+    assert_eq!(code, 1);
+    assert_eq!(err, "");
+    let all = objects(&out);
+    assert_eq!(all.len(), 4, "{out}");
+    let first = &all[0];
+    assert_eq!(
+        keys(first),
+        ["kind", "file", "code", "line", "col", "key", "args", "text"]
+    );
+    assert_eq!(string(first, "kind"), "diagnostic");
+    assert_eq!(string(first, "file"), graph);
+    assert_eq!(string(first, "code"), "G001");
+    assert_eq!(field(first, "line"), &Kind::Int(7));
+    assert_eq!(field(first, "col"), &Kind::Int(5));
+    assert_eq!(string(first, "key"), "G001.again");
+    assert_eq!(
+        string(first, "text"),
+        "node identifier \"A\" already used (line 6)"
+    );
+
+    // Un message dans un message garde sa clé et ses arguments, sans phrase.
+    let nested = out.lines().nth(1).unwrap();
+    assert!(
+        nested.contains(
+            "\"args\": {\"field\": {\"key\": \"field.at\", \"args\": {\"subject\": \
+             {\"key\": \"subject.node\", \"args\": {\"id\": \"A\"}}, \"key\": \"height\"}}"
+        ),
+        "{nested}"
+    );
+
+    // Le placement n'est pas confronté au graphe refusé : un objet `error`.
+    assert_eq!(string(&all[3], "kind"), "error");
+    assert_eq!(string(&all[3], "key"), "cli.not-checked");
+}
+
+#[test]
+fn a_json_refusal_without_a_place_has_null_line_and_column() {
+    let dir = scratch("json-no-place");
+    let out_file = dir.join("trop.png").display().to_string();
+    let graph = data("gestpret.graph.json");
+    let layout = data("gestpret.layout.json");
+    let (code, out, err) = run(&[
+        "--json", "render", &graph, &layout, &out_file, "--scale", "9",
+    ]);
+    assert_eq!(code, 1);
+    assert_eq!(err, "");
+    let all = objects(&out);
+    assert_eq!(all.len(), 1, "{out}");
+    assert_eq!(string(&all[0], "code"), "V001");
+    assert_eq!(string(&all[0], "file"), out_file);
+    assert_eq!(field(&all[0], "line"), &Kind::Null);
+    assert_eq!(field(&all[0], "col"), &Kind::Null);
+}
+
+#[test]
+fn an_unreadable_file_is_a_json_error_with_its_name_escaped() {
+    let missing = "/nonexistent/a \"b\"\tc\nd.json";
+    let (code, out, err) = run(&["--json", "validate", missing]);
+    assert_eq!(code, 2);
+    assert_eq!(err, "");
+    assert_eq!(out.lines().count(), 1, "{out}");
+    let all = objects(&out);
+    assert_eq!(string(&all[0], "kind"), "error");
+    assert_eq!(string(&all[0], "key"), "cli.unreadable");
+    assert_eq!(string(&all[0], "file"), missing);
+}
+
+#[test]
+fn json_metrics_are_the_ones_of_the_library() {
+    let graph = data("components.graph.json");
+    let layout = data("components.layout.json");
+    let (code, out, err) = run(&["--json", "metrics", &graph, &layout]);
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(err, "");
+    let all = objects(&out);
+    assert_eq!(all.len(), 1, "{out}");
+    assert_eq!(string(&all[0], "kind"), "metrics");
+    assert_eq!(string(&all[0], "key"), "cli.measured");
+    let g = Graph::parse(&std::fs::read(&graph).unwrap()).unwrap();
+    let l = Layout::parse(&std::fs::read(&layout).unwrap()).unwrap();
+    let expected = format!(", \"metrics\": {}}}\n", Metrics::measure(&g, &l).to_json());
+    assert!(out.ends_with(&expected), "{out}");
+}
+
+#[test]
+fn json_canon_wraps_the_canonical_document() {
+    for name in ["gestpret.graph.json", "components.layout.json"] {
+        let path = data(name);
+        let (code, out, err) = run(&["--json", "canon", &path]);
+        assert_eq!(code, 0, "{name} : {err}");
+        assert_eq!(err, "");
+        let canonical = String::from_utf8(std::fs::read(&path).unwrap()).unwrap();
+        let expected = format!(
+            "{{\n  \"kind\": \"canonical\",\n  \"file\": {},\n  \"document\": {}\n}}\n",
+            json::quote(&path),
+            canonical.trim_end_matches('\n').replace('\n', "\n  ")
+        );
+        assert_eq!(out, expected, "{name}");
+        // Un seul objet, qu'un lecteur JSON relit entier.
+        let value = json::parse(out.as_bytes()).unwrap();
+        assert_eq!(keys(&value), ["kind", "file", "document"]);
+    }
+}
+
+#[test]
+fn json_canon_of_a_refused_file_is_its_refusals() {
+    let path = data("refuse-lien-orphelin.graph.json");
+    let (code, out, err) = run(&["--json", "canon", &path]);
+    assert_eq!(code, 1);
+    assert_eq!(err, "");
+    let all = objects(&out);
+    assert!(!all.is_empty());
+    assert!(all.iter().all(|o| string(o, "kind") == "diagnostic"));
+}
+
+#[test]
+fn json_render_says_what_was_drawn() {
+    let dir = scratch("json-render");
+    let out_file = dir.join("g.svg").display().to_string();
+    let graph = data("gestpret.graph.json");
+    let layout = data("gestpret.layout.json");
+    let (code, out, err) = run(&["--json", "render", &graph, &layout, &out_file]);
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(err, "");
+    let all = objects(&out);
+    assert_eq!(all.len(), 1);
+    assert_eq!(string(&all[0], "kind"), "rendered");
+    assert_eq!(string(&all[0], "file"), layout);
+    assert!(std::path::Path::new(&out_file).exists());
+}
+
+#[test]
+fn json_and_lang_come_in_either_order_and_a_wrong_call_stays_text() {
+    let graph = data("gestpret.graph.json");
+    let (a, out_a, _) = run(&["--json", "--lang", "en", "validate", &graph]);
+    let (b, out_b, _) = run(&["--lang", "en", "--json", "validate", &graph]);
+    assert_eq!((a, b), (0, 0));
+    assert_eq!(out_a, out_b);
+    assert_eq!(objects(&out_a).len(), 1);
+
+    let (code, out, err) = run(&["--json", "validate"]);
+    assert_eq!(code, 2);
+    assert_eq!(out, "");
+    assert!(err.starts_with("usage: foregram "), "{err}");
+}
+
+#[test]
+fn the_documentation_shows_the_json_stream_as_it_is() {
+    let bytes = std::fs::read(data("refuse-lien-orphelin.graph.json")).unwrap();
+    let (code, out, _) = run_with(&["--json", "validate", "-"], &bytes);
+    assert_eq!(code, 1);
+    let doc_path = format!(
+        "{}/../../docs/exchange-format.md",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let doc = std::fs::read_to_string(doc_path).unwrap();
+    assert!(
+        doc.contains(&format!("```json\n{out}```")),
+        "la documentation ne reprend plus le flux JSON tel quel :\n{out}"
+    );
 }

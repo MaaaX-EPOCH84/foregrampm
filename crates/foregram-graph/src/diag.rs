@@ -4,6 +4,7 @@
 
 use std::fmt;
 
+use crate::json::quote;
 use crate::msg::{Catalog, Message};
 
 /// Position dans un texte source, comptée à partir de 1.
@@ -74,6 +75,25 @@ impl Diagnostic {
             .text("file", file)
             .msg("diag", self.line())
             .render(catalog)
+    }
+
+    /// Le refus en un objet JSON sur une ligne, pour un programme : le
+    /// fichier, le code, la position (`null` sans position), la clé et les
+    /// arguments du message, puis sa phrase dans la langue du catalogue.
+    pub fn to_json(&self, file: &str, catalog: &Catalog) -> String {
+        let (line, col) = if self.pos.is_none() {
+            ("null".to_string(), "null".to_string())
+        } else {
+            (self.pos.line.to_string(), self.pos.col.to_string())
+        };
+        format!(
+            "{{\"kind\": \"diagnostic\", \"file\": {}, \"code\": {}, \"line\": {line}, \"col\": {col}, \"key\": {}, \"args\": {}, \"text\": {}}}",
+            quote(file),
+            quote(self.code),
+            quote(self.message.key),
+            self.message.args_json(),
+            quote(&self.text_in(catalog))
+        )
     }
 
     fn line(&self) -> Message {

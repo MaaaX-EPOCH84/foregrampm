@@ -8,13 +8,17 @@
 //!
 //! Toute l'entrée-sortie est ici : la bibliothèque reçoit des octets et rend
 //! des valeurs.
+//!
+//! Sous `--json`, chaque résultat et chaque refus est un objet JSON sur une
+//! ligne, tous sur la sortie standard et dans l'ordre des fichiers ; l'erreur
+//! standard ne porte plus que l'usage.
 
 use std::ffi::{OsStr, OsString};
 use std::io::{Read, Write};
 use std::path::Path;
 use std::process::ExitCode;
 
-use foregram_graph::json::{self, Kind};
+use foregram_graph::json::{self, Kind, quote};
 use foregram_graph::{
     Catalog, Diagnostic, Graph, LAYOUT_FORMAT, Layout, Message, Metrics, file_report,
 };
@@ -37,6 +41,7 @@ fn main() -> ExitCode {
 fn run(args: &[OsString]) -> u8 {
     // Les options générales précèdent la commande.
     let mut rest = args;
+    let mut out = Out { json: false };
     loop {
         match rest.first().and_then(|a| a.to_str()) {
             Some("--lang") => match rest.get(1).and_then(|a| a.to_str()) {
@@ -48,8 +53,8 @@ fn run(args: &[OsString]) -> u8 {
                 None => return usage(),
             },
             Some("--json") => {
-                emit_err(&say(Message::new("cli.json-later")));
-                return UNUSABLE;
+                out.json = true;
+                rest = rest.get(1..).unwrap_or(&[]);
             }
             _ => break,
         }
@@ -69,13 +74,15 @@ fn run(args: &[OsString]) -> u8 {
             emit(&format!("foregram {}", env!("CARGO_PKG_VERSION")));
             VALID
         }
-        (Some("validate"), [graph, layouts @ ..]) => validate(graph, layouts),
-        (Some("canon"), [file]) => canon(file),
-        (Some("metrics"), [graph, layouts @ ..]) if !layouts.is_empty() => metrics(graph, layouts),
-        (Some("render"), [graph, layout, out]) => render(graph, layout, out.as_ref(), 1),
-        (Some("render"), [graph, layout, out, flag, scale]) if flag == "--scale" => {
+        (Some("validate"), [graph, layouts @ ..]) => validate(out, graph, layouts),
+        (Some("canon"), [file]) => canon(out, file),
+        (Some("metrics"), [graph, layouts @ ..]) if !layouts.is_empty() => {
+            metrics(out, graph, layouts)
+        }
+        (Some("render"), [graph, layout, image]) => render(out, graph, layout, image.as_ref(), 1),
+        (Some("render"), [graph, layout, image, flag, scale]) if flag == "--scale" => {
             match scale.to_str().and_then(|s| s.parse::<i64>().ok()) {
-                Some(scale) => render(graph, layout, out.as_ref(), scale),
+                Some(scale) => render(out, graph, layout, image.as_ref(), scale),
                 None => usage(),
             }
         }
@@ -88,6 +95,61 @@ fn usage() -> u8 {
     UNUSABLE
 }
 
+/// La façon d'écrire les résultats : des lignes de texte, les refus sur
+/// l'erreur standard ; ou, sous `--json`, un objet par ligne, tout sur la
+/// sortie standard.
+#[derive(Clone, Copy)]
+struct Out {
+    json: bool,
+}
+
+impl Out {
+    /// Un résultat : un fichier valide, mesuré ou dessiné.
+    fn said(self, kind: &str, file: &str, message: Message) {
+        if self.json {
+            emit(&object(kind, file, &message, ""));
+        } else {
+            emit(&say(message));
+        }
+    }
+
+    /// Un fichier qui n'a pu être lu, écrit ou confronté au graphe.
+    fn error(self, file: &str, message: Message) {
+        if self.json {
+            emit(&object("error", file, &message, ""));
+        } else {
+            emit_err(&say(message));
+        }
+    }
+
+    fn refuse(self, file: &str, diags: &[Diagnostic], status: &mut u8) {
+        if self.json {
+            for diag in diags {
+                emit(&diag.to_json(file, Catalog::english()));
+            }
+        } else {
+            for line in file_report(file, diags, Catalog::english()) {
+                emit_err(&line);
+            }
+        }
+        *status = (*status).max(REFUSED);
+    }
+}
+
+/// Un objet du flux JSON hors refus : sa sorte, son fichier, son message en
+/// clé et arguments, sa phrase, puis ce que la sorte ajoute (`extra`, membres
+/// précédés d'une virgule).
+fn object(kind: &str, file: &str, message: &Message, extra: &str) -> String {
+    format!(
+        "{{\"kind\": {}, \"file\": {}, \"key\": {}, \"args\": {}, \"text\": {}{extra}}}",
+        quote(kind),
+        quote(file),
+        quote(message.key),
+        message.args_json(),
+        quote(&say(message.clone()))
+    )
+}
+
 /// Un fichier lu : le nom sous lequel le dire, et ses octets.
 struct Input {
     name: String,
@@ -96,7 +158,7 @@ struct Input {
 
 /// Lit un fichier, ou l'entrée standard pour `-`. Un échec est dit, et porte
 /// le code de sortie à 2.
-fn load(arg: &OsStr, status: &mut u8) -> Option<Input> {
+fn load(out: Out, arg: &OsStr, status: &mut u8) -> Option<Input> {
     let (name, read) = if arg == STDIN {
         let mut bytes = Vec::new();
         let read = std::io::stdin().read_to_end(&mut bytes).map(|_| bytes);
@@ -110,25 +172,18 @@ fn load(arg: &OsStr, status: &mut u8) -> Option<Input> {
             let message = Message::new("cli.unreadable")
                 .text("path", &name)
                 .text("error", error);
-            emit_err(&say(message));
+            out.error(&name, message);
             *status = (*status).max(UNUSABLE);
             None
         }
     }
 }
 
-fn refuse(file: &str, diags: &[Diagnostic], status: &mut u8) {
-    for line in file_report(file, diags, Catalog::english()) {
-        emit_err(&line);
-    }
-    *status = (*status).max(REFUSED);
-}
-
 /// Valide le graphe, puis chaque placement et sa confrontation au graphe.
 /// Chaque fichier est lu, même après un refus.
-fn validate(graph_arg: &OsStr, layout_args: &[OsString]) -> u8 {
+fn validate(out: Out, graph_arg: &OsStr, layout_args: &[OsString]) -> u8 {
     let mut status = VALID;
-    let graph = match load(graph_arg, &mut status) {
+    let graph = match load(out, graph_arg, &mut status) {
         None => None,
         Some(input) => match Graph::parse(&input.bytes) {
             Ok(graph) => {
@@ -136,38 +191,39 @@ fn validate(graph_arg: &OsStr, layout_args: &[OsString]) -> u8 {
                     .text("path", &input.name)
                     .msg("nodes", count_nodes(&graph))
                     .msg("edges", count_edges(&graph));
-                emit(&say(message));
+                out.said("valid", &input.name, message);
                 Some(graph)
             }
             Err(diags) => {
-                refuse(&input.name, &diags, &mut status);
+                out.refuse(&input.name, &diags, &mut status);
                 None
             }
         },
     };
 
     for arg in layout_args {
-        let Some(input) = load(arg, &mut status) else {
+        let Some(input) = load(out, arg, &mut status) else {
             continue;
         };
         let layout = match Layout::parse(&input.bytes) {
             Ok(layout) => layout,
             Err(diags) => {
-                refuse(&input.name, &diags, &mut status);
+                out.refuse(&input.name, &diags, &mut status);
                 continue;
             }
         };
         let Some(graph) = &graph else {
             let message = Message::new("cli.not-checked").text("path", &input.name);
-            emit_err(&say(message));
+            out.error(&input.name, message);
             status = status.max(REFUSED);
             continue;
         };
         let diags = layout.check(graph);
         if diags.is_empty() {
-            emit(&say(about_layout("cli.valid-layout", &input.name, &layout)));
+            let message = about_layout("cli.valid-layout", &input.name, &layout);
+            out.said("valid", &input.name, message);
         } else {
-            refuse(&input.name, &diags, &mut status);
+            out.refuse(&input.name, &diags, &mut status);
         }
     }
     status
@@ -177,9 +233,9 @@ fn validate(graph_arg: &OsStr, layout_args: &[OsString]) -> u8 {
 /// version 2. Les deux se distinguent par leur clé `format` ; à défaut d'en
 /// porter une qui dise placement, le fichier est lu comme un graphe, dont les
 /// refus diront ce qui manque.
-fn canon(arg: &OsStr) -> u8 {
+fn canon(out: Out, arg: &OsStr) -> u8 {
     let mut status = VALID;
-    let Some(input) = load(arg, &mut status) else {
+    let Some(input) = load(out, arg, &mut status) else {
         return status;
     };
     let written = if is_layout(&input.bytes) {
@@ -188,10 +244,21 @@ fn canon(arg: &OsStr) -> u8 {
         Graph::parse(&input.bytes).map(|graph| graph.to_json())
     };
     match written {
+        Ok(text) if out.json => write_out(&canonical(&input.name, &text)),
         Ok(text) => write_out(&text),
-        Err(diags) => refuse(&input.name, &diags, &mut status),
+        Err(diags) => out.refuse(&input.name, &diags, &mut status),
     }
     status
+}
+
+/// La forme canonique dans son objet du flux JSON : la seule sur plusieurs
+/// lignes, le document tel quel sous `document`, décalé d'un cran.
+fn canonical(file: &str, text: &str) -> String {
+    let document = text.trim_end_matches('\n').replace('\n', "\n  ");
+    format!(
+        "{{\n  \"kind\": \"canonical\",\n  \"file\": {},\n  \"document\": {document}\n}}\n",
+        quote(file)
+    )
 }
 
 /// Le texte est un objet JSON dont la clé `format` nomme le placement.
@@ -209,17 +276,24 @@ fn is_layout(bytes: &[u8]) -> bool {
 
 /// Mesure chaque placement pour le graphe. Un placement qui ne passe pas la
 /// confrontation au graphe est refusé, pas mesuré.
-fn metrics(graph_arg: &OsStr, layout_args: &[OsString]) -> u8 {
+fn metrics(out: Out, graph_arg: &OsStr, layout_args: &[OsString]) -> u8 {
     let mut status = VALID;
-    let Some(graph) = load_graph(graph_arg, &mut status) else {
+    let Some(graph) = load_graph(out, graph_arg, &mut status) else {
         return status;
     };
     for arg in layout_args {
-        let Some((name, layout)) = load_layout(arg, &graph, &mut status) else {
+        let Some((name, layout)) = load_layout(out, arg, &graph, &mut status) else {
             continue;
         };
-        emit(&say(about_layout("cli.measured", &name, &layout)));
-        for line in Metrics::measure(&graph, &layout).report() {
+        let header = about_layout("cli.measured", &name, &layout);
+        let measured = Metrics::measure(&graph, &layout);
+        if out.json {
+            let extra = format!(", \"metrics\": {}", measured.to_json());
+            emit(&object("metrics", &name, &header, &extra));
+            continue;
+        }
+        emit(&say(header));
+        for line in measured.report() {
             emit(&format!("  {}", say(line)));
         }
     }
@@ -228,17 +302,17 @@ fn metrics(graph_arg: &OsStr, layout_args: &[OsString]) -> u8 {
 
 /// Dessine un placement pour son graphe, en SVG ou en PNG selon l'extension
 /// du fichier de sortie. Un placement refusé n'est pas dessiné.
-fn render(graph_arg: &OsStr, layout_arg: &OsStr, out: &Path, scale: i64) -> u8 {
-    let svg = match out.extension().and_then(|e| e.to_str()) {
+fn render(out: Out, graph_arg: &OsStr, layout_arg: &OsStr, image_path: &Path, scale: i64) -> u8 {
+    let svg = match image_path.extension().and_then(|e| e.to_str()) {
         Some("svg") => true,
         Some("png") => false,
         _ => return usage(),
     };
     let mut status = VALID;
-    let Some(graph) = load_graph(graph_arg, &mut status) else {
+    let Some(graph) = load_graph(out, graph_arg, &mut status) else {
         return status;
     };
-    let Some((name, layout)) = load_layout(layout_arg, &graph, &mut status) else {
+    let Some((name, layout)) = load_layout(out, layout_arg, &graph, &mut status) else {
         return status;
     };
     let style = foregram_render::Style::default();
@@ -248,41 +322,42 @@ fn render(graph_arg: &OsStr, layout_arg: &OsStr, out: &Path, scale: i64) -> u8 {
         match foregram_render::png(&graph, &layout, &style, scale) {
             Ok(image) => image,
             Err(diag) => {
-                refuse(&out.display().to_string(), &[diag], &mut status);
+                out.refuse(&image_path.display().to_string(), &[diag], &mut status);
                 return status;
             }
         }
     };
-    if let Err(error) = std::fs::write(out, &image) {
+    if let Err(error) = std::fs::write(image_path, &image) {
+        let path = image_path.display().to_string();
         let message = Message::new("cli.unwritable")
-            .text("path", out.display())
+            .text("path", &path)
             .text("error", error);
-        emit_err(&say(message));
+        out.error(&path, message);
         return UNUSABLE;
     }
-    let message = about_layout("cli.rendered", &name, &layout).text("out", out.display());
-    emit(&say(message));
+    let message = about_layout("cli.rendered", &name, &layout).text("out", image_path.display());
+    out.said("rendered", &name, message);
     status
 }
 
-fn load_graph(arg: &OsStr, status: &mut u8) -> Option<Graph> {
-    let input = load(arg, status)?;
+fn load_graph(out: Out, arg: &OsStr, status: &mut u8) -> Option<Graph> {
+    let input = load(out, arg, status)?;
     match Graph::parse(&input.bytes) {
         Ok(graph) => Some(graph),
         Err(diags) => {
-            refuse(&input.name, &diags, status);
+            out.refuse(&input.name, &diags, status);
             None
         }
     }
 }
 
 /// Un placement lu et confronté au graphe, avec le nom sous lequel le dire.
-fn load_layout(arg: &OsStr, graph: &Graph, status: &mut u8) -> Option<(String, Layout)> {
-    let input = load(arg, status)?;
+fn load_layout(out: Out, arg: &OsStr, graph: &Graph, status: &mut u8) -> Option<(String, Layout)> {
+    let input = load(out, arg, status)?;
     let layout = match Layout::parse(&input.bytes) {
         Ok(layout) => layout,
         Err(diags) => {
-            refuse(&input.name, &diags, status);
+            out.refuse(&input.name, &diags, status);
             return None;
         }
     };
@@ -290,7 +365,7 @@ fn load_layout(arg: &OsStr, graph: &Graph, status: &mut u8) -> Option<(String, L
     if diags.is_empty() {
         Some((input.name, layout))
     } else {
-        refuse(&input.name, &diags, status);
+        out.refuse(&input.name, &diags, status);
         None
     }
 }

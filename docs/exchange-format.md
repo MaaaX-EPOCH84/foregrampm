@@ -255,9 +255,10 @@ the standard input, which a call reads once at most; its refusals name it
 | 2 | Wrong call, or unreadable file |
 
 `--lang` chooses the language of the messages; `en` is the only one for
-now, and any other is a wrong call. `--json` is reserved for diagnostics as
-JSON and is refused until they exist. Both come before the command, and so
-do they for `canon`, `metrics` and `render`, which share these exit codes.
+now, and any other is a wrong call. `--json` writes results and refusals as
+JSON, see [Diagnostics as JSON](#diagnostics-as-json). Both come before the
+command, in either order, and so do they for `canon`, `metrics` and
+`render`, which share these exit codes.
 
 A refusal is written on the error output:
 
@@ -347,6 +348,73 @@ Layout:
 | L015 | Port anchor off the border, off its side, or off its fixed position |
 | L016 | Route end off its port |
 | L017 | Route starting with a curve |
+
+## Diagnostics as JSON
+
+```
+foregram --json <command> ...
+```
+
+With `--json`, every command writes **one JSON object per line**, all on
+the standard output, in the order of the files: refusals and results
+alike. The error output carries only the usage, as text, on a wrong call
+(exit code 2). Exit codes are the same as without `--json`. Every object
+reads with the strict reader of this format: integers only, each key
+once.
+
+A refusal, for example of the graph `refuse-lien-orphelin.graph.json`
+read from the standard input:
+
+```json
+{"kind": "diagnostic", "file": "<stdin>", "code": "G001", "line": 7, "col": 5, "key": "G001.again", "args": {"line": "6", "id": "A"}, "text": "node identifier \"A\" already used (line 6)"}
+{"kind": "diagnostic", "file": "<stdin>", "code": "S008", "line": 7, "col": 5, "key": "S008", "args": {"field": {"key": "field.at", "args": {"subject": {"key": "subject.node", "args": {"id": "A"}}, "key": "height"}}, "value": "0", "min": "1", "max": "1000000000"}, "text": "node \"A\": `height`: 0 outside the range 1 to 1000000000"}
+{"kind": "diagnostic", "file": "<stdin>", "code": "G003", "line": 10, "col": 5, "key": "G003", "args": {"subject": {"key": "subject.edge", "args": {"id": "e1"}}, "key": "target", "node": "B"}, "text": "edge \"e1\": `target` refers to node \"B\", which does not exist"}
+```
+
+| Key | Value |
+|---|---|
+| `kind` | `"diagnostic"` |
+| `file` | The file, as the text output names it (`<stdin>` for `-`) |
+| `code` | The stable code: **what a program reads** |
+| `line`, `col` | The position, from 1, the column in characters; `null` when the refusal has no place in a text (a rendering refusal) |
+| `key` | The catalogue key of the message: the code, plus a variant where the code has several sentences (`G001.again`) |
+| `args` | The arguments of the message, in the order given |
+| `text` | The sentence, composed in the language chosen by `--lang` |
+
+An argument is a string, or a message of its own, written
+`{"key": …, "args": {…}}` and without a sentence: the sentence is
+composed once, under `text`. Numbers in arguments are strings, as the
+catalogue receives them. A count is a message whose key changes with the
+number (`count.node.one`, `count.node.other`): read its `n`, not its key.
+The keys and arguments of a message may change from one version to the
+next; the code may not.
+
+The other objects have the same `kind`, `file`, `key`, `args` and
+`text`, and no code or position:
+
+| `kind` | Written by | Adds |
+|---|---|---|
+| `valid` | `validate`, for a valid graph or a valid layout | — |
+| `metrics` | `metrics`, for each layout | `metrics`: one integer per measure, as in [`metrics.json`](#board-and-report) |
+| `rendered` | `render`, once the image is written | — |
+| `error` | Any command, for a file that cannot be read or written, or a layout not checked because its graph is refused | — |
+
+`canon` is the one exception to one object per line: its result spans
+several lines, with the canonical document as it is under `document`,
+shifted by one level:
+
+```
+{
+  "kind": "canonical",
+  "file": "g.json",
+  "document": {
+    "format": "foregram-graph",
+    ...
+  }
+}
+```
+
+A refused file gives its `diagnostic` objects instead, one per line.
 
 ## Importing GraphML
 

@@ -17,7 +17,8 @@ graph an engine receives, the layout it returns — is described in
 [`docs/exchange-format.md`](docs/exchange-format.md).
 
 `foregram` is the product command line: it validates, rewrites in
-canonical form, measures and draws files of that format.
+canonical form, measures and draws files of that format, and with
+`--json` writes its results and refusals as JSON, one object per line.
 
 ```
 cargo test
