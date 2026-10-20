@@ -63,6 +63,18 @@ section "Determinism" of the format document. The figures of both
 reference engines, recorded as the bar the own layout engine has to beat,
 are under [`corpus/bar/`](corpus/bar/README.md).
 
+## WebAssembly
+
+`scripts/wasm.sh` checks that `foregram-graph` and `foregram-render` (without
+the `png` feature) build for `wasm32-unknown-unknown` with no special flag.
+Only the build is held: nothing is run and no web API is exposed. The target
+is not installed by the script; if it is missing the script says so (exit 2):
+
+```
+rustup target add wasm32-unknown-unknown
+scripts/wasm.sh
+```
+
 ## Licence
 
 GPL v3 or later — see [LICENSE](LICENSE).
