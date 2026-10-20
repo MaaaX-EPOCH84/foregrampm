@@ -116,7 +116,7 @@ pub fn file_report(file: &str, diags: &[Diagnostic], catalog: &Catalog) -> Vec<S
         .iter()
         .map(|diag| diag.render_in_file(file, catalog))
         .collect();
-    let count = Message::count(diags.len(), "count.error.one", "count.error.other");
+    let count = Message::count(diags.len(), "count.error");
     lines.push(
         Message::new("diag.refused")
             .text("file", file)

@@ -293,9 +293,9 @@ fn every_refusal_agrees_with_the_catalogue() {
 #[test]
 fn every_catalogue_entry_is_reached_and_none_is_dead() {
     let catalog = Catalog::english();
-    let mut reached: BTreeSet<&str> = BTreeSet::new();
+    let mut reached: BTreeSet<String> = BTreeSet::new();
     for diag in every_refusal() {
-        reached.extend(diag.message.keys());
+        reached.extend(entries(catalog, diag.message.keys()));
     }
 
     // La présentation d'un refus, avec et sans position.
@@ -304,11 +304,11 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
         positioned[0].render(catalog),
         "1:1: error[J002]: unexpected character `?`: a value is expected"
     );
-    reached.insert("diag.at");
+    reached.insert("diag.at".into());
     let mut bare = positioned[0].clone();
     bare.pos = Pos::NONE;
     assert!(bare.render(catalog).starts_with("error[J002]: "));
-    reached.insert("diag.bare");
+    reached.insert("diag.bare".into());
 
     // Les refus d'un fichier tels qu'une ligne de commande les écrit.
     let report = foregram_graph::file_report("g.json", &[positioned[0].clone(), bare], catalog);
@@ -322,7 +322,15 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
     );
     let one = foregram_graph::file_report("g.json", &positioned, catalog);
     assert_eq!(one.last().unwrap(), "g.json: refused (1 error)");
-    reached.extend(["diag.file-at", "diag.file-bare", "diag.refused"]);
+    reached.extend(entries(
+        catalog,
+        [
+            "diag.file-at",
+            "diag.file-bare",
+            "diag.refused",
+            "count.error",
+        ],
+    ));
 
     // Les mêmes refus en JSON : position ou `null`, clé, arguments, phrase.
     let file = "a \"b\".json";
@@ -342,7 +350,7 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
     // Le rapport des mesures, une ligne par mesure.
     for line in Metrics::default().report() {
         assert_eq!(line.check(catalog), Ok(()));
-        reached.extend(line.keys());
+        reached.extend(entries(catalog, line.keys()));
     }
 
     // Les entrées de la ligne de commande du produit, du banc — ligne de
@@ -372,14 +380,13 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
         bench_keys.extend(key_literals(text.split(mark).next().unwrap()));
     }
     for key in &bench_keys {
-        assert!(catalog.get(key).is_some(), "clé du banc absente : {key}");
+        assert!(exists(catalog, key), "clé du banc absente : {key}");
     }
-    let bench_keys: Vec<&str> = bench_keys.iter().map(String::as_str).collect();
-    reached.extend(bench_keys);
+    reached.extend(entries(catalog, bench_keys.iter().map(String::as_str)));
 
-    let all: BTreeSet<&str> = catalog.keys().collect();
-    let missing: Vec<&&str> = reached.difference(&all).collect();
-    let dead: Vec<&&str> = all.difference(&reached).collect();
+    let all: BTreeSet<String> = catalog.keys().map(String::from).collect();
+    let missing: Vec<&String> = reached.difference(&all).collect();
+    let dead: Vec<&String> = all.difference(&reached).collect();
     assert!(
         missing.is_empty(),
         "clés employées mais absentes : {missing:?}"
@@ -409,10 +416,148 @@ fn every_key_written_in_the_library_exists_in_the_catalogue() {
     assert!(found.len() > 40, "{found:?}");
     for key in &found {
         assert!(
-            Catalog::english().get(key).is_some(),
+            exists(Catalog::english(), key),
             "clé absente du catalogue : {key}"
         );
     }
+}
+
+/// Les familles que seul le banc emploie : il ne parle qu'anglais, et le
+/// catalogue français ne les porte pas.
+fn bench_only(key: &str) -> bool {
+    let head = key.split('.').next().unwrap_or("");
+    let code = head.len() == 4 && head[1..].bytes().all(|b| b.is_ascii_digit());
+    matches!(head, "bench" | "board") || (code && b"XEMR".contains(&head.as_bytes()[0]))
+}
+
+#[test]
+fn the_french_catalogue_has_every_key_of_the_product_and_no_other() {
+    let english = Catalog::english();
+    let french = Catalog::french();
+    assert_eq!(french.language(), "fr");
+    let product: BTreeSet<&str> = english.keys().filter(|key| !bench_only(key)).collect();
+    let translated: BTreeSet<&str> = french.keys().collect();
+    let missing: Vec<&&str> = product.difference(&translated).collect();
+    let orphan: Vec<&&str> = translated.difference(&product).collect();
+    assert!(
+        missing.is_empty(),
+        "clés absentes du français : {missing:?}"
+    );
+    assert!(
+        orphan.is_empty(),
+        "clés du français inconnues ou du banc : {orphan:?}"
+    );
+    assert!(product.len() > 160, "{}", product.len());
+    // Le banc a bien ses familles à part : l'exclusion n'est pas vide.
+    assert!(english.keys().filter(|key| bench_only(key)).count() > 70);
+}
+
+#[test]
+fn the_french_templates_have_the_same_slots_as_the_english_ones() {
+    let english = Catalog::english();
+    for key in Catalog::french().keys() {
+        let fr = slots(Catalog::french().get(key).unwrap());
+        let en = slots(english.get(key).unwrap());
+        assert_eq!(fr, en, "emplacements différents pour {key}");
+    }
+    // Chaque refus s'accorde donc aussi avec le français.
+    for diag in every_refusal() {
+        assert_eq!(diag.message.check(Catalog::french()), Ok(()), "{diag}");
+    }
+}
+
+#[test]
+fn every_plural_key_has_both_variants_in_each_language() {
+    for code in Catalog::LANGUAGES {
+        let catalog = Catalog::for_language(code).unwrap();
+        let mut bases = 0;
+        for key in catalog.keys() {
+            if let Some(base) = key.strip_suffix(".one") {
+                bases += 1;
+                assert!(
+                    catalog.get(&format!("{base}.other")).is_some(),
+                    "{code} : {base}.other"
+                );
+            }
+            if let Some(base) = key.strip_suffix(".other") {
+                // `G007.other` est une variante de refus, pas un pluriel.
+                if base.starts_with("count.") {
+                    assert!(
+                        catalog.get(&format!("{base}.one")).is_some(),
+                        "{code} : {base}.one"
+                    );
+                }
+            }
+        }
+        assert!(bases >= 11, "{code} : {bases}");
+    }
+}
+
+#[test]
+fn french_follows_its_typography() {
+    // Ni espace ordinaire ni rien avant `;`, `!`, `?`, ni dans les « » : une
+    // espace insécable. Les deux-points d'un repère (« {path}: », « {line}:{col}: »)
+    // gardent la forme anglaise ; ceux d'une phrase prennent l'insécable.
+    let nbsp = '\u{a0}';
+    for key in Catalog::french().keys() {
+        let text = Catalog::french().get(key).unwrap();
+        for (i, c) in text.char_indices() {
+            let before = text[..i].chars().last();
+            let after = text[i + c.len_utf8()..].chars().next();
+            match c {
+                ';' | '!' | '?' | '»' => {
+                    assert_eq!(before, Some(nbsp), "{key} : avant « {c} » dans {text:?}")
+                }
+                '«' => assert_eq!(after, Some(nbsp), "{key} : après « dans {text:?}"),
+                ':' if before == Some(' ') => panic!("{key} : espace ordinaire avant « : »"),
+                _ => {}
+            }
+        }
+        assert!(
+            !text.contains('"'),
+            "{key} : guillemets droits dans {text:?}"
+        );
+    }
+}
+
+/// Une clé employée existe : telle quelle, ou comme base d'un pluriel dont
+/// les deux variantes sont au catalogue.
+fn exists(catalog: &Catalog, key: &str) -> bool {
+    catalog.get(key).is_some()
+        || (catalog.get(&format!("{key}.one")).is_some()
+            && catalog.get(&format!("{key}.other")).is_some())
+}
+
+/// Les entrées du catalogue qu'atteignent des clés employées : la clé
+/// elle-même, ou les deux variantes d'une base de pluriel.
+fn entries<'a>(catalog: &Catalog, keys: impl IntoIterator<Item = &'a str>) -> Vec<String> {
+    let mut out = Vec::new();
+    for key in keys {
+        if catalog.get(key).is_some() {
+            out.push(key.to_string());
+        } else {
+            out.push(format!("{key}.one"));
+            out.push(format!("{key}.other"));
+        }
+    }
+    out
+}
+
+/// Les noms des emplacements `{nom}` d'un modèle, comme le lit la bibliothèque.
+fn slots(template: &str) -> BTreeSet<String> {
+    let mut out = BTreeSet::new();
+    let mut rest = template;
+    while let Some(open) = rest.find('{') {
+        let after = &rest[open + 1..];
+        let len = after
+            .find(|c: char| !(c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'))
+            .unwrap_or(after.len());
+        if len > 0 && after[len..].starts_with('}') {
+            out.insert(after[..len].to_string());
+        }
+        rest = after;
+    }
+    out
 }
 
 /// Les chaînes littérales qui ont la forme d'une clé de catalogue :

@@ -18,7 +18,8 @@ graph an engine receives, the layout it returns — is described in
 
 `foregram` is the product command line: it validates, rewrites in
 canonical form, measures and draws files of that format, and with
-`--json` writes its results and refusals as JSON, one object per line.
+`--json` writes its results and refusals as JSON, one object per line;
+`--lang fr` says them in French, English being the default.
 
 ```
 cargo test

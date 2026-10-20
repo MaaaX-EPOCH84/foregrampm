@@ -12,6 +12,9 @@
 //! Sous `--json`, chaque résultat et chaque refus est un objet JSON sur une
 //! ligne, tous sur la sortie standard et dans l'ordre des fichiers ; l'erreur
 //! standard ne porte plus que l'usage.
+//!
+//! `--lang` choisit le catalogue des phrases ; sans lui, l'anglais. Aucune
+//! variable d'environnement n'y entre : même appel, mêmes octets.
 
 use std::ffi::{OsStr, OsString};
 use std::io::{Read, Write};
@@ -41,16 +44,24 @@ fn main() -> ExitCode {
 fn run(args: &[OsString]) -> u8 {
     // Les options générales précèdent la commande.
     let mut rest = args;
-    let mut out = Out { json: false };
+    let mut out = Out {
+        json: false,
+        catalog: Catalog::english(),
+    };
     loop {
         match rest.first().and_then(|a| a.to_str()) {
             Some("--lang") => match rest.get(1).and_then(|a| a.to_str()) {
-                Some("en") => rest = rest.get(2..).unwrap_or(&[]),
-                Some(lang) => {
-                    emit_err(&say(Message::new("cli.lang-unknown").text("lang", lang)));
-                    return UNUSABLE;
-                }
-                None => return usage(),
+                Some(lang) => match Catalog::for_language(lang) {
+                    Some(catalog) => {
+                        out.catalog = catalog;
+                        rest = rest.get(2..).unwrap_or(&[]);
+                    }
+                    None => {
+                        emit_err(&out.say(Message::new("cli.lang-unknown").text("lang", lang)));
+                        return UNUSABLE;
+                    }
+                },
+                None => return usage(out),
             },
             Some("--json") => {
                 out.json = true;
@@ -61,13 +72,13 @@ fn run(args: &[OsString]) -> u8 {
     }
     // L'entrée standard ne se lit qu'une fois.
     if rest.iter().filter(|a| a.as_os_str() == STDIN).count() > 1 {
-        return usage();
+        return usage(out);
     }
 
     let command = rest.first().and_then(|a| a.to_str());
     match (command, rest.get(1..).unwrap_or(&[])) {
         (Some("--help"), []) => {
-            emit(&say(Message::new("cli.usage")));
+            emit(&out.say(Message::new("cli.usage")));
             VALID
         }
         (Some("--version"), []) => {
@@ -83,71 +94,78 @@ fn run(args: &[OsString]) -> u8 {
         (Some("render"), [graph, layout, image, flag, scale]) if flag == "--scale" => {
             match scale.to_str().and_then(|s| s.parse::<i64>().ok()) {
                 Some(scale) => render(out, graph, layout, image.as_ref(), scale),
-                None => usage(),
+                None => usage(out),
             }
         }
-        _ => usage(),
+        _ => usage(out),
     }
 }
 
-fn usage() -> u8 {
-    emit_err(&say(Message::new("cli.usage")));
+fn usage(out: Out) -> u8 {
+    emit_err(&out.say(Message::new("cli.usage")));
     UNUSABLE
 }
 
 /// La façon d'écrire les résultats : des lignes de texte, les refus sur
 /// l'erreur standard ; ou, sous `--json`, un objet par ligne, tout sur la
-/// sortie standard.
+/// sortie standard. Les phrases se composent dans la langue du catalogue.
 #[derive(Clone, Copy)]
 struct Out {
     json: bool,
+    catalog: &'static Catalog,
 }
 
 impl Out {
+    /// Compose une phrase dans la langue choisie.
+    fn say(self, message: Message) -> String {
+        debug_assert_eq!(message.check(self.catalog), Ok(()));
+        message.render(self.catalog)
+    }
+
     /// Un résultat : un fichier valide, mesuré ou dessiné.
     fn said(self, kind: &str, file: &str, message: Message) {
         if self.json {
-            emit(&object(kind, file, &message, ""));
+            emit(&self.object(kind, file, &message, ""));
         } else {
-            emit(&say(message));
+            emit(&self.say(message));
         }
     }
 
     /// Un fichier qui n'a pu être lu, écrit ou confronté au graphe.
     fn error(self, file: &str, message: Message) {
         if self.json {
-            emit(&object("error", file, &message, ""));
+            emit(&self.object("error", file, &message, ""));
         } else {
-            emit_err(&say(message));
+            emit_err(&self.say(message));
         }
     }
 
     fn refuse(self, file: &str, diags: &[Diagnostic], status: &mut u8) {
         if self.json {
             for diag in diags {
-                emit(&diag.to_json(file, Catalog::english()));
+                emit(&diag.to_json(file, self.catalog));
             }
         } else {
-            for line in file_report(file, diags, Catalog::english()) {
+            for line in file_report(file, diags, self.catalog) {
                 emit_err(&line);
             }
         }
         *status = (*status).max(REFUSED);
     }
-}
 
-/// Un objet du flux JSON hors refus : sa sorte, son fichier, son message en
-/// clé et arguments, sa phrase, puis ce que la sorte ajoute (`extra`, membres
-/// précédés d'une virgule).
-fn object(kind: &str, file: &str, message: &Message, extra: &str) -> String {
-    format!(
-        "{{\"kind\": {}, \"file\": {}, \"key\": {}, \"args\": {}, \"text\": {}{extra}}}",
-        quote(kind),
-        quote(file),
-        quote(message.key),
-        message.args_json(),
-        quote(&say(message.clone()))
-    )
+    /// Un objet du flux JSON hors refus : sa sorte, son fichier, son message
+    /// en clé et arguments, sa phrase, puis ce que la sorte ajoute (`extra`,
+    /// membres précédés d'une virgule).
+    fn object(self, kind: &str, file: &str, message: &Message, extra: &str) -> String {
+        format!(
+            "{{\"kind\": {}, \"file\": {}, \"key\": {}, \"args\": {}, \"text\": {}{extra}}}",
+            quote(kind),
+            quote(file),
+            quote(message.key),
+            message.args_json(),
+            quote(&self.say(message.clone()))
+        )
+    }
 }
 
 /// Un fichier lu : le nom sous lequel le dire, et ses octets.
@@ -162,7 +180,7 @@ fn load(out: Out, arg: &OsStr, status: &mut u8) -> Option<Input> {
     let (name, read) = if arg == STDIN {
         let mut bytes = Vec::new();
         let read = std::io::stdin().read_to_end(&mut bytes).map(|_| bytes);
-        (say(Message::new("cli.stdin")), read)
+        (out.say(Message::new("cli.stdin")), read)
     } else {
         (Path::new(arg).display().to_string(), std::fs::read(arg))
     };
@@ -289,12 +307,12 @@ fn metrics(out: Out, graph_arg: &OsStr, layout_args: &[OsString]) -> u8 {
         let measured = Metrics::measure(&graph, &layout);
         if out.json {
             let extra = format!(", \"metrics\": {}", measured.to_json());
-            emit(&object("metrics", &name, &header, &extra));
+            emit(&out.object("metrics", &name, &header, &extra));
             continue;
         }
-        emit(&say(header));
+        emit(&out.say(header));
         for line in measured.report() {
-            emit(&format!("  {}", say(line)));
+            emit(&format!("  {}", out.say(line)));
         }
     }
     status
@@ -306,7 +324,7 @@ fn render(out: Out, graph_arg: &OsStr, layout_arg: &OsStr, image_path: &Path, sc
     let svg = match image_path.extension().and_then(|e| e.to_str()) {
         Some("svg") => true,
         Some("png") => false,
-        _ => return usage(),
+        _ => return usage(out),
     };
     let mut status = VALID;
     let Some(graph) = load_graph(out, graph_arg, &mut status) else {
@@ -380,21 +398,11 @@ fn about_layout(key: &'static str, name: &str, layout: &Layout) -> Message {
 }
 
 fn count_nodes(graph: &Graph) -> Message {
-    Message::count(
-        graph.all_nodes().len(),
-        "count.node.one",
-        "count.node.other",
-    )
+    Message::count(graph.all_nodes().len(), "count.node")
 }
 
 fn count_edges(graph: &Graph) -> Message {
-    Message::count(graph.edges.len(), "count.edge.one", "count.edge.other")
-}
-
-/// Compose une phrase en anglais, seule langue pour l'instant.
-fn say(message: Message) -> String {
-    debug_assert_eq!(message.check(Catalog::english()), Ok(()));
-    message.render(Catalog::english())
+    Message::count(graph.edges.len(), "count.edge")
 }
 
 /// Une ligne sur la sortie standard. Un lecteur qui ferme le tube avant la

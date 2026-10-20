@@ -585,27 +585,27 @@ fn refuse(path: &Path, diags: &[Diagnostic], status: &mut u8) {
     *status = (*status).max(REFUSED);
 }
 
-/// Compose une phrase en anglais, seule langue pour l'instant.
+/// Compose une phrase en anglais : le banc ne parle que cette langue.
 fn say(message: Message) -> String {
     debug_assert_eq!(message.check(Catalog::english()), Ok(()));
     message.render(Catalog::english())
 }
 
-/// « 1 node », « 3 nodes ». Le choix suit la règle anglaise du pluriel,
-/// « one » pour 1 seulement ; une autre langue apportera sa propre règle.
+/// « 1 node », « 3 nodes ». La variante se choisit à l'affichage, par la
+/// règle de la langue du catalogue.
 fn count(number: usize, noun: &str) -> Message {
-    let (one, other) = match noun {
-        "node" => ("count.node.one", "count.node.other"),
-        "edge" => ("count.edge.one", "count.edge.other"),
-        "graph" => ("count.graph.one", "count.graph.other"),
-        "problem" => ("count.problem.one", "count.problem.other"),
-        "label" => ("count.label.one", "count.label.other"),
-        "sizeless" => ("count.sizeless.one", "count.sizeless.other"),
-        "container-port" => ("count.container-port.one", "count.container-port.other"),
-        "file" => ("count.file.one", "count.file.other"),
-        "end" => ("count.end.one", "count.end.other"),
-        "failure" => ("count.failure.one", "count.failure.other"),
-        _ => ("count.error.one", "count.error.other"),
+    let key = match noun {
+        "node" => "count.node",
+        "edge" => "count.edge",
+        "graph" => "count.graph",
+        "problem" => "count.problem",
+        "label" => "count.label",
+        "sizeless" => "count.sizeless",
+        "container-port" => "count.container-port",
+        "file" => "count.file",
+        "end" => "count.end",
+        "failure" => "count.failure",
+        _ => "count.error",
     };
-    Message::count(number, one, other)
+    Message::count(number, key)
 }

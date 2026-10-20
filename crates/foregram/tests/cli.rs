@@ -326,16 +326,130 @@ fn the_standard_input_is_read_once_per_call() {
 // ---------------------------------------------------------------- l'appel
 
 #[test]
-fn english_is_the_only_language_for_now() {
+fn lang_chooses_english_or_french_and_refuses_any_other() {
     let graph = data("gestpret.graph.json");
     let (code, out, _) = run(&["--lang", "en", "validate", &graph]);
     assert_eq!(code, 0);
     assert_eq!(out, format!("{graph}: valid graph (3 nodes, 2 edges)\n"));
+    let (code, out, _) = run(&["--lang", "fr", "validate", &graph]);
+    assert_eq!(code, 0);
+    assert_eq!(out, format!("{graph}: graphe valide (3 nœuds, 2 liens)\n"));
 
-    let (code, out, err) = run(&["--lang", "fr", "validate", &graph]);
-    assert_eq!(code, 2);
-    assert_eq!(out, "");
-    assert_eq!(err, "unknown language `fr`: the only catalogue is `en`\n");
+    // Sans `--lang`, l'anglais, quelle que soit la langue du système.
+    let english = Command::new(env!("CARGO_BIN_EXE_foregram"))
+        .args(["validate", &graph])
+        .env("LANG", "fr_FR.UTF-8")
+        .env("LC_ALL", "fr_FR.UTF-8")
+        .output()
+        .unwrap();
+    assert_eq!(
+        String::from_utf8(english.stdout).unwrap(),
+        format!("{graph}: valid graph (3 nodes, 2 edges)\n")
+    );
+
+    for lang in ["de", "FR", "fr-FR", ""] {
+        let (code, out, err) = run(&["--lang", lang, "validate", &graph]);
+        assert_eq!(code, 2);
+        assert_eq!(out, "");
+        assert_eq!(
+            err,
+            format!("unknown language `{lang}`: the catalogues are `en` and `fr`\n")
+        );
+    }
+    let (code, _, err) = run(&["--lang", "fr", "--help"]);
+    assert_eq!(code, 0);
+    assert_eq!(err, "");
+    let (_, out, _) = run(&["--lang", "fr", "--help"]);
+    assert!(out.starts_with("usage\u{a0}: foregram [--lang"), "{out}");
+}
+
+#[test]
+fn french_takes_the_singular_for_zero_and_one() {
+    let graph = |nodes: usize| {
+        let nodes: Vec<String> = (0..nodes)
+            .map(|i| format!("{{\"id\": \"n{i}\", \"width\": 1, \"height\": 1}}"))
+            .collect();
+        format!(
+            "{{\"format\": \"foregram-graph\", \"version\": 2, \"name\": \"g\",              \"nodes\": [{}], \"edges\": []}}",
+            nodes.join(", ")
+        )
+    };
+    for (nodes, en, fr) in [
+        (0, "(0 nodes, 0 edges)", "(0 nœud, 0 lien)"),
+        (1, "(1 node, 0 edges)", "(1 nœud, 0 lien)"),
+        (2, "(2 nodes, 0 edges)", "(2 nœuds, 0 lien)"),
+    ] {
+        let text = graph(nodes);
+        let (_, out, _) = run_with(&["validate", "-"], text.as_bytes());
+        assert_eq!(out, format!("<stdin>: valid graph {en}\n"));
+        let (_, out, _) = run_with(&["--lang", "fr", "validate", "-"], text.as_bytes());
+        assert_eq!(out, format!("<stdin>: graphe valide {fr}\n"));
+    }
+}
+
+#[test]
+fn a_refusal_reads_in_french_with_the_same_code_and_position() {
+    let graph = data("refuse-lien-orphelin.graph.json");
+    let (code, _, err) = run(&["--lang", "fr", "validate", &graph]);
+    assert_eq!(code, 1);
+    let nb = '\u{a0}';
+    assert_eq!(
+        err,
+        format!(
+            "{graph}:7:5: erreur[G001]{nb}: identifiant de nœud «{nb}A{nb}» déjà employé (ligne 6)\n\
+             {graph}:7:5: erreur[S008]{nb}: nœud «{nb}A{nb}»{nb}: `height`{nb}: 0 hors de l'intervalle de 1 à 1000000000\n\
+             {graph}:10:5: erreur[G003]{nb}: lien «{nb}e1{nb}»{nb}: `target` désigne le nœud «{nb}B{nb}», qui n'existe pas\n\
+             {graph}: refusé (3 erreurs)\n"
+        )
+    );
+}
+
+#[test]
+fn the_documentation_shows_a_french_refusal_as_it_is() {
+    let graph = data("refuse-lien-orphelin.graph.json");
+    let (_, _, err) = run(&["--lang", "fr", "validate", &graph]);
+    let line = err.lines().find(|l| l.contains("[G003]")).unwrap();
+    let line = line.replace(&graph, "example.graph.json");
+    let doc = std::fs::read_to_string(format!(
+        "{}/../../docs/exchange-format.md",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .unwrap();
+    assert!(doc.contains(&format!("\n{line}\n")), "{line}");
+}
+
+#[test]
+fn the_json_stream_is_the_same_in_every_language_but_its_text() {
+    let graph = data("gestpret.graph.json");
+    let calls: [&[&str]; 4] = [
+        &["validate", &data("refuse-lien-orphelin.graph.json")],
+        &[
+            "validate",
+            &graph,
+            &data("gestpret.layout.json"),
+            &data("refuse-hors-bord.layout.json"),
+        ],
+        &[
+            "metrics",
+            &data("components.graph.json"),
+            &data("components.layout.json"),
+        ],
+        &["validate", "absent.json"],
+    ];
+    for call in calls {
+        let (en_code, en, _) = run(&[&["--json"], call].concat());
+        let (fr_code, fr, _) = run(&[&["--json", "--lang", "fr"], call].concat());
+        assert_eq!(en_code, fr_code);
+        let strip = |stream: &str| -> Vec<String> {
+            stream
+                .lines()
+                .map(|line| line.split(", \"text\": ").next().unwrap().to_string())
+                .collect()
+        };
+        assert_eq!(strip(&en), strip(&fr), "{call:?}");
+        assert_ne!(en, fr, "{call:?}");
+        assert!(objects(&fr).iter().all(|o| !string(o, "text").is_empty()));
+    }
 }
 
 #[test]
@@ -419,8 +533,8 @@ fn json_results_are_one_object_per_line_on_the_standard_output() {
         format!(
             "{{\"kind\": \"valid\", \"file\": {path}, \"key\": \"cli.valid-graph\", \
              \"args\": {{\"path\": {path}, \
-             \"nodes\": {{\"key\": \"count.node.other\", \"args\": {{\"n\": \"3\"}}}}, \
-             \"edges\": {{\"key\": \"count.edge.other\", \"args\": {{\"n\": \"2\"}}}}}}, \
+             \"nodes\": {{\"key\": \"count.node\", \"args\": {{\"n\": \"3\"}}}}, \
+             \"edges\": {{\"key\": \"count.edge\", \"args\": {{\"n\": \"2\"}}}}}}, \
              \"text\": {}}}",
             json::quote(&format!("{graph}: valid graph (3 nodes, 2 edges)"))
         )

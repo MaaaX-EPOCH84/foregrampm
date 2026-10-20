@@ -254,8 +254,9 @@ the standard input, which a call reads once at most; its refusals name it
 | 1 | At least one file is refused |
 | 2 | Wrong call, or unreadable file |
 
-`--lang` chooses the language of the messages; `en` is the only one for
-now, and any other is a wrong call. `--json` writes results and refusals as
+`--lang` chooses the language of the messages: `en`, the default, or
+`fr`; any other is a wrong call. Without it the messages are in English,
+whatever the language of the system: no environment variable is read. `--json` writes results and refusals as
 JSON, see [Diagnostics as JSON](#diagnostics-as-json). Both come before the
 command, in either order, and so do they for `canon`, `metrics` and
 `render`, which share these exit codes.
@@ -273,8 +274,22 @@ it is what a program must read.
 
 The message is composed at display time from a per-language catalogue,
 [`messages/en.txt`](../crates/foregram-graph/messages/en.txt): a refusal
-carries its code and its arguments, not its sentence. English is the only
-language for now; another one is a new catalogue, with the code unchanged.
+carries its code and its arguments, not its sentence. The French catalogue,
+[`messages/fr.txt`](../crates/foregram-graph/messages/fr.txt), has the same
+keys and the same arguments for everything `foregram` says; the benchmark
+speaks English only. The same refusal in French:
+
+```
+example.graph.json:10:5: erreur[G003] : lien « e1 » : `target` désigne le nœud « B », qui n'existe pas
+```
+
+with the same file, line, column and code; the spaces before `:` and
+inside « » are no-break spaces (U+00A0), as French typography wants. A count has two entries,
+`.one` and `.other` (`count.node.one`, `count.node.other`), and the
+language picks one at display time: English takes `.one` for 1, French
+for 0 and 1. A library user chooses the language by
+`Catalog::for_language("fr")`, or `Catalog::english()` and
+`Catalog::french()`; `Catalog::LANGUAGES` lists the codes.
 
 A JSON syntax error stops the reading at the first one. Structure errors
 are all reported at once, and so are meaning errors, but the latter are
@@ -384,8 +399,10 @@ read from the standard input:
 An argument is a string, or a message of its own, written
 `{"key": …, "args": {…}}` and without a sentence: the sentence is
 composed once, under `text`. Numbers in arguments are strings, as the
-catalogue receives them. A count is a message whose key changes with the
-number (`count.node.one`, `count.node.other`): read its `n`, not its key.
+catalogue receives them. A count is written with the key it has in every
+language, without `.one` or `.other` (`count.node`), and its number in
+`n`. Under `--lang`, only `text` changes: the rest of every object is the
+same in every language.
 The keys and arguments of a message may change from one version to the
 next; the code may not.
 
