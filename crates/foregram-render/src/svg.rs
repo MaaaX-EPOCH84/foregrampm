@@ -1,4 +1,4 @@
-// ForegramPM — écriture SVG d'une scène.
+// ForegramPM — SVG output for a scene.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -6,9 +6,9 @@ use foregram_graph::{Point, Rect, Segment};
 
 use crate::scene::{Class, Scene, Shape, Style};
 
-/// Le SVG d'une scène : coordonnées en pixels, écrites depuis les centièmes
-/// sans passer par un flottant ; une feuille de style par classe, que le banc
-/// pourra remplacer ; un `<title>` par élément qui porte un identifiant.
+/// The SVG of a scene: coordinates in pixels, written from hundredths of a
+/// pixel without going through a float; one stylesheet rule per class, which
+/// the bench can replace; a `<title>` on each element that has an identifier.
 pub(crate) fn write(scene: &Scene, style: &Style) -> String {
     let mut out = String::new();
     out.push_str("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -63,7 +63,7 @@ fn rect_attrs(rect: Rect, class: &str) -> String {
     )
 }
 
-/// La feuille de style : une règle par classe, les valeurs venant du style.
+/// The stylesheet: one rule per class, the values coming from the style.
 fn stylesheet(style: &Style) -> String {
     let rules = [
         (Class::Sheet, format!("fill:{}", gray(style.sheet))),
@@ -121,7 +121,7 @@ fn stylesheet(style: &Style) -> String {
     out
 }
 
-/// Le chemin SVG d'un tracé : `M` puis `L` ou `C` par segment.
+/// The SVG path of a route: `M`, then `L` or `C` for each segment.
 fn path(route: &[Segment]) -> String {
     let mut out = String::new();
     for (i, segment) in route.iter().enumerate() {
@@ -153,13 +153,13 @@ fn list(points: &[Point]) -> String {
         .join(" ")
 }
 
-/// Un gris en `#rrggbb`.
+/// A gray as `#rrggbb`.
 fn gray(level: u8) -> String {
     format!("#{level:02x}{level:02x}{level:02x}")
 }
 
-/// Des centièmes de pixel écrits en pixels : `4950` donne `49.5`, `100`
-/// donne `1`, `-150` donne `-1.5`. Jamais de flottant.
+/// Hundredths of a pixel written as pixels: `4950` gives `49.5`, `100`
+/// gives `1`, `-150` gives `-1.5`. Never a float.
 pub(crate) fn px(hundredths: i64) -> String {
     let sign = if hundredths < 0 { "-" } else { "" };
     let abs = hundredths.unsigned_abs();
@@ -173,7 +173,7 @@ pub(crate) fn px(hundredths: i64) -> String {
     }
 }
 
-/// Le texte d'un `<title>`, échappé pour XML.
+/// The text of a `<title>`, escaped for XML.
 fn escape(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for c in text.chars() {

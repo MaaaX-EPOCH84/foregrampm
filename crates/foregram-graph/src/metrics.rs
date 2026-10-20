@@ -1,4 +1,4 @@
-// ForegramPM — mesures d'un placement : ce que le banc compare entre moteurs.
+// ForegramPM — layout metrics: what the bench compares between engines.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -8,61 +8,63 @@ use crate::graph::{Direction, Edge, Graph, Node, Point, Rect, Side};
 use crate::layout::{EdgePlace, Layout, Segment};
 use crate::msg::Message;
 
-/// Nombre de pas de l'aplatissement d'une courbe de Bézier : toute mesure
-/// se fait sur la polyligne obtenue.
+/// Number of steps used to flatten a Bézier curve: every measure is taken on
+/// the resulting polyline.
 pub const CURVE_STEPS: i64 = 16;
 
-/// Les chiffres d'un placement confronté à son graphe. Tous entiers ; les
-/// longueurs et les aires en centièmes de pixel, les rapports en millièmes.
+/// The figures of a layout checked against its graph. All integers; lengths and
+/// areas in hundredths of a pixel, ratios in thousandths.
 ///
-/// Le placement doit passer [`Layout::check`] : un élément qui manque ou qui
-/// est en trop n'est pas mesuré, et ne fait pas échouer la mesure.
+/// The layout must pass [`Layout::check`]: a missing or extra element is not
+/// measured, and does not make the measure fail.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Metrics {
-    /// Paires de segments de deux liens distincts qui se coupent en un point
-    /// intérieur aux deux tracés.
+    /// Pairs of segments from two distinct edges that cross at a point interior
+    /// to both routes.
     pub crossings: u64,
-    /// Paires de segments de deux liens distincts, colinéaires, qui se
-    /// recouvrent sur une longueur non nulle.
+    /// Pairs of collinear segments from two distinct edges that share a stretch
+    /// of non-zero length.
     pub shared_segments: u64,
-    /// Longueur cumulée de ces recouvrements.
+    /// Total length of these shared stretches.
     pub shared_length: i64,
-    /// Sommets entre deux segments droits où la direction change.
+    /// Vertices between two straight segments where the direction changes.
     pub bends: u64,
-    /// Longueur cumulée de tous les tracés.
+    /// Total length of all routes.
     pub edge_length: i64,
-    /// Longueur du tracé le plus long.
+    /// Length of the longest route.
     pub longest_edge: i64,
-    /// Paires de nœuds dont les rectangles se recouvrent, hors parent-enfant.
+    /// Pairs of nodes whose rectangles overlap, parent-child excluded.
     pub node_overlaps: u64,
-    /// Aire cumulée de ces recouvrements.
+    /// Total area of these overlaps.
     pub node_overlap_area: i64,
-    /// Paires lien-nœud où le tracé entre dans un nœud étranger au lien.
+    /// Edge-node pairs where the route enters a node foreign to the edge.
     pub edge_node_overlaps: u64,
-    /// Étiquettes qui recouvrent un nœud autre qu'un conteneur de leur lien,
-    /// une autre étiquette ou un lien autre que le leur, une par paire.
+    /// Labels that overlap a node other than a container of their edge, another
+    /// label or an edge other than their own, one per pair.
     pub label_overlaps: u64,
-    /// Boîte englobante de tout ce qui est dessiné.
+    /// Width of the bounding box of everything drawn.
     pub width: i64,
+    /// Height of that bounding box.
     pub height: i64,
+    /// Area of that bounding box, brought back to `i64::MAX` if it does not
+    /// fit.
     pub area: i64,
-    /// Largeur sur hauteur, en millièmes ; 0 sans hauteur.
+    /// Width over height, in thousandths; 0 without height.
     pub proportion: i64,
-    /// Aire des feuilles sur aire de la boîte, en millièmes ; 0 sans aire.
+    /// Leaf area over bounding box area, in thousandths; 0 without area.
     pub density: i64,
-    /// Paires de nœuds dont les `layer` imposés et les positions le long de
-    /// la direction ne sont pas dans le même ordre.
+    /// Pairs of nodes whose imposed `layer` and whose positions along the
+    /// direction are not in the same order.
     pub layer_violations: u64,
-    /// Paires de nœuds de même couche dont les `order` imposés et les
-    /// positions en travers de la direction ne sont pas dans le même ordre.
+    /// Pairs of nodes in the same layer whose imposed `order` and whose
+    /// positions across the direction are not in the same order.
     pub order_violations: u64,
-    /// Paires de ports d'un même côté, sous `ports_ordered`, qui ne se
-    /// suivent pas dans le sens des aiguilles d'une montre.
+    /// Pairs of ports on the same side, under `ports_ordered`, that do not
+    /// follow each other clockwise.
     pub port_order_violations: u64,
 }
 
-/// Une boîte fermée, bords compris : deux boîtes qui se touchent ne sont
-/// pas disjointes.
+/// A closed box, borders included: two boxes that touch are not disjoint.
 #[derive(Clone, Copy)]
 struct Bounds {
     min: Point,
@@ -98,8 +100,8 @@ impl Bounds {
     }
 }
 
-/// Un tracé prêt à être confronté aux autres : ses sommets, sa boîte, et
-/// celle de chacun de ses segments.
+/// A route ready to be compared with the others: its vertices, its box, and the
+/// box of each of its segments.
 struct Path {
     points: Vec<Point>,
     bounds: Bounds,
@@ -118,25 +120,24 @@ impl Path {
     }
 }
 
-/// Un lien tel qu'il est mesuré : son tracé aplati, et ce qui l'exempte
-/// des recouvrements.
+/// An edge as it is measured: its flattened route, and what exempts it from
+/// overlaps.
 struct Measured<'a> {
-    /// Les sommets, sans point répété.
+    /// The vertices, with no repeated point.
     points: Vec<Point>,
-    /// Pour chaque sommet, vrai s'il joint deux segments droits.
+    /// For each vertex, true if it joins two straight segments.
     corner: Vec<bool>,
-    /// Les nœuds que le lien a le droit de toucher : ses deux bouts et
-    /// leurs ancêtres.
+    /// The nodes the edge may touch: its two ends and their ancestors.
     exempt: Vec<&'a str>,
-    /// Les nœuds qui enferment le lien : les ancêtres de ses bouts, que ses
-    /// étiquettes ont le droit de recouvrir.
+    /// The nodes enclosing the edge: the ancestors of its ends, which its
+    /// labels may overlap.
     inside: Vec<&'a str>,
-    /// Les rectangles de ses étiquettes.
+    /// The rectangles of its labels.
     labels: Vec<Rect>,
 }
 
 impl Metrics {
-    /// Mesure un placement valide pour son graphe.
+    /// Measures a layout valid for its graph.
     pub fn measure<'a>(graph: &'a Graph, layout: &Layout) -> Metrics {
         let all = graph.all_nodes();
         let rects = layout.absolute_rects(graph);
@@ -187,7 +188,7 @@ impl Metrics {
         m
     }
 
-    /// Les lignes du rapport, une par mesure, dans un ordre fixe.
+    /// The report lines, one per measure, in a fixed order.
     pub fn report(&self) -> Vec<Message> {
         let n = |key, value: u64| Message::new(key).text("n", value);
         vec![
@@ -217,9 +218,9 @@ impl Metrics {
         ]
     }
 
-    /// Les mesures sous leur nom, dans l'ordre de la structure : ce que le
-    /// JSON écrit et ce que le banc agrège. Un compte qui ne tiendrait pas
-    /// dans un `i64` y est ramené à `i64::MAX`.
+    /// The measures under their name, in the order of the struct: what the JSON
+    /// writes and what the bench aggregates. A count that does not fit in an
+    /// `i64` is brought back to `i64::MAX`.
     pub fn fields(&self) -> [(&'static str, i64); 18] {
         let n = |value: u64| i64::try_from(value).unwrap_or(i64::MAX);
         [
@@ -244,8 +245,8 @@ impl Metrics {
         ]
     }
 
-    /// Les mesures en un objet JSON sur une ligne, une clé par mesure, dans
-    /// l'ordre de [`Metrics::fields`].
+    /// The measures as a one-line JSON object, one key per measure, in the
+    /// order of [`Metrics::fields`].
     pub fn to_json(&self) -> String {
         let fields: Vec<String> = self
             .fields()
@@ -271,16 +272,15 @@ impl Metrics {
                 }
             }
         }
-        // Les paires de liens : croisements et recouvrements, chaque paire
-        // une fois.
+        // Edge pairs: crossings and shared stretches, each pair once.
         let paths: Vec<Path> = edges
             .iter()
             .map(|e| Path::new(merge_collinear(&e.points)))
             .collect();
         for (i, p) in paths.iter().enumerate() {
             for q in &paths[i + 1..] {
-                // Deux tracés dont les boîtes sont disjointes ne se touchent
-                // nulle part : rien à compter, et rien à calculer.
+                // Two routes whose boxes are disjoint touch nowhere: nothing to
+                // count, and nothing to compute.
                 if p.bounds.disjoint(&q.bounds) {
                     continue;
                 }
@@ -289,11 +289,11 @@ impl Metrics {
         }
     }
 
-    /// Les croisements et recouvrements de deux tracés.
+    /// The crossings and shared stretches of two routes.
     fn pair(&mut self, p: &Path, q: &Path) {
         for (a, ba) in p.points.windows(2).zip(&p.boxes) {
             for (b, bb) in q.points.windows(2).zip(&q.boxes) {
-                // Même raison, segment par segment : `meet` ne trouverait rien.
+                // Same reason, segment by segment: `meet` would find nothing.
                 if ba.disjoint(bb) {
                     continue;
                 }
@@ -307,9 +307,9 @@ impl Metrics {
                 }
             }
         }
-        // Un tracé qui passe par un sommet de l'autre : la paire de segments
-        // ne le voit pas, le sommet le dit. Un sommet commun aux deux est
-        // jugé une fois, du côté de `q`.
+        // A route that passes through a vertex of the other: the pair of
+        // segments does not see it, the vertex tells. A vertex common to both
+        // is judged once, on the side of `q`.
         let (p, q) = (&p.points, &q.points);
         for i in 1..q.len().saturating_sub(1) {
             if passes_through(q[i - 1], q[i], q[i + 1], p) {
@@ -435,8 +435,8 @@ impl Metrics {
         layout: &Layout,
     ) {
         let direction = graph.direction.unwrap_or(Direction::Right);
-        // Le centre d'un nœud, doublé pour rester entier : le long de la
-        // direction, puis en travers.
+        // The center of a node, doubled to stay integer: along the direction,
+        // then across.
         let along = |rect: &Rect| match direction {
             Direction::Right => 2 * rect.x + rect.width,
             Direction::Left => -(2 * rect.x + rect.width),
@@ -495,7 +495,7 @@ impl Metrics {
     }
 }
 
-/// Les rectangles des étiquettes d'un lien, en absolu, dans l'ordre du graphe.
+/// The rectangles of an edge's labels, absolute, in the graph's order.
 pub(crate) fn label_rects(edge: &Edge, place: &EdgePlace) -> Vec<Rect> {
     edge.labels
         .iter()
@@ -509,7 +509,7 @@ pub(crate) fn label_rects(edge: &Edge, place: &EdgePlace) -> Vec<Rect> {
         .collect()
 }
 
-/// La boîte englobante de rectangles et de points ; aucune sans rien.
+/// The bounding box of rectangles and points; none if there is nothing.
 fn bounds(
     rects: impl Iterator<Item = Rect>,
     points: impl Iterator<Item = Point>,
@@ -540,9 +540,9 @@ fn bounds(
     bound
 }
 
-/// La boîte englobante de tout ce qui est dessiné : nœuds, sommets des
-/// tracés aplatis, étiquettes. La même que celle des mesures. Aucune pour
-/// un placement vide.
+/// The bounding box of everything drawn: nodes, vertices of the flattened
+/// routes, labels. The same as the one of the measures. None for an empty
+/// layout.
 pub fn extent(graph: &Graph, layout: &Layout) -> Option<Rect> {
     let rects = layout.absolute_rects(graph);
     let routed: Vec<(&Edge, &EdgePlace)> = graph
@@ -559,23 +559,23 @@ pub fn extent(graph: &Graph, layout: &Layout) -> Option<Rect> {
     )
 }
 
-/// Aplatit un tracé en polyligne : chaque courbe devient [`CURVE_STEPS`]
-/// segments, les points répétés sont retirés. C'est la polyligne que les
-/// mesures lisent, et celle que le rendu dessine.
+/// Flattens a route into a polyline: each curve becomes [`CURVE_STEPS`]
+/// segments, repeated points are removed. This is the polyline the measures
+/// read, and the one the renderer draws.
 pub fn polyline(route: &[Segment]) -> Vec<Point> {
     flatten(route).0
 }
 
-/// Aplatit un tracé en polyligne : chaque courbe devient [`CURVE_STEPS`]
-/// segments, les points répétés sont retirés. Rend aussi, pour chaque
-/// sommet, s'il joint deux segments droits.
+/// Flattens a route into a polyline: each curve becomes [`CURVE_STEPS`]
+/// segments, repeated points are removed. Also returns, for each vertex,
+/// whether it joins two straight segments.
 fn flatten(route: &[Segment]) -> (Vec<Point>, Vec<bool>) {
     let mut points: Vec<Point> = Vec::new();
     let mut corner: Vec<bool> = Vec::new();
     let push = |p: Point, from_line: bool, points: &mut Vec<Point>, corner: &mut Vec<bool>| {
         if points.last() == Some(&p) {
-            // Un point répété ne fait pas de sommet ; la jonction prend le
-            // caractère du segment qui arrive.
+            // A repeated point makes no vertex; the junction takes the nature
+            // of the incoming segment.
             if let Some(last) = corner.last_mut() {
                 *last = *last && from_line;
             }
@@ -598,8 +598,8 @@ fn flatten(route: &[Segment]) -> (Vec<Point>, Vec<bool>) {
             }
         }
     }
-    // Un sommet joint deux segments droits si celui qui arrive et celui qui
-    // part le sont ; `corner[i]` ne dit encore que celui qui arrive.
+    // A vertex joins two straight segments if the incoming and the outgoing one
+    // both are; `corner[i]` only tells about the incoming one yet.
     let n = points.len();
     let mut both = vec![false; n];
     for i in 1..n.saturating_sub(1) {
@@ -608,7 +608,7 @@ fn flatten(route: &[Segment]) -> (Vec<Point>, Vec<bool>) {
     (points, both)
 }
 
-/// Le point de la courbe au pas `k` sur [`CURVE_STEPS`], arrondi au plus près.
+/// The curve point at step `k` of [`CURVE_STEPS`], rounded to nearest.
 fn bezier(p0: Point, p1: Point, p2: Point, p3: Point, k: i64) -> Point {
     let t = k;
     let u = CURVE_STEPS - k;
@@ -623,8 +623,8 @@ fn bezier(p0: Point, p1: Point, p2: Point, p3: Point, k: i64) -> Point {
     }
 }
 
-/// Retire les sommets où la polyligne continue tout droit : un tracé dont
-/// chaque sommet est un vrai changement de direction.
+/// Removes the vertices where the polyline goes straight on: a route where
+/// every vertex is a real change of direction.
 fn merge_collinear(points: &[Point]) -> Vec<Point> {
     let mut out: Vec<Point> = Vec::new();
     for &p in points {
@@ -655,17 +655,17 @@ fn dot(a: Point, b: Point) -> i128 {
     i128::from(a.x) * i128::from(b.x) + i128::from(a.y) * i128::from(b.y)
 }
 
-/// Vrai si les deux vecteurs sont colinéaires et de même sens.
+/// True if both vectors are collinear and point the same way.
 fn same_direction(a: Point, b: Point) -> bool {
     cross(a, b) == 0 && dot(a, b) > 0
 }
 
-/// Longueur d'un segment, arrondie au centième le plus près.
+/// Length of a segment, rounded to the nearest hundredth.
 fn distance(a: Point, b: Point) -> i64 {
     let d = sub(b, a);
     let squared = dot(d, d).unsigned_abs();
     let root = squared.isqrt();
-    // Au plus près : au-delà de r² + r, c'est r + 1 qui est le plus proche.
+    // To nearest: beyond r² + r, r + 1 is the nearest.
     let rounded = if squared - root * root > root {
         root + 1
     } else {
@@ -678,7 +678,7 @@ fn clamp(value: i128) -> i64 {
     value.clamp(i128::from(i64::MIN), i128::from(i64::MAX)) as i64
 }
 
-/// `num / den` en millièmes, arrondi au plus près ; 0 si `den` est nul.
+/// `num / den` in thousandths, rounded to nearest; 0 if `den` is zero.
 fn ratio(num: i128, den: i128) -> i64 {
     if den <= 0 {
         return 0;
@@ -686,18 +686,18 @@ fn ratio(num: i128, den: i128) -> i64 {
     clamp((num * 1000 + den / 2).div_euclid(den))
 }
 
-/// Ce que deux segments ont en commun.
+/// What two segments have in common.
 enum Meet {
     None,
-    /// Un seul point, intérieur aux deux.
+    /// A single point, interior to both.
     Proper,
-    /// Un seul point, bout de l'un au moins.
+    /// A single point, an end of at least one.
     Touch,
-    /// Un morceau commun, de cette longueur.
+    /// A common stretch, of this length.
     Shared(i64),
 }
 
-/// De quel côté de `ab` est `p` : signe du produit vectoriel.
+/// Which side of `ab` `p` is on: sign of the cross product.
 fn orient(a: Point, b: Point, p: Point) -> i128 {
     cross(sub(b, a), sub(p, a)).signum()
 }
@@ -709,14 +709,14 @@ fn meet(a: Point, b: Point, c: Point, d: Point) -> Meet {
         return Meet::Proper;
     }
     if o1 == 0 && o2 == 0 {
-        // Colinéaires : l'intervalle commun, mesuré le long de `ab` par la
-        // projection de chaque bout.
+        // Collinear: the common interval, measured along `ab` by the projection
+        // of each end.
         let dir = sub(b, a);
         let key = |p: Point| dot(sub(p, a), dir);
         let (kc, kd) = (key(c), key(d));
         let (lo, hi) = (kc.min(kd).max(0), kc.max(kd).min(key(b)));
         if hi > lo {
-            // Les deuxième et troisième points dans l'ordre bornent le morceau.
+            // The second and third points in order bound the stretch.
             let mut keyed = [(0, a), (key(b), b), (kc, c), (kd, d)];
             keyed.sort_by_key(|(k, _)| *k);
             return Meet::Shared(distance(keyed[1].1, keyed[2].1));
@@ -730,21 +730,21 @@ fn meet(a: Point, b: Point, c: Point, d: Point) -> Meet {
     Meet::None
 }
 
-/// Vrai si `p`, déjà sur la droite `se`, est entre `s` et `e`, bouts compris.
+/// True if `p`, already on the line `se`, is between `s` and `e`, ends
+/// included.
 fn between(p: Point, s: Point, e: Point) -> bool {
     p.x >= s.x.min(e.x) && p.x <= s.x.max(e.x) && p.y >= s.y.min(e.y) && p.y <= s.y.max(e.y)
 }
 
-/// Vrai si le tracé `prev → at → next` traverse le tracé `path` en `at`,
-/// sommet de l'un posé sur l'autre : les deux voisins sont de part et
-/// d'autre. Un voisin posé sur `path` est un morceau commun, pas une
-/// traversée.
+/// True if the route `prev → at → next` crosses the route `path` at `at`, a
+/// vertex of one resting on the other: the two neighbours are on either side. A
+/// neighbour resting on `path` is a shared stretch, not a crossing.
 fn passes_through(prev: Point, at: Point, next: Point, path: &[Point]) -> bool {
-    // Les deux rayons de `path` en `at` : ceux d'un segment si `at` est à
-    // l'intérieur, ceux des deux segments voisins si `at` est un sommet.
+    // The two rays of `path` at `at`: those of a segment if `at` is inside it,
+    // those of the two neighbouring segments if `at` is a vertex.
     let rays: Option<(Point, Point)> = if let Some(i) = path.iter().position(|p| *p == at) {
         if i == 0 || i + 1 == path.len() {
-            // Un bout de `path` : rien ne continue de l'autre côté.
+            // An end of `path`: nothing continues on the other side.
             return false;
         }
         Some((sub(path[i - 1], at), sub(path[i + 1], at)))
@@ -758,13 +758,13 @@ fn passes_through(prev: Point, at: Point, next: Point, path: &[Point]) -> bool {
     };
     let (q1, q2) = (sub(prev, at), sub(next, at));
     if cross(r1, r2) == 0 {
-        // `path` va tout droit : traversée si les voisins sont strictement
-        // de part et d'autre de la droite.
+        // `path` goes straight: crossing if the neighbours are strictly on
+        // either side of the line.
         let (s1, s2) = (cross(r1, q1).signum(), cross(r1, q2).signum());
         return s1 * s2 < 0;
     }
-    // `path` tourne : traversée si un voisin est dans l'angle `r1 → r2`
-    // et l'autre dehors, aucun sur un rayon.
+    // `path` turns: crossing if one neighbour is inside the angle `r1 → r2` and
+    // the other outside, none on a ray.
     let on_ray = |q: Point| same_direction(q, r1) || same_direction(q, r2);
     if on_ray(q1) || on_ray(q2) {
         return false;
@@ -772,8 +772,8 @@ fn passes_through(prev: Point, at: Point, next: Point, path: &[Point]) -> bool {
     in_wedge(r1, r2, q1) != in_wedge(r1, r2, q2)
 }
 
-/// Vrai si `q` est strictement dans l'angle balayé de `r1` à `r2` dans le
-/// sens trigonométrique.
+/// True if `q` is strictly inside the angle swept from `r1` to `r2`
+/// counterclockwise.
 fn in_wedge(r1: Point, r2: Point, q: Point) -> bool {
     if cross(r1, r2) > 0 {
         cross(r1, q) > 0 && cross(q, r2) > 0
@@ -782,7 +782,7 @@ fn in_wedge(r1: Point, r2: Point, q: Point) -> bool {
     }
 }
 
-/// Vrai si un segment de la polyligne entre dans l'intérieur du rectangle.
+/// True if a segment of the polyline enters the interior of the rectangle.
 fn enters(points: &[Point], rect: Rect) -> bool {
     points.windows(2).any(|s| segment_enters(s[0], s[1], rect))
 }
@@ -793,8 +793,8 @@ fn segment_enters(a: Point, b: Point, rect: Rect) -> bool {
     if x2 <= x1 || y2 <= y1 {
         return false;
     }
-    // L'intervalle des t de [0, 1] où le point a + t (b − a) est strictement
-    // dans le rectangle, borné par des fractions `num / den` avec den > 0.
+    // The interval of t in [0, 1] where the point a + t (b − a) is strictly
+    // inside the rectangle, bounded by fractions `num / den` with den > 0.
     let mut lo: (i128, i128, bool) = (0, 1, false); // (num, den, strict)
     let mut hi: (i128, i128, bool) = (1, 1, false);
     let less = |p: (i128, i128, bool), q: (i128, i128, bool)| p.0 * q.1 < q.0 * p.1;
@@ -826,7 +826,7 @@ fn segment_enters(a: Point, b: Point, rect: Rect) -> bool {
     less(lo, hi)
 }
 
-/// Aire du recouvrement de deux rectangles ; 0 s'ils ne font que se toucher.
+/// Area of the overlap of two rectangles; 0 if they only touch.
 fn overlap_area(a: Rect, b: Rect) -> i64 {
     let w = (a.x + a.width).min(b.x + b.width) - a.x.max(b.x);
     let h = (a.y + a.height).min(b.y + b.height) - a.y.max(b.y);
@@ -837,8 +837,8 @@ fn overlap_area(a: Rect, b: Rect) -> i64 {
     }
 }
 
-/// Position d'un port le long de son côté, dans le sens des aiguilles d'une
-/// montre : par x au nord, par y à l'est, à rebours au sud et à l'ouest.
+/// Position of a port along its side, clockwise: by x on north, by y on east,
+/// reversed on south and west.
 fn clockwise(side: Side, x: i64, y: i64) -> i64 {
     match side {
         Side::North => x,

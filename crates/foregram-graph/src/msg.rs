@@ -1,66 +1,69 @@
-// ForegramPM — messages localisables : une clé, des arguments, et un catalogue par langue.
+// ForegramPM — localisable messages: a key, arguments, a catalogue per language
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Un message ne porte pas sa phrase : il porte une clé et des arguments, et
-//! la phrase est composée à l'affichage depuis le catalogue de la langue
-//! choisie. Un argument est soit un texte rendu tel quel (un identifiant, une
-//! valeur), soit un autre message, traduit à son tour (« node "A" »,
-//! « `width` (node) »).
+//! A message does not carry its sentence: it carries a key and arguments, and
+//! the sentence is composed at display time from the catalogue of the chosen
+//! language. An argument is either a text rendered as is (an identifier, a
+//! value), or another message, translated in turn ('node "A"',
+//! '`width` (node)').
 //!
-//! Un catalogue est un fichier texte, une entrée par ligne :
+//! A catalogue is a text file, one entry per line:
 //!
 //! ```text
-//! # commentaire
+//! # comment
 //! G003 = {subject}: `{key}` refers to node "{node}", which does not exist
 //! ```
 //!
-//! La clé d'un refus commence par son code stable (`G003`), suivi au besoin
-//! d'une variante (`J005.zero`). Les autres clés désignent des fragments
-//! (`subject.node`, `type.integer`). Dans un modèle, `{nom}` est remplacé par
-//! l'argument de ce nom, le nom ne comptant que des minuscules, des chiffres et
-//! des traits d'union ; toute autre accolade est rendue telle quelle. Les deux
-//! caractères `\n` y commencent une nouvelle ligne.
+//! The key of a refusal starts with its stable code (`G003`), followed where
+//! needed by a variant (`J005.zero`). The other keys name fragments
+//! (`subject.node`, `type.integer`). In a template, `{name}` is replaced by the
+//! argument of that name, a name being made only of lowercase letters, digits
+//! and hyphens; any other brace is rendered as is. The two characters `\n`
+//! start a new line there.
 //!
-//! Un nombre suivi de son nom (« 3 nodes ») a deux entrées, `clé.one` et
-//! `clé.other`. Le message ne porte que la clé de base et le nombre : la
-//! variante se choisit à l'affichage, selon la règle de la langue — l'anglais
-//! prend `one` pour 1, le français pour 0 et 1.
+//! A number followed by its noun ('3 nodes') has two entries, `key.one` and
+//! `key.other`. The message carries only the base key and the number: the
+//! variant is chosen at display time, by the rule of the language. English
+//! takes `one` for 1, French for 0 and 1.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::OnceLock;
 
 use crate::json::quote;
 
-/// Ce qui remplit un emplacement d'un modèle.
+/// What fills a slot of a template.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Arg {
-    /// Rendu tel quel, sans traduction.
+    /// Rendered as is, without translation.
     Text(String),
-    /// Traduit à son tour, dans la même langue.
+    /// Translated in turn, into the same language.
     Msg(Message),
 }
 
-/// Une phrase à composer : sa clé dans le catalogue, et ses arguments.
+/// A sentence to compose: its key in the catalogue, and its arguments.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Message {
+    /// The key of the template in the catalogue (the base key for a plural).
     pub key: &'static str,
+    /// The arguments, as `(name, value)` pairs, in the order given.
     pub args: Vec<(&'static str, Arg)>,
-    /// Le nombre qui choisit la variante `.one` ou `.other` d'une clé de
-    /// pluriel ; `None` pour une clé ordinaire.
+    /// The number that picks the `.one` or `.other` variant of a plural key;
+    /// `None` for an ordinary key.
     pub count: Option<usize>,
 }
 
 impl Message {
-    /// Un nombre et son nom, « 1 node » ou « 3 nodes » : `key` est la clé de
-    /// base, sans `.one` ni `.other`, et le nombre est l'argument `n`. La
-    /// variante se choisit à l'affichage, par la règle de la langue.
+    /// A number and its noun, '1 node' or '3 nodes': `key` is the base key,
+    /// without `.one` or `.other`, and the number is the argument `n`. The
+    /// variant is chosen at display time, by the rule of the language.
     pub fn count(number: usize, key: &'static str) -> Message {
         let mut message = Message::new(key).text("n", number);
         message.count = Some(number);
         message
     }
 
+    /// A message for `key`, with no argument and no count.
     pub fn new(key: &'static str) -> Message {
         Message {
             key,
@@ -69,23 +72,23 @@ impl Message {
         }
     }
 
-    /// Ajoute un argument rendu tel quel.
+    /// Adds an argument rendered as is.
     pub fn text(mut self, name: &'static str, value: impl ToString) -> Message {
         self.args.push((name, Arg::Text(value.to_string())));
         self
     }
 
-    /// Ajoute un argument qui est lui-même un message.
+    /// Adds an argument that is itself a message.
     pub fn msg(mut self, name: &'static str, value: Message) -> Message {
         self.args.push((name, Arg::Msg(value)));
         self
     }
 
-    /// Compose la phrase dans la langue du catalogue.
+    /// Composes the sentence in the language of the catalogue.
     ///
-    /// Une clé absente du catalogue ne fait pas échouer l'affichage : la clé et
-    /// ses arguments sont alors rendus bruts, ce qui reste lisible et signale
-    /// l'entrée manquante.
+    /// A key missing from the catalogue does not make the display fail: the
+    /// key and its arguments are then rendered raw, which stays readable and
+    /// flags the missing entry.
     pub fn render(&self, catalog: &Catalog) -> String {
         let template = match self.count {
             None => catalog.get(self.key),
@@ -116,10 +119,10 @@ impl Message {
         out
     }
 
-    /// Vérifie que le message s'accorde avec le catalogue : sa clé et celles
-    /// des messages qu'il contient existent, et chaque modèle reçoit exactement
-    /// les arguments qu'il nomme. Une clé de pluriel est vérifiée dans ses
-    /// deux variantes, quel que soit le nombre.
+    /// Checks that the message agrees with the catalogue: its key and those of
+    /// the messages it contains exist, and each template receives exactly the
+    /// arguments it names. A plural key is checked in both of its variants,
+    /// whatever the number.
     pub fn check(&self, catalog: &Catalog) -> Result<(), String> {
         let keys = match self.count {
             None => vec![self.key.to_string()],
@@ -146,10 +149,10 @@ impl Message {
         Ok(())
     }
 
-    /// Le message en JSON, sur une ligne : `{"key": …, "args": {…}}`. Sans
-    /// phrase : elle se compose une fois, au sommet de l'objet qui le porte.
-    /// Une clé de pluriel s'y écrit sans variante, la même dans toutes les
-    /// langues ; le nombre est dans `n`.
+    /// The message as JSON, on one line: `{"key": …, "args": {…}}`. Without a
+    /// sentence: it is composed once, at the top of the object that carries
+    /// it. A plural key is written there without a variant, the same in every
+    /// language; the number is in `n`.
     pub fn to_json(&self) -> String {
         format!(
             "{{\"key\": {}, \"args\": {}}}",
@@ -158,8 +161,8 @@ impl Message {
         )
     }
 
-    /// Les arguments en un objet JSON, dans l'ordre où ils ont été donnés :
-    /// une chaîne pour un texte, `{"key": …, "args": {…}}` pour un message.
+    /// The arguments as a JSON object, in the order they were given: a string
+    /// for a text, `{"key": …, "args": {…}}` for a message.
     pub fn args_json(&self) -> String {
         let args: Vec<String> = self
             .args
@@ -175,8 +178,8 @@ impl Message {
         format!("{{{}}}", args.join(", "))
     }
 
-    /// Toutes les clés employées : la sienne, puis celles de ses arguments.
-    /// Une clé de pluriel y figure sans variante.
+    /// Every key used: its own, then those of its arguments. A plural key
+    /// appears there without a variant.
     pub fn keys(&self) -> Vec<&'static str> {
         let mut keys = vec![self.key];
         for (_, arg) in &self.args {
@@ -195,36 +198,36 @@ fn render_arg(arg: &Arg, catalog: &Catalog) -> String {
     }
 }
 
-/// Les modèles d'une langue, par clé.
+/// The templates of a language, by key.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Catalog {
     language: &'static str,
     entries: BTreeMap<String, String>,
 }
 
-/// Catalogue anglais, langue par défaut, embarqué dans la bibliothèque.
+/// The English catalogue, the default language, embedded in the library.
 const ENGLISH: &str = include_str!("../messages/en.txt");
-/// Catalogue français, embarqué aussi. Il ne porte que les clés du produit.
+/// The French catalogue, embedded too. It carries only the product keys.
 const FRENCH: &str = include_str!("../messages/fr.txt");
 
 impl Catalog {
-    /// Les langues dont un catalogue est embarqué, au sens de BCP 47.
+    /// The languages with an embedded catalogue, as BCP 47 codes.
     pub const LANGUAGES: &'static [&'static str] = &["en", "fr"];
 
-    /// Le catalogue anglais, langue par défaut.
+    /// The English catalogue, the default language.
     pub fn english() -> &'static Catalog {
         static CATALOG: OnceLock<Catalog> = OnceLock::new();
         CATALOG.get_or_init(|| Catalog::embedded("en", ENGLISH))
     }
 
-    /// Le catalogue français.
+    /// The French catalogue.
     pub fn french() -> &'static Catalog {
         static CATALOG: OnceLock<Catalog> = OnceLock::new();
         CATALOG.get_or_init(|| Catalog::embedded("fr", FRENCH))
     }
 
-    /// Le catalogue d'une langue, par son code (`en`, `fr`) ; `None` pour
-    /// une langue sans catalogue.
+    /// The catalogue of a language, by its code (`en`, `fr`); `None` for a
+    /// language without a catalogue.
     pub fn for_language(code: &str) -> Option<&'static Catalog> {
         match code {
             "en" => Some(Catalog::english()),
@@ -236,8 +239,9 @@ impl Catalog {
     fn embedded(language: &'static str, text: &str) -> Catalog {
         match Catalog::parse(language, text) {
             Ok(catalog) => catalog,
-            // Inatteignable tant que le test du catalogue passe ; un catalogue
-            // vide laisse quand même l'affichage lisible, par clé et arguments.
+            // Unreachable as long as the catalogue test passes; an empty
+            // catalogue still leaves the display readable, by key and
+            // arguments.
             Err(_) => Catalog {
                 language,
                 entries: BTreeMap::new(),
@@ -245,9 +249,8 @@ impl Catalog {
         }
     }
 
-    /// La variante d'une clé de pluriel pour ce nombre, `one` ou `other`,
-    /// selon la règle de la langue : le singulier pour 1 en anglais, pour 0
-    /// et 1 en français.
+    /// The variant of a plural key for this number, `one` or `other`, by the
+    /// rule of the language: singular for 1 in English, for 0 and 1 in French.
     fn plural(&self, number: usize) -> &'static str {
         let singular = match self.language {
             "fr" => number <= 1,
@@ -256,22 +259,23 @@ impl Catalog {
         if singular { "one" } else { "other" }
     }
 
-    /// Code de la langue, au sens de BCP 47 : `en`, `fr`.
+    /// The language code, as a BCP 47 code: `en`, `fr`.
     pub fn language(&self) -> &'static str {
         self.language
     }
 
+    /// The template for `key`, or `None` if the catalogue has no such entry.
     pub fn get(&self, key: &str) -> Option<&str> {
         self.entries.get(key).map(String::as_str)
     }
 
-    /// Toutes les clés du catalogue, dans l'ordre.
+    /// Every key of the catalogue, in order.
     pub fn keys(&self) -> impl Iterator<Item = &str> {
         self.entries.keys().map(String::as_str)
     }
 
-    /// Lit un catalogue. Le refus nomme la ligne fautive ; il s'adresse à
-    /// qui écrit le catalogue, pas à l'utilisateur de l'outil.
+    /// Reads a catalogue. The refusal names the faulty line; it is meant for
+    /// whoever writes the catalogue, not for the user of the tool.
     pub(crate) fn parse(language: &'static str, text: &str) -> Result<Catalog, String> {
         let mut entries = BTreeMap::new();
         for (index, line) in text.lines().enumerate() {
@@ -305,7 +309,7 @@ impl Catalog {
     }
 }
 
-/// Les noms des emplacements d'un modèle.
+/// The names of the slots of a template.
 fn slots(template: &str) -> BTreeSet<&str> {
     pieces(template)
         .into_iter()
@@ -321,7 +325,7 @@ enum Piece<'a> {
     Slot(&'a str),
 }
 
-/// Découpe un modèle en morceaux littéraux et en emplacements `{nom}`.
+/// Splits a template into literal pieces and `{name}` slots.
 fn pieces(template: &str) -> Vec<Piece<'_>> {
     let mut out = Vec::new();
     let mut rest = template;
@@ -397,13 +401,13 @@ subject.edge = lien « {id} »
             [0, 1, 2].map(|n| said(n, &french)),
             ["0 thing", "1 thing", "2 things"]
         );
-        // La clé reste la base, en JSON comme dans la liste des clés.
+        // The key stays the base key, in JSON as in the list of keys.
         assert_eq!(
             Message::count(0, "K").to_json(),
             "{\"key\": \"K\", \"args\": {\"n\": \"0\"}}"
         );
         assert_eq!(Message::count(0, "K").keys(), ["K"]);
-        // Les deux variantes sont vérifiées, quel que soit le nombre.
+        // Both variants are checked, whatever the number.
         assert!(Message::count(1, "K").check(&english).is_ok());
         let half = Catalog::parse("en", "K.one = {n} thing\n").unwrap();
         assert!(Message::count(1, "K").check(&half).is_err());
@@ -459,7 +463,7 @@ subject.edge = lien « {id} »
                 .check(&catalog)
                 .is_err()
         );
-        // Un emplacement sans argument reste visible au lieu de disparaître.
+        // A slot without an argument stays visible instead of vanishing.
         assert_eq!(Message::new("K").text("a", 1).render(&catalog), "1 and {b}");
     }
 

@@ -1,4 +1,4 @@
-// ForegramPM — diagnostics : position dans la source, code stable, message.
+// ForegramPM — diagnostics: source position, stable code, message.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -7,64 +7,70 @@ use std::fmt;
 use crate::json::quote;
 use crate::msg::{Catalog, Message};
 
-/// Position dans un texte source, comptée à partir de 1.
+/// Position in a source text, counted from 1.
 ///
-/// La colonne compte des points de code Unicode, pas des octets.
+/// The column counts Unicode code points, not bytes.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Pos {
+    /// Line number, counted from 1; 0 means no position.
     pub line: u32,
+    /// Column number in code points, counted from 1.
     pub col: u32,
 }
 
 impl Pos {
-    /// Absence de position : l'élément n'a pas été lu dans un texte.
+    /// No position: the element was not read from a text.
     pub const NONE: Pos = Pos { line: 0, col: 0 };
 
+    /// Whether this position is [`Pos::NONE`] (line 0).
     pub fn is_none(self) -> bool {
         self.line == 0
     }
 }
 
-/// Un refus : où, lequel, pourquoi.
+/// A refusal: where, which, why.
 ///
-/// Le code est stable d'une version à l'autre et ne dépend pas de la langue
-/// du message ; c'est lui qu'un programme doit lire. Le message ne porte pas
-/// sa phrase : elle est composée à l'affichage, dans la langue choisie.
+/// The code is stable from one version to the next and does not depend on the
+/// message language; a program should read it. The message carries no
+/// sentence: it is composed at display time, in the chosen language.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Diagnostic {
+    /// Stable code of the refusal: the message key without its variant.
     pub code: &'static str,
+    /// Where the refusal was found; [`Pos::NONE`] if there is no position.
     pub pos: Pos,
+    /// The message: a key and arguments, with no sentence of its own.
     pub message: Message,
 }
 
 impl Diagnostic {
-    /// Le code est la clé du message, sans sa variante : `J005` pour `J005.zero`.
+    /// The code is the message key minus its variant: `J005` for `J005.zero`.
     pub fn new(pos: Pos, message: Message) -> Self {
         let code = message.key.split('.').next().unwrap_or(message.key);
-        // Chaque refus produit par les tests est confronté au catalogue anglais :
-        // une clé absente ou un argument oublié s'y voit tout de suite.
+        // Every refusal produced by the tests is checked against the English
+        // catalogue: a missing key or a forgotten argument shows up at once.
         debug_assert_eq!(message.check(Catalog::english()), Ok(()));
         Diagnostic { code, pos, message }
     }
 
-    /// Le message seul, composé dans la langue du catalogue.
+    /// The message alone, composed in the catalogue's language.
     pub fn text_in(&self, catalog: &Catalog) -> String {
         self.message.render(catalog)
     }
 
-    /// Le message seul, en anglais.
+    /// The message alone, in English.
     pub fn text(&self) -> String {
         self.text_in(Catalog::english())
     }
 
-    /// Le refus entier — position, code, message — dans la langue du catalogue.
+    /// The whole refusal (position, code, message) in the catalogue's language.
     pub fn render(&self, catalog: &Catalog) -> String {
         self.line().render(catalog)
     }
 
-    /// Le refus précédé du fichier où il a été lu, comme une ligne de
-    /// commande l'écrit : `g.json:7:5: error[G001]: …`, ou `g.json: error[…]`
-    /// sans position.
+    /// The refusal preceded by the file it was read from, as a command line
+    /// writes it: `g.json:7:5: error[G001]: …`, or `g.json: error[…]`
+    /// without a position.
     pub fn render_in_file(&self, file: &str, catalog: &Catalog) -> String {
         let key = if self.pos.is_none() {
             "diag.file-bare"
@@ -77,9 +83,9 @@ impl Diagnostic {
             .render(catalog)
     }
 
-    /// Le refus en un objet JSON sur une ligne, pour un programme : le
-    /// fichier, le code, la position (`null` sans position), la clé et les
-    /// arguments du message, puis sa phrase dans la langue du catalogue.
+    /// The refusal as a one-line JSON object, for a program: the file, the
+    /// code, the position (`null` if none), the message key and arguments,
+    /// then its sentence in the catalogue's language.
     pub fn to_json(&self, file: &str, catalog: &Catalog) -> String {
         let (line, col) = if self.pos.is_none() {
             ("null".to_string(), "null".to_string())
@@ -109,8 +115,8 @@ impl Diagnostic {
     }
 }
 
-/// Les refus d'un fichier tels qu'une ligne de commande les écrit : un par
-/// ligne, chacun précédé du fichier, puis une ligne qui les compte.
+/// The refusals of a file as a command line writes them: one per line, each
+/// preceded by the file, then a line that counts them.
 pub fn file_report(file: &str, diags: &[Diagnostic], catalog: &Catalog) -> Vec<String> {
     let mut lines: Vec<String> = diags
         .iter()
@@ -127,15 +133,15 @@ pub fn file_report(file: &str, diags: &[Diagnostic], catalog: &Catalog) -> Vec<S
 }
 
 impl fmt::Display for Diagnostic {
-    /// Le refus entier, en anglais.
+    /// The whole refusal, in English.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(&self.render(Catalog::english()))
     }
 }
 
-/// Ordre de restitution : par position, puis par code. Le tri est stable :
-/// à position et code égaux, l'ordre de relevé est gardé, et il ne dépend
-/// que du contenu. Deux exécutions rendent donc la même liste.
+/// Reporting order: by position, then by code. The sort is stable: with equal
+/// position and code, the order of discovery is kept, and it depends only on
+/// the content. Two runs therefore return the same list.
 pub(crate) fn sort(diags: &mut [Diagnostic]) {
     diags.sort_by(|a, b| (a.pos, a.code).cmp(&(b.pos, b.code)));
 }

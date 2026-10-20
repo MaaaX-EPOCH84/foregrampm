@@ -1,35 +1,37 @@
-// ForegramPM — la scène : ce qui est dessiné, avant de choisir SVG ou PNG.
+// ForegramPM — the scene: what is drawn, before choosing SVG or PNG.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use foregram_graph::{Graph, Layout, Point, Rect, Segment, extent, polyline};
 
-/// L'aspect neutre : des gris et des épaisseurs, les mêmes pour tous les
-/// moteurs. Les gris vont de 0 (noir) à 255 (blanc) ; les longueurs sont en
-/// centièmes de pixel. [`Style::default`] est l'aspect du banc.
+/// The neutral look: greys and thicknesses, the same for all engines. Greys
+/// run from 0 (black) to 255 (white); lengths are in hundredths of a pixel.
+/// [`Style::default`] is the look of the bench.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Style {
-    /// Marge entre le dessin et le bord de la feuille.
+    /// Margin between the drawing and the edge of the sheet.
     pub margin: i64,
-    /// Fond de la feuille.
+    /// Background of the sheet.
     pub sheet: u8,
-    /// Fond d'une feuille du graphe (un nœud sans enfant).
+    /// Fill of a leaf of the graph (a node without children).
     pub leaf_fill: u8,
-    /// Encre des traits pleins : bord des feuilles et des ports, liens, flèches.
+    /// Ink of solid strokes: border of leaves and ports, edges, arrowheads.
     pub ink: u8,
-    /// Encre d'un conteneur, plus claire pour que le contenu se lise.
+    /// Ink of a container, lighter so that the content stays readable.
     pub container_ink: u8,
-    /// Épaisseur des traits forts : bord des feuilles, liens.
+    /// Width of thick strokes: border of leaves, edges.
     pub thick: i64,
-    /// Épaisseur des traits fins : conteneurs, étiquettes, ports.
+    /// Width of thin strokes: containers, labels, ports.
     pub thin: i64,
-    /// Longueur de la flèche, et largeur de sa base.
+    /// Length of the arrowhead.
     pub arrow_length: i64,
+    /// Width of the base of the arrowhead.
     pub arrow_width: i64,
-    /// Côté du carré d'un port sans boîte.
+    /// Side of the square of a port without a box.
     pub port_size: i64,
-    /// Tiret et espace du contour d'une étiquette.
+    /// Length of a dash in the outline of a label.
     pub dash: i64,
+    /// Length of the gap between two dashes in the outline of a label.
     pub gap: i64,
 }
 
@@ -52,27 +54,27 @@ impl Default for Style {
     }
 }
 
-/// Ce qu'un élément est, donc comment il se dessine.
+/// What an element is, hence how it is drawn.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Class {
-    /// La feuille de fond, qui couvre la fenêtre.
+    /// The background sheet, which covers the view.
     Sheet,
-    /// Un nœud sans enfant : fond et bord.
+    /// A node without children: fill and border.
     Leaf,
-    /// Un conteneur : bord fin seulement.
+    /// A container: thin border only.
     Container,
-    /// Le tracé d'un lien.
+    /// The route of an edge.
     Edge,
-    /// La pointe d'un lien, un triangle plein.
+    /// The head of an edge, a filled triangle.
     Arrow,
-    /// Une étiquette : rectangle en tirets, vide.
+    /// A label: a dashed rectangle, empty.
     Label,
-    /// Un port : un carré creux, ou sa boîte, au fond de la feuille.
+    /// A port: a hollow square, or its box, filled with the sheet color.
     Port,
 }
 
 impl Class {
-    /// Le nom de la classe dans le SVG.
+    /// The name of the class in the SVG.
     pub fn name(self) -> &'static str {
         match self {
             Class::Sheet => "sheet",
@@ -86,39 +88,45 @@ impl Class {
     }
 }
 
-/// Une forme, en centièmes de pixel absolus.
+/// A shape, in absolute hundredths of a pixel.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Shape {
+    /// A rectangle.
     Rect(Rect),
-    /// Un tracé tel que le placement le donne, courbes comprises.
+    /// A route as the layout gives it, curves included.
     Route(Vec<Segment>),
-    /// Un polygone plein.
+    /// A filled polygon.
     Polygon(Vec<Point>),
 }
 
-/// Un élément dessiné, avec l'identifiant qu'il porte dans le graphe.
+/// A drawn element, with the identifier it has in the graph.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Item {
+    /// What the item is, hence how it is drawn.
     pub class: Class,
+    /// The geometry of the item.
     pub shape: Shape,
+    /// Identifier in the graph, shown as a tooltip; `None` for the sheet,
+    /// arrowheads and labels.
     pub title: Option<String>,
 }
 
-/// Tout ce qui est dessiné, dans l'ordre où ça se dessine : la feuille, les
-/// nœuds du haut vers le bas de l'imbrication, les liens et leurs flèches,
-/// les étiquettes, les ports par-dessus tout.
+/// Everything that is drawn, in drawing order: the sheet, the nodes from the
+/// top of the nesting down, the edges and their arrowheads, the labels, the
+/// ports on top of everything.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Scene {
-    /// Le nom du graphe et le moteur, pour le titre du dessin.
+    /// The graph name and the engine, for the title of the drawing.
     pub title: String,
-    /// La fenêtre : la boîte englobante du dessin, plus la marge.
+    /// The view: the bounding box of the drawing, plus the margin.
     pub view: Rect,
+    /// The items, in drawing order.
     pub items: Vec<Item>,
 }
 
 impl Scene {
-    /// Construit la scène d'un placement. Ce qui n'est pas placé n'est pas
-    /// dessiné ; un placement qui passe `Layout::check` est dessiné en entier.
+    /// Builds the scene of a layout. What is not placed is not drawn; a layout
+    /// that passes `Layout::check` is drawn in full.
     pub fn build(graph: &Graph, layout: &Layout, style: &Style) -> Scene {
         let drawn = extent(graph, layout).unwrap_or(Rect {
             x: 0,
@@ -219,9 +227,9 @@ impl Scene {
     }
 }
 
-/// Le triangle qui termine un tracé : la pointe au bout, la base en arrière
-/// dans la direction du dernier segment de la polyligne. Aucun si le tracé
-/// n'a pas de direction.
+/// The triangle that ends a route: the tip at the end, the base set back in
+/// the direction of the last segment of the polyline. None if the route has
+/// no direction.
 fn arrow(points: &[Point], style: &Style) -> Option<Vec<Point>> {
     let tip = *points.last()?;
     let from = *points.iter().rev().find(|p| **p != tip)?;
@@ -230,7 +238,7 @@ fn arrow(points: &[Point], style: &Style) -> Option<Vec<Point>> {
     if len == 0 {
         return None;
     }
-    // Un vecteur de longueur `l` dans la direction (dx, dy), arrondi.
+    // A vector of length `l` in the direction (dx, dy), rounded.
     let along = |l: i64| {
         (
             div_round(i128::from(dx) * i128::from(l), len),
@@ -256,20 +264,20 @@ fn arrow(points: &[Point], style: &Style) -> Option<Vec<Point>> {
     ])
 }
 
-/// Racine carrée entière, arrondie au plus près.
+/// Integer square root, rounded to nearest.
 pub(crate) fn isqrt(n: i128) -> i128 {
     if n <= 0 {
         return 0;
     }
     let mut x = n.isqrt();
-    // `isqrt` tronque ; on arrondit au plus près.
+    // `isqrt` truncates; we round to nearest.
     if (x + 1) * (x + 1) - n < n - x * x {
         x += 1;
     }
     x
 }
 
-/// Quotient arrondi au plus près, le diviseur étant positif.
+/// Quotient rounded to nearest, the divisor being positive.
 pub(crate) fn div_round(a: i128, b: i128) -> i64 {
     let q = (2 * a + b).div_euclid(2 * b);
     i64::try_from(q).unwrap_or(i64::MAX)

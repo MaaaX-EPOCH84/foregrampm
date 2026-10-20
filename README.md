@@ -63,6 +63,22 @@ section "Determinism" of the format document. The figures of both
 reference engines, recorded as the bar the own layout engine has to beat,
 are under [`corpus/bar/`](corpus/bar/README.md).
 
+## Library
+
+Two product crates, with no I/O and no dependency outside the `png`
+feature: `foregram-graph` (graph, layout, strict JSON reader, validation,
+canonical form, metrics) and `foregram-render` (SVG, and PNG behind the
+`png` feature). Their public surface is frozen from **version 0.1.0** on:
+each crate documents it at the top of its `src/lib.rs`, `cargo doc` renders
+it, and a test (`tests/api.rs`) lists every exported name, so that a new
+`pub` is a decision. One example per crate shows the whole path, bytes in,
+values out:
+
+```
+cargo run -p foregram-graph --example measure
+cargo run -p foregram-render --example draw > components.svg
+```
+
 ## WebAssembly
 
 `scripts/wasm.sh` checks that `foregram-graph` and `foregram-render` (without

@@ -1,4 +1,4 @@
-// ForegramPM — placement : ce qu'un moteur rend pour un graphe donné.
+// ForegramPM — layout: what an engine returns for a given graph.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -12,81 +12,109 @@ use crate::msg::Message;
 use crate::read::{self, COORD_MAX, FORMAT_VERSION, Obj};
 use crate::read::{field, field_at};
 
-/// Valeur de la clé `format` d'un placement.
+/// Value of the `format` key of a layout.
 pub const LAYOUT_FORMAT: &str = "foregram-layout";
 
-/// Le placement d'un graphe par un moteur : la position de chaque nœud et
-/// de chaque port, la taille de chaque conteneur, le tracé de chaque lien,
-/// la position de chaque étiquette.
+/// The layout of a graph by an engine: the position of every node and
+/// port, the size of every container, the route of every edge, the
+/// position of every label.
 ///
-/// Il ne répète rien du graphe. Un moteur ne peut donc pas en changer les
-/// dimensions ni les liens ; il ne peut qu'oublier un élément ou en citer
-/// un qui n'existe pas, ce que [`Layout::check`] relève.
+/// It repeats nothing from the graph. An engine therefore cannot change
+/// its dimensions or its edges; it can only forget an element or cite one
+/// that does not exist, which [`Layout::check`] reports.
 #[derive(Clone, Debug)]
 pub struct Layout {
-    /// Nom du graphe placé.
+    /// Name of the graph that was laid out.
     pub graph: String,
+    /// The engine that produced the layout.
     pub engine: Engine,
-    /// Tous les nœuds, quelle que soit leur profondeur, dans une seule liste.
+    /// Every node, whatever its depth, in a single list.
     pub nodes: Vec<NodePlace>,
+    /// The route and the label positions of every edge.
     pub edges: Vec<EdgePlace>,
+    /// Source position of the layout, for diagnostics.
     pub pos: Pos,
 }
 
-/// Le moteur qui a produit le placement, assez précisément pour le rejouer.
+/// The engine that produced the layout, precisely enough to replay it.
 #[derive(Clone, Debug)]
 pub struct Engine {
+    /// Name of the engine.
     pub name: String,
+    /// Version of the engine.
     pub version: String,
+    /// Options the engine was run with, if any.
     pub options: Option<String>,
 }
 
+/// The layout of one node: its position, its size if it is a container,
+/// and the anchors of its ports.
 #[derive(Clone, Debug)]
 pub struct NodePlace {
+    /// Identifier of the node.
     pub id: String,
-    /// Coin supérieur gauche du nœud, relatif à son parent — au dessin pour
-    /// un nœud de premier niveau.
+    /// Horizontal coordinate of the top-left corner, relative to the parent
+    /// — to the drawing for a top-level node —, in hundredths of a pixel.
     pub x: i64,
+    /// Vertical coordinate of the same corner, in hundredths of a pixel.
     pub y: i64,
-    /// Taille d'un conteneur, que le moteur a découverte. Une feuille n'en a pas.
+    /// Size of a container, discovered by the engine. A leaf has none.
     pub size: Option<Size>,
-    /// Point d'ancrage de chaque port, relatif au coin supérieur gauche du nœud.
+    /// Anchor point of each port, relative to the node's top-left corner.
     pub ports: Vec<PortPlace>,
+    /// Source position of the node entry, for diagnostics.
     pub pos: Pos,
 }
 
+/// The layout of one port: its anchor point, relative to its node.
 #[derive(Clone, Debug)]
 pub struct PortPlace {
+    /// Identifier of the port.
     pub id: String,
+    /// Horizontal coordinate of the anchor, relative to the node's top-left
+    /// corner, in hundredths of a pixel.
     pub x: i64,
+    /// Vertical coordinate of the anchor, relative to the node's top-left
+    /// corner, in hundredths of a pixel.
     pub y: i64,
+    /// Source position of the port entry, for diagnostics.
     pub pos: Pos,
 }
 
+/// The layout of one edge: its route and the positions of its labels.
 #[derive(Clone, Debug)]
 pub struct EdgePlace {
+    /// Identifier of the edge.
     pub id: String,
-    /// Le tracé, en coordonnées absolues : un point de départ, puis des
-    /// segments, droits ou courbes, jusqu'au nœud d'arrivée.
+    /// The route, in absolute coordinates: a start point, then segments,
+    /// straight or curved, up to the target node.
     pub route: Vec<Segment>,
-    /// Coin supérieur gauche de chaque étiquette, dans l'ordre du graphe,
-    /// en coordonnées absolues.
+    /// Top-left corner of each label, in graph order, in absolute
+    /// coordinates.
     pub labels: Vec<Point>,
+    /// Source position of the edge entry, for diagnostics.
     pub pos: Pos,
 }
 
-/// Un morceau de tracé. Le premier élément d'un tracé est toujours un
-/// [`Segment::Line`] : le point de départ.
+/// A piece of a route. The first element of a route is always a
+/// [`Segment::Line`]: the start point.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Segment {
-    /// Un segment droit jusqu'à ce point.
+    /// A straight segment to this point.
     Line(Point),
-    /// Une courbe de Bézier cubique, avec ses deux points de contrôle.
-    Cubic { c1: Point, c2: Point, end: Point },
+    /// A cubic Bézier curve, with its two control points.
+    Cubic {
+        /// First control point.
+        c1: Point,
+        /// Second control point.
+        c2: Point,
+        /// End point of the curve.
+        end: Point,
+    },
 }
 
 impl Segment {
-    /// Le point où le segment arrive.
+    /// The point where the segment ends.
     pub fn end(&self) -> Point {
         match self {
             Segment::Line(p) => *p,
@@ -94,7 +122,7 @@ impl Segment {
         }
     }
 
-    /// Tous les points du segment, points de contrôle compris.
+    /// Every point of the segment, control points included.
     pub fn points(&self) -> Vec<Point> {
         match self {
             Segment::Line(p) => vec![*p],
@@ -103,7 +131,8 @@ impl Segment {
     }
 }
 
-/// Un nœud du graphe placé en absolu, avec ce qu'il faut pour y attacher un lien.
+/// A graph node placed in absolute coordinates, with what is needed to
+/// attach an edge to it.
 struct Placed<'a> {
     node: &'a Node,
     place: &'a NodePlace,
@@ -111,8 +140,8 @@ struct Placed<'a> {
 }
 
 impl Layout {
-    /// Lit un placement et le valide pour lui-même, sans le confronter à
-    /// son graphe : c'est le rôle de [`Layout::check`].
+    /// Reads a layout and validates it on its own, without checking it
+    /// against its graph: that is the role of [`Layout::check`].
     pub fn parse(bytes: &[u8]) -> Result<Layout, Vec<Diagnostic>> {
         let root = json::parse(bytes).map_err(|d| vec![d])?;
         let mut diags = Vec::new();
@@ -129,7 +158,7 @@ impl Layout {
         Err(diags)
     }
 
-    /// Valide le placement pour lui-même.
+    /// Validates the layout on its own.
     pub fn validate(&self) -> Vec<Diagnostic> {
         let mut diags = Vec::new();
         let d = &mut diags;
@@ -208,10 +237,10 @@ impl Layout {
         diags
     }
 
-    /// Le rectangle absolu de chaque nœud placé, conteneurs compris, par
-    /// identifiant. Un nœud sans taille, ou dont le parent n'est pas placé,
-    /// n'en a pas ; un placement qui passe [`Layout::check`] en donne un à
-    /// chaque nœud du graphe.
+    /// The absolute rectangle of every placed node, containers included, by
+    /// identifier. A node without a size, or whose parent is not placed, has
+    /// none; a layout that passes [`Layout::check`] gives one to every node of
+    /// the graph.
     pub fn absolute_rects<'a>(&self, graph: &'a Graph) -> BTreeMap<&'a str, Rect> {
         let mut rects: BTreeMap<&str, Rect> = BTreeMap::new();
         let places: BTreeMap<&str, _> = self.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
@@ -243,12 +272,11 @@ impl Layout {
         rects
     }
 
-    /// Confronte le placement à son graphe. Les deux doivent être valides.
-    /// Une liste vide signifie que le placement couvre le graphe, tout le
-    /// graphe et rien d'autre, que chaque enfant tient dans son parent, que
-    /// chaque port est sur le bord de son nœud, et que chaque tracé part et
-    /// arrive sur le bord de ses nœuds — ou sur ses ports —, du côté imposé
-    /// s'il y en a un.
+    /// Checks the layout against its graph. Both must be valid. An empty list
+    /// means that the layout covers the graph, all of it and nothing else, that
+    /// every child fits in its parent, that every port is on the border of its
+    /// node, and that every route starts and ends on the border of its nodes
+    /// — or on its ports —, on the imposed side if there is one.
     pub fn check(&self, graph: &Graph) -> Vec<Diagnostic> {
         let mut diags = Vec::new();
         let d = &mut diags;
@@ -261,7 +289,7 @@ impl Layout {
             ));
         }
 
-        // Les nœuds : couverture exacte, puis positions absolues.
+        // Nodes: exact coverage, then absolute positions.
         let all = graph.all_nodes();
         let graph_nodes: BTreeMap<&str, &Node> =
             all.iter().map(|(n, _)| (n.id.as_str(), *n)).collect();
@@ -293,7 +321,7 @@ impl Layout {
                 continue;
             };
             let place = mine.place;
-            // La taille : du graphe pour une feuille, du placement pour un conteneur.
+            // The size: the graph's for a leaf, the layout's for a container.
             let size = match (node.is_container(), node.size, place.size) {
                 (true, _, Some(size)) => Some(size),
                 (true, _, None) => {
@@ -312,7 +340,7 @@ impl Layout {
                     size
                 }
             };
-            // Le coin absolu : celui du parent, plus la position relative.
+            // The absolute corner: the parent's, plus the relative position.
             let origin = match parent {
                 None => Some(Point { x: 0, y: 0 }),
                 Some(parent) => placed
@@ -352,7 +380,7 @@ impl Layout {
             check_ports(node, place, rect, d);
         }
 
-        // Les liens.
+        // Edges.
         let routed: BTreeMap<&str, &EdgePlace> =
             self.edges.iter().map(|e| (e.id.as_str(), e)).collect();
         let graph_edges: BTreeMap<&str, _> =
@@ -414,7 +442,7 @@ impl Layout {
                         .text("y", point.y)
                 };
                 if let Some(port_id) = port_id {
-                    // Le tracé touche le port : son point d'ancrage, ou sa boîte.
+                    // The route touches the port: its anchor point, or its box.
                     let anchor = at
                         .place
                         .ports
@@ -428,8 +456,8 @@ impl Layout {
                         continue;
                     };
                     let port_size = at.node.port(port_id).and_then(|p| p.size);
-                    // La boîte est centrée sur l'ancrage : on compare les écarts doublés
-                    // à la taille, pour qu'une taille impaire reste symétrique.
+                    // The box is centred on the anchor: compare the doubled
+                    // offsets to the size, so that an odd size stays symmetric.
                     let touches = match port_size {
                         None => point == anchor,
                         Some(size) => {
@@ -462,7 +490,7 @@ impl Layout {
         diags
     }
 
-    /// Écrit le placement sous sa forme canonique.
+    /// Writes the layout in its canonical form.
     pub fn to_json(&self) -> String {
         let mut out = String::from("{\n");
         out.push_str(&format!("  \"format\": {},\n", json::quote(LAYOUT_FORMAT)));
@@ -501,8 +529,8 @@ impl Layout {
     }
 }
 
-/// Les ports d'un nœud placé : couverture exacte, ancrage sur le bord, du
-/// bon côté, et à la position imposée s'il y en a une.
+/// The ports of a placed node: exact coverage, anchor on the border, on the
+/// right side, and at the imposed position if there is one.
 fn check_ports(node: &Node, place: &NodePlace, rect: Option<Rect>, d: &mut Vec<Diagnostic>) {
     for placed in &place.ports {
         let Some(port) = node.port(&placed.id) else {

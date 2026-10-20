@@ -1,48 +1,62 @@
-// ForegramPM — lecture stricte de JSON, avec la position de chaque valeur.
+// ForegramPM — strict JSON reader, with the position of every value.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Sous-ensemble strict de JSON (RFC 8259).
+//! Strict subset of JSON (RFC 8259).
 //!
-//! Trois écarts volontaires avec la norme, tous des refus :
-//! - les nombres sont des entiers, sans partie décimale ni exposant ;
-//! - une clé ne paraît qu'une fois dans un objet ;
-//! - le texte est en UTF-8 sans marque d'ordre d'octets.
+//! Three deliberate departures from the standard, all refusals:
+//! - numbers are integers, with no fractional part or exponent;
+//! - a key appears only once in an object;
+//! - text is UTF-8 without a byte order mark.
 //!
-//! Chaque valeur et chaque clé gardent leur position, pour qu'un refus
-//! prononcé plus tard, sur le sens, désigne encore l'endroit du texte.
+//! Every value and every key keeps its position, so that a refusal issued
+//! later, about the meaning, still points at the right place in the text.
 
 use crate::diag::{Diagnostic, Pos};
 use crate::msg::Message;
 
-/// Profondeur d'imbrication admise. Les formats de ForegramPM en emploient cinq.
+/// Maximum nesting depth accepted. The ForegramPM formats use five.
 pub const MAX_DEPTH: usize = 64;
 
+/// A JSON value together with the position where it starts.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Value {
+    /// Line and column of the first character of the value.
     pub pos: Pos,
+    /// Type and content of the value.
     pub kind: Kind,
 }
 
+/// The type of a JSON value, with its content.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Kind {
+    /// The `null` literal.
     Null,
+    /// A `true` or `false` literal.
     Bool(bool),
+    /// An integer that fits in an `i64`.
     Int(i64),
+    /// A string, with its escapes decoded.
     Str(String),
+    /// An array, with its elements in source order.
     Array(Vec<Value>),
+    /// An object, with its members in source order.
     Object(Vec<Member>),
 }
 
+/// One key and value pair of an object.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Member {
+    /// The key, with its escapes decoded.
     pub key: String,
+    /// Line and column of the opening quote of the key.
     pub key_pos: Pos,
+    /// The value attached to the key.
     pub value: Value,
 }
 
 impl Kind {
-    /// Clé du fragment qui nomme le type dans un message : `type.integer`.
+    /// Key of the fragment that names the type in a message: `type.integer`.
     pub fn name(&self) -> &'static str {
         match self {
             Kind::Null => "type.null",
@@ -55,7 +69,7 @@ impl Kind {
     }
 }
 
-/// Lit un texte JSON entier. Le premier défaut arrête la lecture.
+/// Reads a whole JSON text. The first defect stops the reading.
 pub fn parse(bytes: &[u8]) -> Result<Value, Diagnostic> {
     let text = match std::str::from_utf8(bytes) {
         Ok(text) => text,
@@ -89,9 +103,8 @@ pub fn parse(bytes: &[u8]) -> Result<Value, Diagnostic> {
     Ok(value)
 }
 
-/// Écrit une chaîne JSON, guillemets compris, sous sa forme canonique :
-/// seuls les guillemets, la barre oblique inverse et les caractères de
-/// contrôle sont échappés.
+/// Writes a JSON string, quotes included, in its canonical form: only the
+/// quotes, the backslash and the control characters are escaped.
 pub fn quote(text: &str) -> String {
     let mut out = String::with_capacity(text.len() + 2);
     out.push('"');
@@ -110,7 +123,7 @@ pub fn quote(text: &str) -> String {
     out
 }
 
-/// Écrit `"clé": [ … ]` avec un élément par ligne, forme canonique des listes.
+/// Writes `"key": [ … ]` with one element per line, the canonical list form.
 pub(crate) fn push_list(out: &mut String, key: &str, lines: &[String], last: bool) {
     out.push_str(&format!("  {}: [", quote(key)));
     if !lines.is_empty() {
@@ -132,7 +145,7 @@ pub(crate) fn push_list(out: &mut String, key: &str, lines: &[String], last: boo
     out.push('\n');
 }
 
-/// Position du caractère qui suivrait `text`.
+/// Position of the character that would follow `text`.
 fn end_of(text: &str) -> Pos {
     let mut pos = Pos { line: 1, col: 1 };
     for c in text.chars() {
@@ -146,7 +159,7 @@ fn end_of(text: &str) -> Pos {
     pos
 }
 
-/// Un caractère tel qu'un message peut le montrer.
+/// A character as a message can show it.
 fn show(c: char) -> String {
     if c.is_control() {
         format!("U+{:04X}", c as u32)
@@ -324,12 +337,13 @@ impl Parser<'_> {
                         return Err(bad("J007.high"));
                     }
                     let code = 0x10000 + ((high - 0xD800) << 10) + (low - 0xDC00);
-                    // Une paire de demi-codets donne toujours un point de code valide.
+                    // A surrogate pair always yields a valid code point.
                     Ok(char::from_u32(code).unwrap_or(char::REPLACEMENT_CHARACTER))
                 } else if (0xDC00..0xE000).contains(&high) {
                     Err(bad("J007.low"))
                 } else {
-                    // Hors des demi-codets, quatre chiffres donnent toujours un point de code valide.
+                    // Outside the surrogates, four digits always give a valid
+                    // code point.
                     Ok(char::from_u32(high).unwrap_or(char::REPLACEMENT_CHARACTER))
                 }
             }
@@ -425,7 +439,7 @@ fn check_depth(depth: usize, pos: Pos) -> Result<(), Diagnostic> {
     Ok(())
 }
 
-/// `what` est la clé du fragment qui dit ce qui était attendu : `expect.colon`.
+/// `what` is the key of the fragment saying what was expected: `expect.colon`.
 fn expected(found: Option<char>, pos: Pos, what: &'static str) -> Diagnostic {
     let what = Message::new(what);
     match found {
@@ -538,7 +552,7 @@ mod tests {
 
     #[test]
     fn columns_count_code_points_not_bytes() {
-        // « é » et « 😀 » tiennent sur plusieurs octets mais une seule colonne.
+        // "é" and "😀" take several bytes but only one column.
         assert_eq!(refusal("[\"é😀\", ?]"), ("J002", 1, 8));
     }
 

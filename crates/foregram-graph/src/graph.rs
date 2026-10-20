@@ -1,4 +1,4 @@
-// ForegramPM — graphe abstrait : ce qu'un moteur de placement reçoit.
+// ForegramPM — abstract graph: what a layout engine receives.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -10,41 +10,49 @@ use crate::msg::Message;
 use crate::read::{self, COORD_MAX, FORMAT_VERSION, LAYER_MAX, Obj};
 use crate::read::{field, field_at};
 
-/// Valeur de la clé `format` d'un graphe.
+/// Value of the `format` key of a graph.
 pub const GRAPH_FORMAT: &str = "foregram-graph";
 
-/// Un point, en centièmes de pixel ; l'axe des y pointe vers le bas.
+/// A point, in hundredths of a pixel; the y axis points down.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Point {
+    /// Horizontal coordinate.
     pub x: i64,
+    /// Vertical coordinate, increasing downwards.
     pub y: i64,
 }
 
-/// Une largeur et une hauteur, en centièmes de pixel.
+/// A width and a height, in hundredths of a pixel.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Size {
+    /// Width.
     pub width: i64,
+    /// Height.
     pub height: i64,
 }
 
-/// Un rectangle par son coin supérieur gauche et sa taille.
+/// A rectangle given by its top-left corner and its size.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Rect {
+    /// Horizontal coordinate of the left edge.
     pub x: i64,
+    /// Vertical coordinate of the top edge.
     pub y: i64,
+    /// Width.
     pub width: i64,
+    /// Height.
     pub height: i64,
 }
 
 impl Rect {
-    /// Vrai si le point est sur le contour du rectangle, coins compris.
+    /// True if the point is on the outline of the rectangle, corners included.
     pub fn border_has(&self, p: Point) -> bool {
         let (right, bottom) = (self.x + self.width, self.y + self.height);
         let within = p.x >= self.x && p.x <= right && p.y >= self.y && p.y <= bottom;
         within && (p.x == self.x || p.x == right || p.y == self.y || p.y == bottom)
     }
 
-    /// Vrai si un point du contour est sur ce côté. Un coin est sur deux côtés.
+    /// True if an outline point is on this side. A corner is on two sides.
     pub fn side_has(&self, side: Side, p: Point) -> bool {
         match side {
             Side::West => p.x == self.x,
@@ -55,12 +63,16 @@ impl Rect {
     }
 }
 
-/// Sens dans lequel les couches se succèdent.
+/// Direction in which the layers follow one another.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Direction {
+    /// Layers succeed one another from left to right.
     Right,
+    /// Layers succeed one another from top to bottom.
     Down,
+    /// Layers succeed one another from right to left.
     Left,
+    /// Layers succeed one another from bottom to top.
     Up,
 }
 
@@ -72,6 +84,7 @@ impl Direction {
         ("up", Direction::Up),
     ];
 
+    /// The name of the direction in the exchange format.
     pub fn as_str(self) -> &'static str {
         match self {
             Direction::Right => "right",
@@ -82,12 +95,16 @@ impl Direction {
     }
 }
 
-/// Côté d'un nœud, l'axe des y pointant vers le bas.
+/// Side of a node, the y axis pointing down.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Side {
+    /// The top side.
     North,
+    /// The bottom side.
     South,
+    /// The right side.
     East,
+    /// The left side.
     West,
 }
 
@@ -99,6 +116,7 @@ impl Side {
         ("west", Side::West),
     ];
 
+    /// The name of the side in the exchange format.
     pub fn as_str(self) -> &'static str {
         match self {
             Side::North => "north",
@@ -109,11 +127,14 @@ impl Side {
     }
 }
 
-/// Endroit du lien auquel une étiquette se rapporte.
+/// Place on the edge that a label refers to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Anchor {
+    /// The start of the edge, at the source node.
     Source,
+    /// The middle of the edge.
     Center,
+    /// The end of the edge, at the target node.
     Target,
 }
 
@@ -124,6 +145,7 @@ impl Anchor {
         ("target", Anchor::Target),
     ];
 
+    /// The name of the anchor in the exchange format.
     pub fn as_str(self) -> &'static str {
         match self {
             Anchor::Source => "source",
@@ -133,99 +155,121 @@ impl Anchor {
     }
 }
 
-/// Un graphe à placer : des nœuds rectangulaires, qui peuvent en contenir
-/// d'autres, et des liens entre eux.
+/// A graph to lay out: rectangular nodes, which may contain other nodes,
+/// and edges between them.
 ///
-/// Les boucles (un lien d'un nœud à lui-même) et les liens multiples entre
-/// deux mêmes nœuds sont admis, de même qu'un lien entre un nœud et l'un de
-/// ses descendants. Les identifiants de nœuds et ceux de ports sont uniques
-/// dans tout le graphe. Les longueurs sont en centièmes de pixel.
+/// Loops (an edge from a node to itself) and multiple edges between the same
+/// two nodes are allowed, as is an edge between a node and one of its
+/// descendants. Node ids and port ids are unique in the whole graph. Lengths
+/// are in hundredths of a pixel.
 #[derive(Clone, Debug)]
 pub struct Graph {
+    /// Name of the graph.
     pub name: String,
+    /// Direction in which the layers succeed one another, if imposed.
     pub direction: Option<Direction>,
-    /// Les nœuds de premier niveau ; leurs enfants sont dans [`Node::children`].
+    /// The top-level nodes; their children are in [`Node::children`].
     pub nodes: Vec<Node>,
+    /// The edges, which may link nodes at any depth.
     pub edges: Vec<Edge>,
-    /// Position dans la source, [`Pos::NONE`] pour un graphe construit en mémoire.
+    /// Position in the source, [`Pos::NONE`] for a graph built in memory.
     pub pos: Pos,
 }
 
+/// A rectangular node, a leaf or a container of other nodes.
 #[derive(Clone, Debug)]
 pub struct Node {
+    /// Identifier, unique in the whole graph.
     pub id: String,
-    /// Taille d'une feuille. Un nœud qui a des enfants n'en a pas : c'est le
-    /// placement qui la donne.
+    /// Size of a leaf. A node that has children has none: the layout gives
+    /// it.
     pub size: Option<Size>,
-    /// Couche imposée, comptée de 0 dans le sens de `direction`.
+    /// Imposed layer, counted from 0 in the sense of `direction`.
     pub layer: Option<i64>,
-    /// Rang imposé dans la couche ; n'a de sens qu'avec `layer`.
+    /// Imposed order in the layer; only meaningful with `layer`.
     pub order: Option<i64>,
-    /// Espace à réserver entre le bord d'un conteneur et ses enfants.
+    /// Space to keep between the border of a container and its children.
     pub padding: Option<i64>,
-    /// Vrai si, sur chaque côté, les ports se succèdent dans l'ordre de la liste.
+    /// True if, on each side, the ports follow the order of the list.
     pub ports_ordered: bool,
+    /// The ports of the node, in list order.
     pub ports: Vec<Port>,
+    /// The nodes contained in this one; non-empty for a container.
     pub children: Vec<Node>,
+    /// Position in the source, [`Pos::NONE`] for a node built in memory.
     pub pos: Pos,
 }
 
-/// Un point d'attache nommé sur le bord d'un nœud.
+/// A named attachment point on the border of a node.
 #[derive(Clone, Debug)]
 pub struct Port {
+    /// Identifier, unique in the whole graph.
     pub id: String,
-    /// Côté imposé.
+    /// Imposed side.
     pub side: Option<Side>,
-    /// Point d'ancrage imposé, relatif au coin supérieur gauche du nœud ;
-    /// exige un côté, et se trouve sur le bord de ce côté.
+    /// Imposed anchor point, relative to the top-left corner of the node;
+    /// requires a side, and lies on the border of that side.
     pub position: Option<Point>,
-    /// Boîte du port, centrée sur son point d'ancrage. Sans elle le port
-    /// est un point.
+    /// Box of the port, centred on its anchor point. Without it the port
+    /// is a point.
     pub size: Option<Size>,
+    /// Position in the source, [`Pos::NONE`] for a port built in memory.
     pub pos: Pos,
 }
 
+/// A directed edge between two nodes, optionally through ports.
 #[derive(Clone, Debug)]
 pub struct Edge {
+    /// Identifier, unique among the edges.
     pub id: String,
+    /// Id of the node the edge starts from.
     pub source: String,
+    /// Id of the node the edge ends at.
     pub target: String,
-    /// Port du nœud de départ, exclusif de `source_side`.
+    /// Port of the source node, exclusive with `source_side`.
     pub source_port: Option<String>,
+    /// Port of the target node, exclusive with `target_side`.
     pub target_port: Option<String>,
-    /// Côté imposé du nœud de départ, pour un lien sans port.
+    /// Imposed side of the source node, for an edge without a port.
     pub source_side: Option<Side>,
-    /// Côté imposé du nœud d'arrivée, pour un lien sans port.
+    /// Imposed side of the target node, for an edge without a port.
     pub target_side: Option<Side>,
+    /// The labels of the edge.
     pub labels: Vec<Label>,
+    /// Position in the source, [`Pos::NONE`] for an edge built in memory.
     pub pos: Pos,
 }
 
+/// The box of a label on an edge, in hundredths of a pixel.
 #[derive(Clone, Debug)]
 pub struct Label {
+    /// Width of the box.
     pub width: i64,
+    /// Height of the box.
     pub height: i64,
+    /// Place on the edge the label refers to.
     pub at: Anchor,
 }
 
 impl Node {
-    /// Vrai si le nœud contient d'autres nœuds.
+    /// True if the node contains other nodes.
     pub fn is_container(&self) -> bool {
         !self.children.is_empty()
     }
 
-    /// Le port qui porte cet identifiant.
+    /// The port that bears this id.
     pub fn port(&self, id: &str) -> Option<&Port> {
         self.ports.iter().find(|port| port.id == id)
     }
 }
 
 impl Graph {
-    /// Lit un graphe et le valide. Rend le graphe, ou tous les refus relevés.
+    /// Reads a graph and validates it. Returns the graph, or all the refusals
+    /// found.
     ///
-    /// Un défaut de syntaxe JSON arrête la lecture au premier ; les défauts
-    /// de structure sont tous rendus ; les défauts de sens ne sont cherchés
-    /// que dans un graphe à la structure juste.
+    /// A JSON syntax error stops the reading at the first one; structure errors
+    /// are all returned; meaning errors are only looked for in a graph with a
+    /// sound structure.
     pub fn parse(bytes: &[u8]) -> Result<Graph, Vec<Diagnostic>> {
         let root = json::parse(bytes).map_err(|d| vec![d])?;
         let mut diags = Vec::new();
@@ -242,7 +286,7 @@ impl Graph {
         Err(diags)
     }
 
-    /// Tous les nœuds, profondeur d'abord, chacun avec son parent.
+    /// All the nodes, depth first, each with its parent.
     pub fn all_nodes(&self) -> Vec<(&Node, Option<&Node>)> {
         fn walk<'a>(
             nodes: &'a [Node],
@@ -259,7 +303,7 @@ impl Graph {
         out
     }
 
-    /// Le nœud qui porte cet identifiant, à quelque profondeur qu'il soit.
+    /// The node that bears this id, at whatever depth it is.
     pub fn node(&self, id: &str) -> Option<&Node> {
         self.all_nodes()
             .into_iter()
@@ -267,15 +311,15 @@ impl Graph {
             .find(|node| node.id == id)
     }
 
-    /// Le nœud qui porte ce port, avec le port.
+    /// The node that owns this port, with the port.
     pub fn port(&self, id: &str) -> Option<(&Node, &Port)> {
         self.all_nodes()
             .into_iter()
             .find_map(|(node, _)| node.port(id).map(|port| (node, port)))
     }
 
-    /// Valide un graphe, qu'il vienne d'un texte ou qu'il ait été construit
-    /// en mémoire. Une liste vide signifie que le graphe est valide.
+    /// Validates a graph, whether it comes from a text or was built in
+    /// memory. An empty list means the graph is valid.
     pub fn validate(&self) -> Vec<Diagnostic> {
         let mut diags = Vec::new();
         read::check_ident(&self.name, field("name", "in.graph"), self.pos, &mut diags);
@@ -480,11 +524,10 @@ impl Graph {
         diags
     }
 
-    /// Écrit le graphe sous sa forme canonique : les clés dans un ordre fixe,
-    /// un nœud et un lien par ligne, les enfants d'un conteneur sur les
-    /// lignes suivantes avec un retrait de plus, les clés facultatives omises
-    /// quand elles n'ont pas de valeur. Deux graphes égaux donnent les mêmes
-    /// octets.
+    /// Writes the graph in canonical form: keys in a fixed order, one node and
+    /// one edge per line, the children of a container on the following lines
+    /// with one more level of indentation, optional keys omitted when they have
+    /// no value. Two equal graphs give the same bytes.
     pub fn to_json(&self) -> String {
         let mut out = String::from("{\n");
         out.push_str(&format!("  \"format\": {},\n", json::quote(GRAPH_FORMAT)));
@@ -505,8 +548,8 @@ impl Graph {
     }
 }
 
-/// Un nœud en forme canonique, `depth` étant son niveau de retrait (2 au
-/// premier niveau). Ses enfants suivent sur leurs propres lignes.
+/// A node in canonical form, `depth` being its indentation level (2 at the
+/// top level). Its children follow on their own lines.
 fn node_text(node: &Node, depth: usize) -> String {
     let mut line = format!("{{\"id\": {}", json::quote(&node.id));
     if let Some(size) = node.size {
@@ -641,8 +684,8 @@ fn read_graph(root: &Value, diags: &mut Vec<Diagnostic>) -> Option<Graph> {
     })
 }
 
-/// Lit `width` et `height`, facultatives ensemble : l'une sans l'autre est
-/// un refus.
+/// Reads `width` and `height`, optional together: one without the other is
+/// a refusal.
 fn read_size(
     obj: &mut Obj<'_>,
     within: &'static str,
@@ -828,7 +871,7 @@ fn read_label(value: &Value, diags: &mut Vec<Diagnostic>) -> Option<Label> {
     })
 }
 
-/// Le message d'un doublon, avec la ligne du premier quand elle est connue.
+/// The message for a duplicate, with the line of the first one when known.
 pub(crate) fn again(plain: &'static str, with_line: &'static str, first: Pos) -> Message {
     if first.is_none() {
         Message::new(plain)

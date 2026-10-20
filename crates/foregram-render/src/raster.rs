@@ -1,26 +1,27 @@
-// ForegramPM — rastérisation d'une scène en niveaux de gris, puis PNG.
+// ForegramPM — rasterisation of a scene to greyscale, then PNG.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Tout est polygone : un rectangle plein, l'anneau d'un bord, le quadrilatère
-//! de chaque segment d'un trait, les octogones de ses jonctions, les tirets
-//! d'une étiquette, le triangle d'une flèche. Un polygone se remplit par la
-//! règle du nombre d'enroulements non nul, avec anticrénelage : chaque ligne
-//! de pixels est balayée en [`SUB`] sous-lignes, et sur chacune la couverture
-//! horizontale est exacte, au [`UNIT`]ième de pixel. Entiers seuls, arrondis
-//! fixés : la même scène donne les mêmes pixels partout.
+//! Everything is a polygon: a filled rectangle, the ring of a border, the
+//! quadrilateral of each segment of a stroke, the octagons of its joints, the
+//! dashes of a label, the triangle of an arrowhead. A polygon is filled by the
+//! non-zero winding rule, with anti-aliasing: each pixel row is swept in
+//! [`SUB`] sub-scanlines, and on each one the horizontal coverage is exact, to
+//! the [`UNIT`]th of a pixel. Integers only, fixed rounding: the same scene
+//! gives the same pixels everywhere.
 
 use foregram_graph::{Diagnostic, Message, Point, Pos, Rect, polyline};
 
 use crate::scene::{Class, Scene, Shape, Style, div_round, isqrt};
 use crate::{PIXELS_MAX, SCALE_MAX};
 
-/// Sous-lignes par ligne de pixels.
+/// Sub-scanlines per pixel row.
 const SUB: i64 = 16;
-/// Unités par pixel dans les coordonnées de l'image.
+/// Units per pixel in image coordinates.
 const UNIT: i64 = 256;
 
-/// Rastérise la scène et l'encode en PNG à `scale` pixels par pixel du dessin.
+/// Rasterises the scene and encodes it as PNG, at `scale` image pixels per
+/// drawing pixel.
 pub(crate) fn render(scene: &Scene, style: &Style, scale: i64) -> Result<Vec<u8>, Diagnostic> {
     if !(1..=SCALE_MAX).contains(&scale) {
         return Err(Diagnostic::new(
@@ -57,22 +58,22 @@ pub(crate) fn render(scene: &Scene, style: &Style, scale: i64) -> Result<Vec<u8>
     encode(width, height, &canvas.pixels)
 }
 
-/// Des centièmes de pixel en pixels de l'image, arrondis au plus près.
+/// Hundredths of a pixel to image pixels, rounded to the nearest.
 fn pixels(hundredths: i64, scale: i64) -> i64 {
     div_round(i128::from(hundredths) * i128::from(scale), 100)
 }
 
-/// L'image en construction : des gris, une ligne après l'autre.
+/// The image under construction: greys, one row after another.
 struct Canvas {
     width: i64,
     height: i64,
     scale: i64,
-    /// Le coin supérieur gauche de la fenêtre, en centièmes.
+    /// The top-left corner of the window, in hundredths.
     origin: Point,
     pixels: Vec<u8>,
 }
 
-/// Un côté de polygone orienté vers le bas, avec le sens d'origine.
+/// A polygon side oriented downwards, with its original direction.
 struct Side {
     x0: i64,
     y0: i64,
@@ -82,7 +83,7 @@ struct Side {
 }
 
 impl Canvas {
-    /// Un point du dessin en coordonnées de l'image, au [`UNIT`]ième de pixel.
+    /// A drawing point in image coordinates, to the [`UNIT`]th of a pixel.
     fn device(&self, p: Point) -> (i64, i64) {
         let to = |v: i64, o: i64| {
             div_round(
@@ -95,7 +96,7 @@ impl Canvas {
 
     fn paint(&mut self, class: Class, shape: &Shape, style: &Style) {
         match (class, shape) {
-            // La feuille est déjà le fond de l'image.
+            // The sheet is already the image background.
             (Class::Sheet, _) => {}
             (Class::Leaf, Shape::Rect(rect)) => {
                 self.fill(&[corners(*rect)], style.leaf_fill);
@@ -107,8 +108,8 @@ impl Canvas {
             (Class::Label, Shape::Rect(rect)) => {
                 self.fill(&dashes(*rect, style), style.ink);
             }
-            // Un carré creux : le fond de la feuille, puis un bord fin, pour
-            // que le port se détache du bord du nœud et du bout du lien.
+            // A hollow square: the sheet background, then a thin border, so
+            // that the port stands out from the node border and the link end.
             (Class::Port, Shape::Rect(rect)) => {
                 self.fill(&[corners(*rect)], style.sheet);
                 self.fill(&ring(*rect, style.thin), style.ink);
@@ -119,14 +120,14 @@ impl Canvas {
             (Class::Arrow, Shape::Polygon(points)) => {
                 self.fill(std::slice::from_ref(points), style.ink)
             }
-            // Une classe sur une forme qu'elle ne prend pas : rien à dessiner.
+            // A class on a shape it does not take: nothing to draw.
             _ => {}
         }
     }
 
-    /// Remplit l'union des contours, par le nombre d'enroulements non nul.
-    /// Chaque contour est d'abord orienté dans le même sens, sauf un trou,
-    /// déjà orienté à l'inverse par celui qui l'a construit.
+    /// Fills the union of the contours, by the non-zero winding number. Each
+    /// contour is first oriented the same way, except a hole, already
+    /// oriented the opposite way by whoever built it.
     fn fill(&mut self, contours: &[Vec<Point>], gray: u8) {
         let mut sides: Vec<Side> = Vec::new();
         for contour in contours {
@@ -227,8 +228,8 @@ impl Canvas {
     }
 }
 
-/// Ajoute la couverture de l'intervalle `[xa, xb)` d'une sous-ligne, en
-/// [`UNIT`]ièmes de pixel, à la ligne ; vrai si quelque chose a été ajouté.
+/// Adds the coverage of the interval `[xa, xb)` of a sub-scanline, in
+/// [`UNIT`]ths of a pixel, to the row; true if anything was added.
 fn span(cover: &mut [i64], xa: i64, xb: i64, width: i64) -> bool {
     let xa = xa.max(0);
     let xb = xb.min(width * UNIT);
@@ -249,8 +250,8 @@ fn span(cover: &mut [i64], xa: i64, xb: i64, width: i64) -> bool {
     true
 }
 
-/// Les quatre coins d'un rectangle, dans le sens des aiguilles d'une montre
-/// à l'écran (l'axe des y pointant vers le bas).
+/// The four corners of a rectangle, clockwise on screen (the y axis pointing
+/// down).
 fn corners(rect: Rect) -> Vec<Point> {
     let (r, b) = (rect.x + rect.width, rect.y + rect.height);
     vec![
@@ -264,8 +265,8 @@ fn corners(rect: Rect) -> Vec<Point> {
     ]
 }
 
-/// Le bord d'un rectangle, d'épaisseur `width` centrée sur le contour : le
-/// rectangle élargi, troué du rectangle rétréci quand il en reste un.
+/// The border of a rectangle, of thickness `width` centred on the contour: the
+/// enlarged rectangle, with the shrunk rectangle cut out when one remains.
 fn ring(rect: Rect, width: i64) -> Vec<Vec<Point>> {
     let h = width / 2;
     let outer = corners(Rect {
@@ -288,8 +289,8 @@ fn ring(rect: Rect, width: i64) -> Vec<Vec<Point>> {
     vec![outer, hole]
 }
 
-/// Un trait le long d'une polyligne : un quadrilatère par segment, un
-/// octogone à chaque sommet intérieur pour fermer les jonctions.
+/// A stroke along a polyline: one quadrilateral per segment, one octagon at
+/// each interior vertex to close the joints.
 fn stroke(points: &[Point], width: i64) -> Vec<Vec<Point>> {
     let mut out = Vec::new();
     for pair in points.windows(2) {
@@ -303,8 +304,8 @@ fn stroke(points: &[Point], width: i64) -> Vec<Vec<Point>> {
     out
 }
 
-/// Le quadrilatère d'un segment épais, orienté comme [`corners`] ; aucun
-/// pour un segment nul.
+/// The quadrilateral of a thick segment, oriented like [`corners`]; none for
+/// a zero-length segment.
 fn quad(a: Point, b: Point, width: i64) -> Option<Vec<Point>> {
     let (dx, dy) = (b.x - a.x, b.y - a.y);
     let len = isqrt(i128::from(dx) * i128::from(dx) + i128::from(dy) * i128::from(dy));
@@ -334,9 +335,9 @@ fn quad(a: Point, b: Point, width: i64) -> Option<Vec<Point>> {
     ]))
 }
 
-/// Un octogone de rayon `r` autour d'un point, orienté comme [`corners`].
+/// An octagon of radius `r` around a point, oriented like [`corners`].
 fn octagon(c: Point, r: i64) -> Vec<Point> {
-    // r · cos 45°, arrondi.
+    // r · cos 45°, rounded.
     let d = div_round(i128::from(r) * 7071, 10000);
     [
         (r, 0),
@@ -356,8 +357,8 @@ fn octagon(c: Point, r: i64) -> Vec<Point> {
     .collect()
 }
 
-/// Les tirets du contour d'une étiquette, en suivant le périmètre depuis le
-/// coin supérieur gauche, tiret et espace du style.
+/// The dashes of a label's contour, following the perimeter from the top-left
+/// corner, with the style's dash and gap lengths.
 fn dashes(rect: Rect, style: &Style) -> Vec<Vec<Point>> {
     let c = corners(rect);
     let sides = [(c[0], c[1]), (c[1], c[2]), (c[2], c[3]), (c[3], c[0])];
@@ -395,7 +396,7 @@ fn dashes(rect: Rect, style: &Style) -> Vec<Vec<Point>> {
     out
 }
 
-/// Le polygone orienté comme [`corners`] : aire signée positive à l'écran.
+/// The polygon oriented like [`corners`]: positive signed area on screen.
 fn oriented(mut points: Vec<Point>) -> Vec<Point> {
     let mut area: i128 = 0;
     for (i, p) in points.iter().enumerate() {
@@ -408,7 +409,7 @@ fn oriented(mut points: Vec<Point>) -> Vec<Point> {
     points
 }
 
-/// Encode l'image en PNG, gris 8 bits.
+/// Encodes the image as PNG, 8-bit grey.
 fn encode(width: i64, height: i64, pixels: &[u8]) -> Result<Vec<u8>, Diagnostic> {
     let fail = |error: png::EncodingError| {
         Diagnostic::new(Pos::NONE, Message::new("V003").text("error", error))
@@ -466,10 +467,11 @@ mod tests {
     #[test]
     fn a_half_pixel_edge_is_half_covered() {
         let mut c = canvas(3, 1);
-        // De 0,5 à 2,5 : le pixel du milieu plein, les deux autres à moitié.
+        // From 0.5 to 2.5: the middle pixel full, the other two half covered.
         c.fill(&[corners(rect(50, 0, 200, 100))], 0);
         assert_eq!(c.pixels, [127, 0, 127]);
-        // Un quart en hauteur : couverture au quart, sur les seize sous-lignes.
+        // A quarter of the height: quarter coverage, over the sixteen
+        // sub-scanlines.
         let mut c = canvas(1, 1);
         c.fill(&[corners(rect(0, 0, 100, 25))], 0);
         assert_eq!(c.pixels, [191]);
@@ -496,8 +498,8 @@ mod tests {
         assert_eq!(c.pixels[3], c.pixels[12]);
         assert!(c.pixels[3] > 0 && c.pixels[3] < 255);
 
-        // Un bord de 2 px centré sur le contour : il couvre les pixels 1 à 5,
-        // le trou est le pixel 3.
+        // A 2 px border centred on the contour: it covers pixels 1 to 5, the
+        // hole is pixel 3.
         let mut c = canvas(7, 7);
         c.fill(&ring(rect(200, 200, 300, 300), 200), 0);
         assert_eq!(c.pixels[3 * 7 + 3], 255, "le centre est un trou");
@@ -514,8 +516,8 @@ mod tests {
 
     #[test]
     fn overlapping_quads_do_not_cancel() {
-        // Deux segments opposés : les quadrilatères se recouvrent, tous deux
-        // orientés dans le même sens, l'enroulement reste non nul.
+        // Two opposite segments: the quadrilaterals overlap, both oriented the
+        // same way, so the winding stays non-zero.
         let mut c = canvas(4, 1);
         let a = Point { x: 0, y: 50 };
         let b = Point { x: 400, y: 50 };
@@ -531,7 +533,7 @@ mod tests {
             thin: 100,
             ..Style::default()
         };
-        // Périmètre de 800 : quatre tirets.
+        // Perimeter of 800: four dashes.
         assert_eq!(dashes(rect(0, 0, 200, 200), &style).len(), 4);
     }
 

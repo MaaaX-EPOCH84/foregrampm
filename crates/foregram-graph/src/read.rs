@@ -1,4 +1,4 @@
-// ForegramPM — outils communs à la lecture et à la validation des deux formats.
+// ForegramPM — common tools for reading and validating the two formats.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -6,39 +6,39 @@ use crate::diag::{Diagnostic, Pos};
 use crate::json::{Kind, Member, Value};
 use crate::msg::Message;
 
-/// Version du format écrite par cette version de la bibliothèque. Les
-/// versions lues vont de 1 à celle-ci : tout ce que la 2 ajoute est facultatif.
+/// Format version written by this version of the library. The versions
+/// read run from 1 to this one: everything 2 adds is optional.
 pub const FORMAT_VERSION: i64 = 2;
 
-/// Borne des coordonnées et des dimensions, en centièmes de pixel.
-/// Elle laisse les produits de deux écarts tenir dans un `i64`.
+/// Bound on coordinates and dimensions, in hundredths of a pixel.
+/// It lets the products of two differences fit in an `i64`.
 pub const COORD_MAX: i64 = 1_000_000_000;
 
-/// Borne des numéros de couche et de rang.
+/// Bound on layer and rank numbers.
 pub const LAYER_MAX: i64 = 1_000_000;
 
-/// Longueur maximale d'un identifiant, en points de code.
+/// Maximum length of an identifier, in code points.
 pub const IDENT_MAX_CHARS: usize = 255;
 
-/// Désigne une clé lue dans un objet du format : « `width` (node) ».
+/// Names a key read in a format object, e.g. `width` (node).
 pub(crate) fn field(key: &'static str, within: &'static str) -> Message {
     Message::new("field.of")
         .text("key", key)
         .msg("in", Message::new(within))
 }
 
-/// Désigne une clé d'un élément déjà identifié : « node "A": `width` ».
+/// Names a key of an already identified element, e.g. node "A": `width`.
 pub(crate) fn field_at(subject: Message, key: &'static str) -> Message {
     Message::new("field.at")
         .msg("subject", subject)
         .text("key", key)
 }
 
-/// Un objet JSON en cours de lecture, qui retient les clés consultées
-/// pour refuser les autres à la fermeture.
+/// A JSON object being read, which remembers the keys looked up so as to
+/// refuse the others when it is closed.
 pub(crate) struct Obj<'a> {
     pub pos: Pos,
-    /// Clé du fragment qui nomme l'objet : `in.node`.
+    /// Key of the fragment that names the object: `in.node`.
     within: &'static str,
     members: &'a [Member],
     seen: Vec<bool>,
@@ -65,7 +65,7 @@ impl<'a> Obj<'a> {
         }
     }
 
-    /// Valeur d'une clé facultative.
+    /// Value of an optional key.
     pub fn opt(&mut self, key: &str) -> Option<&'a Value> {
         let index = self.members.iter().position(|m| m.key == key)?;
         if let Some(seen) = self.seen.get_mut(index) {
@@ -74,7 +74,7 @@ impl<'a> Obj<'a> {
         self.members.get(index).map(|m| &m.value)
     }
 
-    /// Valeur d'une clé obligatoire ; son absence est un refus.
+    /// Value of a required key; its absence is a refusal.
     pub fn req(&mut self, key: &str, diags: &mut Vec<Diagnostic>) -> Option<&'a Value> {
         let value = self.opt(key);
         if value.is_none() {
@@ -88,7 +88,7 @@ impl<'a> Obj<'a> {
         value
     }
 
-    /// Refuse toute clé que la lecture n'a pas consultée.
+    /// Refuses every key that the reading did not look up.
     pub fn close(self, diags: &mut Vec<Diagnostic>) {
         for (member, seen) in self.members.iter().zip(&self.seen) {
             if !seen {
@@ -103,7 +103,7 @@ impl<'a> Obj<'a> {
     }
 }
 
-/// `expected` est la clé d'un fragment de type : `type.integer`.
+/// `expected` is the key of a type fragment: `type.integer`.
 pub(crate) fn type_error(value: &Value, label: Message, expected: &'static str) -> Diagnostic {
     Diagnostic::new(
         value.pos,
@@ -162,7 +162,7 @@ pub(crate) fn array_of<'a>(
     }
 }
 
-/// Lit une valeur prise dans une liste fermée de mots.
+/// Reads a value taken from a closed list of words.
 pub(crate) fn choice_of<T: Copy>(
     value: &Value,
     label: Message,
@@ -184,7 +184,7 @@ pub(crate) fn choice_of<T: Copy>(
     None
 }
 
-/// Vérifie les deux clés d'en-tête communes aux formats : `format` et `version`.
+/// Checks the two header keys common to the formats: `format` and `version`.
 pub(crate) fn header(obj: &mut Obj<'_>, format: &str, diags: &mut Vec<Diagnostic>) {
     let root = |key| Message::new("field.root").text("key", key);
     if let Some(value) = obj.req("format", diags)
@@ -211,8 +211,8 @@ pub(crate) fn header(obj: &mut Obj<'_>, format: &str, diags: &mut Vec<Diagnostic
     }
 }
 
-/// Un identifiant est une chaîne non vide, sans caractère de contrôle,
-/// de 255 points de code au plus.
+/// An identifier is a non-empty string, with no control character,
+/// of at most 255 code points.
 pub(crate) fn check_ident(text: &str, label: Message, pos: Pos, diags: &mut Vec<Diagnostic>) {
     let length = text.chars().count();
     let message = if text.is_empty() {
@@ -249,8 +249,8 @@ pub(crate) fn check_range(
     }
 }
 
-/// Désigne un élément dans un message : par son identifiant s'il en a un
-/// de lisible, par son rang sinon. `kind` vaut `node`, `edge` ou `port`.
+/// Names an element in a message: by its identifier if it has a readable
+/// one, by its rank otherwise. `kind` is `node`, `edge` or `port`.
 pub(crate) fn item_name(kind: &str, id: &str, index: usize) -> Message {
     let readable = !(id.is_empty() || id.chars().any(char::is_control));
     match (kind, readable) {
