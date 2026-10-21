@@ -1,4 +1,4 @@
-// ForegramPM — banc de mesure du placement : ligne de commande.
+// ForegramPM — placement bench: command line.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -17,11 +17,11 @@ use std::process::ExitCode;
 
 use foregram_graph::{Catalog, Diagnostic, Graph, Message, file_report};
 
-/// Tout est valide.
+/// Everything is valid.
 const VALID: u8 = 0;
-/// Un fichier au moins est refusé.
+/// At least one file is refused.
 const REFUSED: u8 = 1;
-/// L'appel est incorrect, ou un fichier n'a pas pu être lu.
+/// The call is incorrect, or a file could not be read.
 const UNUSABLE: u8 = 2;
 
 fn main() -> ExitCode {
@@ -66,9 +66,9 @@ fn engine_kind(word: &OsString) -> Option<engine::Kind> {
     word.to_str().and_then(engine::Kind::parse)
 }
 
-/// Place un graphe avec un moteur de référence et écrit le placement, sous sa
-/// forme canonique, sur la sortie standard — même refusé : les refus vont sur
-/// la sortie d'erreur, et se lisent mieux avec le fichier sous les yeux.
+/// Places a graph with a reference engine and writes the layout, in its
+/// canonical form, on standard output — even if refused: refusals go to
+/// standard error, and read better with the file in front of you.
 fn layout_one(kind: engine::Kind, cache: &Path, graph_path: &Path) -> u8 {
     let mut status = VALID;
     let Some(bytes) = load(graph_path, &mut status) else {
@@ -113,7 +113,7 @@ fn fitted(path: &Path, fit: engine::fit::Stats) -> Message {
         .text("max", fit.max)
 }
 
-/// Lit un graphe quel que soit son format, d'après l'extension du fichier.
+/// Reads a graph whatever its format, from the file extension.
 fn import_any(path: &Path, bytes: &[u8]) -> Result<Graph, Vec<Diagnostic>> {
     let name = graph_name(path);
     match path.extension().and_then(|e| e.to_str()) {
@@ -124,8 +124,8 @@ fn import_any(path: &Path, bytes: &[u8]) -> Result<Graph, Vec<Diagnostic>> {
     }
 }
 
-/// Les corpus que les moteurs de référence placent : répertoire sous le cache
-/// (ou à côté, pour le corpus maison) et extension des fichiers.
+/// The corpora the reference engines place: directory under the cache
+/// (or beside it, for the in-house corpus) and file extension.
 const LAYOUT_CORPORA: [(&str, &str); 4] = [
     ("rome", "graphml"),
     ("north", "graphml"),
@@ -133,9 +133,9 @@ const LAYOUT_CORPORA: [(&str, &str); 4] = [
     ("../mcd", "mcd"),
 ];
 
-/// Place chaque graphe des corpus avec un moteur de référence. Les placements
-/// vont dans `<out>/<moteur>/<corpus>/…layout.json`, refusés compris ; chaque
-/// échec est listé dans `<out>/<moteur>/failures.txt`, et compté.
+/// Places every graph of the corpora with a reference engine. Layouts
+/// go to `<out>/<engine>/<corpus>/…layout.json`, refused ones included; each
+/// failure is listed in `<out>/<engine>/failures.txt`, and counted.
 fn layout_corpus(kind: engine::Kind, cache: &Path, out: &Path) -> u8 {
     let mut status = VALID;
     let mut runner = match engine::Tools::locate(kind, cache).and_then(engine::Runner::start) {
@@ -224,10 +224,10 @@ fn layout_corpus(kind: engine::Kind, cache: &Path, out: &Path) -> u8 {
     status
 }
 
-/// Place tous les corpus avec chaque moteur sous `<out>/layouts/`, puis
-/// écrit la planche et le rapport d'après ces placements : une commande pour
-/// tout régénérer. Les échecs des moteurs sont des données de la planche ;
-/// seul un moteur introuvable ou une écriture impossible l'arrêtent.
+/// Places all the corpora with each engine under `<out>/layouts/`, then
+/// writes the board and the report from those layouts: one command to
+/// regenerate everything. Engine failures are board data;
+/// only a missing engine or an impossible write stops it.
 fn board_all(cache: &Path, out: &Path) -> u8 {
     let layouts = out.join("layouts");
     for kind in board::ENGINES {
@@ -252,8 +252,8 @@ fn write_file(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     std::fs::write(path, bytes)
 }
 
-/// Convertit un fichier GraphML et écrit le graphe obtenu, sous sa forme
-/// canonique, sur la sortie standard.
+/// Converts a GraphML file and writes the resulting graph, in its
+/// canonical form, on standard output.
 fn import_graphml(path: &Path) -> u8 {
     let mut status = VALID;
     let Some(bytes) = load(path, &mut status) else {
@@ -266,9 +266,9 @@ fn import_graphml(path: &Path) -> u8 {
     status
 }
 
-/// Convertit un fichier `.elkt` et écrit le graphe obtenu, sous sa forme
-/// canonique, sur la sortie standard. Ce qui n'est pas passé est dit sur la
-/// sortie d'erreur.
+/// Converts an `.elkt` file and writes the resulting graph, in its
+/// canonical form, on standard output. What was not carried over is stated on
+/// standard error.
 fn import_elkt(path: &Path) -> u8 {
     let mut status = VALID;
     let Some(bytes) = load(path, &mut status) else {
@@ -286,8 +286,8 @@ fn import_elkt(path: &Path) -> u8 {
     status
 }
 
-/// Convertit un MCD et écrit le graphe obtenu, sous sa forme canonique, sur
-/// la sortie standard.
+/// Converts an MCD and writes the resulting graph, in its canonical form, on
+/// standard output.
 fn import_mcd(path: &Path) -> u8 {
     let mut status = VALID;
     let Some(bytes) = load(path, &mut status) else {
@@ -311,19 +311,19 @@ fn notes(path: &Path, notes: elk::Notes) -> Message {
         )
 }
 
-/// Le nom du graphe importé : celui du fichier, sans son extension.
+/// The name of the imported graph: the file's, without its extension.
 fn graph_name(path: &Path) -> String {
     path.file_stem()
         .map(|stem| stem.to_string_lossy().into_owned())
         .unwrap_or_default()
 }
 
-/// Les corpus GraphML, sous-répertoires du cache de `corpus/fetch.sh`.
+/// The GraphML corpora, subdirectories of the `corpus/fetch.sh` cache.
 const GRAPHML_CORPORA: [&str; 2] = ["rome", "north"];
 
-/// Convertit chaque graphe de Rome et North, et confronte ses nombres de
-/// nœuds et de liens à ceux que le `Graph.log` de l'archive annonce : une
-/// source indépendante du lecteur, qui voit ce qu'un import aurait perdu.
+/// Converts every Rome and North graph, and checks its node and link
+/// counts against those the archive's `Graph.log` announces: a source
+/// independent of the reader, which sees what an import would have lost.
 fn check_corpus(cache: &Path) -> u8 {
     let mut status = VALID;
     for corpus in GRAPHML_CORPORA {
@@ -404,13 +404,13 @@ fn check_corpus(cache: &Path) -> u8 {
     status.max(check_elk_models(cache))
 }
 
-/// Le manifeste des corpus, voisin du cache : `corpus/manifest.txt`.
+/// The corpus manifest, next to the cache: `corpus/manifest.txt`.
 const MANIFEST: &str = concat!("manifest", ".txt");
 
-/// Convertit chaque `.elkt` d'elk-models. Pas de `Graph.log` ici : la
-/// source indépendante est le manifeste, voisin du cache, qui dit combien de
-/// fichiers il y a et combien doivent s'importer ; chaque graphe importé est
-/// validé.
+/// Converts every `.elkt` of elk-models. No `Graph.log` here: the
+/// independent source is the manifest, next to the cache, which says how many
+/// files there are and how many must import; each imported graph is
+/// validated.
 fn check_elk_models(cache: &Path) -> u8 {
     let mut status = VALID;
     let dir = cache.join("elk-models");
@@ -487,7 +487,7 @@ fn check_elk_models(cache: &Path) -> u8 {
     status
 }
 
-/// Dans la section `[elk-models]` du manifeste, `count` et `imported`.
+/// In the `[elk-models]` section of the manifest, `count` and `imported`.
 fn manifest_counts(bytes: &[u8]) -> (usize, usize) {
     let text = String::from_utf8_lossy(bytes);
     let section = text.split("[elk-models]").nth(1).unwrap_or("");
@@ -508,8 +508,8 @@ fn manifest_counts(bytes: &[u8]) -> (usize, usize) {
     (value("count"), value("imported"))
 }
 
-/// Les fichiers d'une extension sous un répertoire, sous-répertoires
-/// compris, triés par chemin.
+/// The files with an extension under a directory, subdirectories
+/// included, sorted by path.
 fn files_with(dir: &Path, extension: &str) -> std::io::Result<Vec<PathBuf>> {
     fn walk(dir: &Path, extension: &str, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
         for entry in std::fs::read_dir(dir)? {
@@ -528,9 +528,9 @@ fn files_with(dir: &Path, extension: &str) -> std::io::Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-/// Lit un `Graph.log` : par graphe, une ligne `name: … nodes: … edges: …`,
-/// entre d'autres lignes sans intérêt ici. Rend, par nom de graphe, les
-/// nombres annoncés de nœuds et de liens.
+/// Reads a `Graph.log`: per graph, a line `name: … nodes: … edges: …`,
+/// among other lines of no interest here. Returns, per graph name, the
+/// announced node and link counts.
 fn read_graph_log(
     path: &Path,
     bytes: &[u8],
@@ -585,14 +585,14 @@ fn refuse(path: &Path, diags: &[Diagnostic], status: &mut u8) {
     *status = (*status).max(REFUSED);
 }
 
-/// Compose une phrase en anglais : le banc ne parle que cette langue.
+/// Composes a sentence in English: the bench speaks only that language.
 fn say(message: Message) -> String {
     debug_assert_eq!(message.check(Catalog::english()), Ok(()));
     message.render(Catalog::english())
 }
 
-/// « 1 node », « 3 nodes ». La variante se choisit à l'affichage, par la
-/// règle de la langue du catalogue.
+/// “1 node”, “3 nodes”. The variant is chosen at display time, by the
+/// rule of the catalogue's language.
 fn count(number: usize, noun: &str) -> Message {
     let key = match noun {
         "node" => "count.node",

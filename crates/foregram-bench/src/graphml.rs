@@ -1,44 +1,44 @@
-// ForegramPM — banc de mesure du placement : import GraphML (Rome, North).
+// ForegramPM — placement bench: GraphML import (Rome, North).
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Lit le GraphML des corpus Rome et North et en fait un [`Graph`] au
-//! format d'échange, en mémoire.
+//! Reads the GraphML of the Rome and North corpora and turns it into a [`Graph`] in the
+//! exchange format, in memory.
 //!
-//! N'est accepté que ce que le format sait dire : un `graphml` qui contient
-//! un seul `graph`, des `node` et des `edge` sans contenu. Tout le reste
-//! (`data`, `port`, `hyperedge`, graphe imbriqué, attribut inconnu) est
-//! refusé plutôt qu'ignoré : un graphe amputé en silence fausserait le banc.
+//! Only what the format can express is accepted: a `graphml` containing
+//! a single `graph`, `node`s and `edge`s without content. Everything else
+//! (`data`, `port`, `hyperedge`, nested graph, unknown attribute) is
+//! refused rather than ignored: a silently truncated graph would skew the bench.
 //!
-//! Le GraphML ne donne pas de taille : chaque nœud reçoit [`NODE_SIZE`]. Un
-//! lien va de `source` à `target` tels qu'écrits, qu'il soit orienté ou non :
-//! les liens non orientés de Rome gardent ainsi l'ordre du fichier.
+//! GraphML gives no size: each node receives [`NODE_SIZE`]. A
+//! link goes from `source` to `target` as written, directed or not:
+//! Rome's undirected links thus keep the file order.
 //!
-//! Les refus de lecture portent la famille `X` ; ceux du graphe produit sont
-//! ceux du validateur, avec la position de l'élément dans le `.graphml`.
+//! Read refusals carry family `X`; those of the produced graph are
+//! the validator's, with the position of the element in the `.graphml`.
 
 use foregram_graph::{Diagnostic, Edge, Graph, Message, Node, Pos, Size};
 use roxmltree::{Document, ParsingOptions};
 
 use crate::lines::Lines;
 
-/// Taille commune à tous les nœuds importés : rapport exact de l'A4, 99/70,
-/// en paysage, soit 49,5 × 35 px, au plus près du nœud par défaut de
-/// Graphviz (54 × 36). Notée aussi dans `corpus/manifest.txt`.
+/// Size common to all imported nodes: the exact A4 ratio, 99/70,
+/// landscape, i.e. 49.5 × 35 px, as close as possible to Graphviz's default node
+/// (54 × 36). Also noted in `corpus/manifest.txt`.
 pub const NODE_SIZE: Size = Size {
     width: 4950,
     height: 3500,
 };
 
 const GRAPHML_NS: &str = "http://graphml.graphdrawing.org/xmlns";
-/// `xsi:schemaLocation` et ses voisins ne disent rien du graphe.
+/// `xsi:schemaLocation` and its neighbours say nothing about the graph.
 const XSI_NS: &str = "http://www.w3.org/2001/XMLSchema-instance";
 
-/// Lit un fichier GraphML. `name` devient le nom du graphe.
+/// Reads a GraphML file. `name` becomes the graph's name.
 ///
-/// Rend le graphe, ou tous les refus relevés. Un défaut de syntaxe XML
-/// arrête la lecture ; les défauts de structure sont tous rendus ; le graphe
-/// n'est validé que si sa structure est juste.
+/// Returns the graph, or all the refusals found. An XML syntax defect
+/// stops the read; structural defects are all returned; the graph
+/// is validated only if its structure is right.
 pub fn import(name: &str, bytes: &[u8], size: Size) -> Result<Graph, Vec<Diagnostic>> {
     let text = match std::str::from_utf8(bytes) {
         Ok(text) => text,
@@ -49,12 +49,12 @@ pub fn import(name: &str, bytes: &[u8], size: Size) -> Result<Graph, Vec<Diagnos
             return Err(vec![Diagnostic::new(pos, Message::new("X001"))]);
         }
     };
-    // roxmltree saute la marque d'ordre des octets mais compte ses positions
-    // depuis le début du texte : l'ôter ici garde des colonnes justes.
+    // roxmltree skips the byte order mark but counts its positions
+    // from the start of the text: removing it here keeps columns right.
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
     let options = ParsingOptions {
-        // Chaque fichier de Rome et North déclare une DTD extérieure ;
-        // roxmltree ne la va jamais chercher.
+        // Every Rome and North file declares an external DTD;
+        // roxmltree never goes to fetch it.
         allow_dtd: true,
         ..ParsingOptions::default()
     };
@@ -62,7 +62,7 @@ pub fn import(name: &str, bytes: &[u8], size: Size) -> Result<Graph, Vec<Diagnos
         Ok(doc) => doc,
         Err(error) => {
             let pos = match error {
-                // Ces erreurs-là n'ont pas de position : roxmltree rend 1:1.
+                // These errors have no position: roxmltree returns 1:1.
                 roxmltree::Error::NoRootNode
                 | roxmltree::Error::UnclosedRootNode
                 | roxmltree::Error::UnexpectedEndOfStream
@@ -94,7 +94,7 @@ pub fn import(name: &str, bytes: &[u8], size: Size) -> Result<Graph, Vec<Diagnos
             return Ok(graph);
         }
     }
-    // Même ordre que la bibliothèque : par position, puis par code.
+    // Same order as the library: by position, then by code.
     diags.sort_by(|a, b| (a.pos, a.code).cmp(&(b.pos, b.code)));
     Err(diags)
 }
@@ -194,8 +194,8 @@ impl Reader<'_> {
         })
     }
 
-    /// Les éléments enfants. Un texte autre que des blancs est refusé ;
-    /// commentaires et instructions de traitement sont sans effet.
+    /// The child elements. Text other than whitespace is refused;
+    /// comments and processing instructions have no effect.
     fn children<'a, 'input>(&mut self, parent: XmlNode<'a, 'input>) -> Vec<XmlNode<'a, 'input>> {
         let mut out = Vec::new();
         for child in parent.children() {
@@ -209,7 +209,7 @@ impl Reader<'_> {
         out
     }
 
-    /// Un `node` ou un `edge` n'a aucun contenu : ni `data`, ni `port`, ni graphe imbriqué.
+    /// A `node` or an `edge` has no content: no `data`, no `port`, no nested graph.
     fn empty(&mut self, element: XmlNode) {
         for child in self.children(element) {
             self.unsupported(child, element);
@@ -223,7 +223,7 @@ impl Reader<'_> {
         self.refuse(child.range().start, message);
     }
 
-    /// Refuse tout attribut hors de `known`, sauf ceux de l'espace `xsi`.
+    /// Refuses any attribute outside `known`, except those of the `xsi` namespace.
     fn attributes(&mut self, element: XmlNode, known: &[&str]) {
         for attribute in element.attributes() {
             let ours = attribute.namespace().is_none() && known.contains(&attribute.name());
@@ -266,7 +266,7 @@ impl Reader<'_> {
     }
 }
 
-/// Un élément de ce nom, sans espace de noms ou dans celui de GraphML.
+/// An element of this name, with no namespace or in GraphML's.
 fn is_graphml(node: XmlNode, name: &str) -> bool {
     let tag = node.tag_name();
     tag.name() == name && matches!(tag.namespace(), None | Some(GRAPHML_NS))
@@ -297,7 +297,7 @@ mod tests {
             .collect()
     }
 
-    /// Comme dans Rome : DTD extérieure, commentaire, liens non orientés.
+    /// As in Rome: external DTD, comment, undirected links.
     const ROME: &str = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n\
         <!-- This file was written by the internal XML-Handler of Y-Files.-->\n\
         <!DOCTYPE graphml SYSTEM \"http://www.graphdrawing.org/dtds/graphml.dtd\">\n\
@@ -351,7 +351,7 @@ mod tests {
             <edge id=\"e\" source=\"a\" target=\"a\" directed=\"false\"/></graph></graphml>";
         let graph = import("g", text.as_bytes(), SIZE).unwrap();
         assert_eq!(graph.edges[0].source, "a");
-        // Après la marque, la première colonne reste la première.
+        // After the mark, the first column stays the first.
         let bad = "\u{feff}<graph/>";
         assert_eq!(refusals(bad), [("X003", 1, 1)]);
     }
@@ -383,7 +383,7 @@ mod tests {
             texts("<graphml>\n <graph></graphml>"),
             ["2:9: error[X002]: malformed XML: expected 'graph' tag, not 'graphml' at 2:9"]
         );
-        // Sans position véritable, le refus n'en invente pas.
+        // Without a real position, the refusal does not invent one.
         let diags = import("g", b"", SIZE).unwrap_err();
         assert_eq!((diags[0].code, diags[0].pos), ("X002", Pos::NONE));
     }
@@ -518,7 +518,7 @@ mod tests {
                 "{corpus} : {line} absent"
             );
         }
-        // Le rapport exact de l'A4, 297/210 = 99/70, en paysage.
+        // The exact A4 ratio, 297/210 = 99/70, landscape.
         assert_eq!(NODE_SIZE.width * 70, NODE_SIZE.height * 99);
     }
 }

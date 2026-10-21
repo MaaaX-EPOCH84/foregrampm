@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# ForegramPM — ce qui tourne dans le conteneur du déterminisme : copie des
-# sources, cache remis au manifeste, compilation, planche, empreinte.
+# ForegramPM — what runs in the determinism container: copy of the
+# sources, cache put back to the manifest, build, board, fingerprint.
 # Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Attend /src (le dépôt, en lecture seule), /out (où écrire) et, s'il est
-# monté, /hostcache (un cache déjà téléchargé, copié pour épargner le réseau).
-# Écrit dans /out : env.txt, board.log, board/ et sums.txt.
+# Expects /src (the repository, read-only), /out (where to write) and, if
+# mounted, /hostcache (an already downloaded cache, copied to spare the network).
+# Writes to /out: env.txt, board.log, board/ and sums.txt.
 
 set -euo pipefail
 

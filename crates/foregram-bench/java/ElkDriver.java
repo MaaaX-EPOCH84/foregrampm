@@ -1,30 +1,30 @@
-// ForegramPM — banc de mesure : pilote d'ELK. Lit des graphes sur l'entrée
-// standard, les place avec ELK Layered, rend les coordonnées absolues.
+// ForegramPM — measurement bench: ELK driver. Reads graphs on standard input,
+// places them with ELK Layered, renders absolute coordinates.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Un seul processus place tous les graphes d'un passage : la machine virtuelle
-// ne démarre qu'une fois. Le dialogue est ligne à ligne, champs séparés par
-// une tabulation (interdite dans un identifiant), `-` pour une valeur absente,
-// longueurs en pixels. Le banc (`engine/elk.rs`) écrit :
+// A single process places all the graphs of a run: the virtual machine
+// starts only once. The dialogue is line by line, fields separated by
+// a tab (forbidden in an identifier), `-` for an absent value,
+// lengths in pixels. The bench (`engine/elk.rs`) writes:
 //
 //   graph  NAME DIRECTION
-//   node   ID PARENT WIDTH HEIGHT PADDING CONSTRAINTS   (parent avant enfant)
-//   port   ID NODE SIDE X Y WIDTH HEIGHT INDEX          (X, Y : point d'ancrage)
+//   node   ID PARENT WIDTH HEIGHT PADDING CONSTRAINTS   (parent before child)
+//   port   ID NODE SIDE X Y WIDTH HEIGHT INDEX          (X, Y: anchor point)
 //   edge   ID SOURCE TARGET SOURCE_PORT TARGET_PORT SOURCE_SIDE TARGET_SIDE
 //   label  EDGE WIDTH HEIGHT AT
 //   layout
 //
-// et reçoit, tout en absolu :
+// and receives, everything in absolute terms:
 //
 //   layout NAME
 //   node   ID X Y WIDTH HEIGHT
-//   port   NODE ID X Y WIDTH HEIGHT                     (coin de la boîte)
-//   edge   ID X Y [X Y...]                              (départ, coudes, arrivée)
+//   port   NODE ID X Y WIDTH HEIGHT                     (corner of the box)
+//   edge   ID X Y [X Y...]                              (start, bends, end)
 //   label  EDGE X Y
 //   end
 //
-// ou `fail NAME MESSAGE` puis `end` si ELK a échoué ou dépassé le délai.
+// or `fail NAME MESSAGE` then `end` if ELK failed or timed out.
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -63,7 +63,7 @@ import org.eclipse.elk.graph.ElkPort;
 import org.eclipse.elk.graph.util.ElkGraphUtil;
 
 public final class ElkDriver {
-    /// Délai accordé à un placement, en secondes ; au-delà le graphe échoue.
+    /// Time allowed for one layout, in seconds; beyond it the graph fails.
     private static final long TIMEOUT_SECONDS = 60;
 
     private ElkDriver() {
@@ -112,8 +112,8 @@ public final class ElkDriver {
         out.flush();
     }
 
-    /// Un fil de travail à part, pour pouvoir abandonner un placement trop long ;
-    /// démon, pour que la machine virtuelle s'arrête même s'il tourne encore.
+    /// A separate worker thread, so that a layout that runs too long can be abandoned;
+    /// daemon, so that the virtual machine exits even if it is still running.
     private static ExecutorService newWorker() {
         return Executors.newSingleThreadExecutor(r -> {
             Thread t = new Thread(r, "layout");
@@ -131,7 +131,7 @@ public final class ElkDriver {
         return text.replaceAll("[\\t\\r\\n]+", " ");
     }
 
-    /// Construit le graphe d'ELK à partir des lignes reçues, puis le place.
+    /// Builds ELK's graph from the lines received, then lays it out.
     private static final class Builder {
         final String name;
         final ElkNode root = ElkGraphUtil.createGraph();
@@ -188,11 +188,11 @@ public final class ElkDriver {
             nodes.put(f[1], node);
         }
 
-        /// Le format ancre un port sur le bord, boîte centrée sur l'ancre ; ELK
-        /// place un port par son coin et pose la boîte en dehors du bord, à
-        /// `borderOffset` : la moitié de la boîte vers l'intérieur la recentre.
-        /// Sans côté connu, c'est la moitié de la largeur ; une boîte qui n'est
-        /// pas carrée peut alors finir hors du bord, ce que le validateur relève.
+        /// The format anchors a port on the border, box centred on the anchor; ELK
+        /// places a port by its corner and puts the box outside the border, at
+        /// `borderOffset`: half the box towards the inside recentres it.
+        /// With no known side, it is half the width; a box that is not
+        /// square may then end up off the border, which the validator reports.
         private void port(String[] f) {
             ElkNode node = need(nodes, f[2], "node");
             ElkPort port = ElkGraphUtil.createPort(node);
@@ -215,8 +215,8 @@ public final class ElkDriver {
             ports.put(f[1], port);
         }
 
-        /// Un côté imposé sans port devient un port sans nom, fixé sur ce côté ;
-        /// il n'est pas rendu.
+        /// A forced side without a port becomes an unnamed port, fixed on that side;
+        /// it is not rendered.
         private void edge(String[] f) {
             ElkConnectableShape source = end(f[2], f[4], f[6]);
             ElkConnectableShape target = end(f[3], f[5], f[7]);
@@ -241,8 +241,8 @@ public final class ElkDriver {
             return port;
         }
 
-        /// ELK ignore une étiquette sans texte : le texte est factice, la taille
-        /// seule compte.
+        /// ELK ignores a label without text: the text is a dummy, only the size
+        /// matters.
         private void label(String[] f) {
             ElkEdge edge = need(edges, f[1], "edge");
             ElkLabel label = ElkGraphUtil.createLabel(edge);
@@ -271,8 +271,8 @@ public final class ElkDriver {
             if (broken != null) {
                 return "fail\t" + name + "\t" + broken + "\nend\n";
             }
-            // Sans cette option, ELK place chaque niveau à part et ne trace pas
-            // les liens qui traversent un conteneur.
+            // Without this option, ELK lays out each level separately and does not route
+            // links that cross a container.
             if (nested) {
                 root.setProperty(CoreOptions.HIERARCHY_HANDLING, HierarchyHandling.INCLUDE_CHILDREN);
             }

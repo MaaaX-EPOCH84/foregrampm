@@ -1,8 +1,8 @@
-// ForegramPM — tests du catalogue de messages : complet, sans entrée morte, sans clé mal écrite.
+// ForegramPM — tests of the message catalogue: complete, no dead entry, no misspelled key.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Un test qui échoue doit s'arrêter net : les règles du produit ne valent pas ici.
+// A failing test must stop dead: the product's rules do not apply here.
 #![allow(clippy::unwrap_used, clippy::panic)]
 
 mod common;
@@ -40,17 +40,17 @@ fn layout(nodes: &str, edges: &str) -> String {
 const AB: &str = "{\"id\": \"A\", \"width\": 100, \"height\": 100}, \
                   {\"id\": \"B\", \"width\": 100, \"height\": 100}";
 
-/// Les refus que tous les cas ci-dessous provoquent : de quoi atteindre
-/// chaque entrée du catalogue qui sert à un refus.
+/// The refusals that all the cases below provoke: enough to reach
+/// every catalogue entry that serves a refusal.
 fn every_refusal() -> Vec<Diagnostic> {
     let mut all = Vec::new();
 
-    // Les refus propres à la version 2 : ports, imbrication, courbes.
+    // The refusals specific to version 2: ports, nesting, curves.
     for (_, diags) in common::cases() {
         all.extend(diags);
     }
 
-    // Syntaxe JSON.
+    // JSON syntax.
     let deep = format!("{}{}", "[".repeat(65), "]".repeat(65));
     let json: [&[u8]; 28] = [
         b"[\n \xff]",
@@ -86,7 +86,7 @@ fn every_refusal() -> Vec<Diagnostic> {
         all.extend(graph_refusals(text));
     }
 
-    // Structure : chaque objet du format sans ses clés, chaque type de valeur reçu à tort.
+    // Structure: each object of the format without its keys, each value type received by mistake.
     let structure = [
         "{}".to_string(),
         graph("{}", "{}").replace("\"g\"", "null"),
@@ -114,7 +114,7 @@ fn every_refusal() -> Vec<Diagnostic> {
         all.extend(graph_refusals(text.as_bytes()));
     }
 
-    // Sens du graphe.
+    // Direction of the graph.
     let long = "x".repeat(256);
     let meaning = [graph(
         &format!(
@@ -135,7 +135,7 @@ fn every_refusal() -> Vec<Diagnostic> {
         all.extend(graph_refusals(text.as_bytes()));
     }
 
-    // Un graphe construit en mémoire n'a pas de position : les doublons n'ont pas de ligne.
+    // A graph built in memory has no position: duplicates have no line.
     let node = |id: &str| Node {
         id: id.into(),
         size: Some(Size {
@@ -179,7 +179,7 @@ fn every_refusal() -> Vec<Diagnostic> {
     };
     all.extend(memory.validate());
 
-    // Structure et sens du placement.
+    // Structure and direction of the layout.
     let layouts = [
         "[]".to_string(),
         "{}".to_string(),
@@ -249,7 +249,7 @@ fn every_refusal() -> Vec<Diagnostic> {
     };
     all.extend(memory_layout.validate());
 
-    // Confrontation au graphe.
+    // Comparison against the graph.
     let edges = "{\"id\": \"e\", \"source\": \"A\", \"target\": \"B\", \
                  \"labels\": [{\"width\": 1, \"height\": 1, \"at\": \"center\"}]}, \
                  {\"id\": \"s\", \"source\": \"A\", \"target\": \"B\", \
@@ -268,7 +268,7 @@ fn every_refusal() -> Vec<Diagnostic> {
     )
     .unwrap();
     all.extend(placed.check(&checked));
-    // Les deux extrémités d'un tracé sur le bord, mais du mauvais côté.
+    // Both ends of a route on the edge, but on the wrong side.
     let sided = Layout::parse(
         layout(
             "{\"id\": \"A\", \"x\": 0, \"y\": 0}, {\"id\": \"B\", \"x\": 300, \"y\": 0}",
@@ -298,7 +298,7 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
         reached.extend(entries(catalog, diag.message.keys()));
     }
 
-    // La présentation d'un refus, avec et sans position.
+    // How a refusal is presented, with and without a position.
     let positioned = Graph::parse(b"?").unwrap_err();
     assert_eq!(
         positioned[0].render(catalog),
@@ -310,7 +310,7 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
     assert!(bare.render(catalog).starts_with("error[J002]: "));
     reached.insert("diag.bare".into());
 
-    // Les refus d'un fichier tels qu'une ligne de commande les écrit.
+    // The refusals of a file as a command line writes them.
     let report = foregram_graph::file_report("g.json", &[positioned[0].clone(), bare], catalog);
     assert_eq!(
         report,
@@ -332,7 +332,7 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
         ],
     ));
 
-    // Les mêmes refus en JSON : position ou `null`, clé, arguments, phrase.
+    // The same refusals as JSON: position or `null`, key, arguments, sentence.
     let file = "a \"b\".json";
     assert_eq!(
         positioned[0].to_json(file, catalog),
@@ -347,15 +347,15 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
     );
     assert!(foregram_graph::json::parse(bare_json.as_bytes()).is_ok());
 
-    // Le rapport des mesures, une ligne par mesure.
+    // The report of the measures, one line per measure.
     for line in Metrics::default().report() {
         assert_eq!(line.check(catalog), Ok(()));
         reached.extend(entries(catalog, line.keys()));
     }
 
-    // Les entrées de la ligne de commande du produit, du banc — ligne de
-    // commande, imports GraphML, ELK et MCD, moteurs de référence, planche — et
-    // du rendu, que leurs propres tests exercent.
+    // The entries of the product's command line, of the bench — command
+    // line, GraphML, ELK and MCD imports, reference engines, board — and
+    // of the rendering, which their own tests exercise.
     let mut bench_keys = BTreeSet::new();
     for name in [
         "foregram/src/main.rs",
@@ -396,8 +396,8 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
 
 #[test]
 fn every_key_written_in_the_library_exists_in_the_catalogue() {
-    // Une clé mal écrite sur un chemin qu'aucun test n'emprunte se verrait seulement
-    // à l'affichage : on la cherche donc dans le texte même du code.
+    // A misspelled key on a path that no test takes would only show
+    // on display: so it is looked for in the text of the code itself.
     let dir = format!("{}/src", env!("CARGO_MANIFEST_DIR"));
     let mark = concat!("#[cfg", "(test)]");
     let mut found = BTreeSet::new();
@@ -422,8 +422,8 @@ fn every_key_written_in_the_library_exists_in_the_catalogue() {
     }
 }
 
-/// Les familles que seul le banc emploie : il ne parle qu'anglais, et le
-/// catalogue français ne les porte pas.
+/// The families that only the bench uses: it speaks only English, and the
+/// French catalogue does not carry them.
 fn bench_only(key: &str) -> bool {
     let head = key.split('.').next().unwrap_or("");
     let code = head.len() == 4 && head[1..].bytes().all(|b| b.is_ascii_digit());
@@ -448,7 +448,7 @@ fn the_french_catalogue_has_every_key_of_the_product_and_no_other() {
         "clés du français inconnues ou du banc : {orphan:?}"
     );
     assert!(product.len() > 160, "{}", product.len());
-    // Le banc a bien ses familles à part : l'exclusion n'est pas vide.
+    // The bench does have its own families: the exclusion is not empty.
     assert!(english.keys().filter(|key| bench_only(key)).count() > 70);
 }
 
@@ -460,7 +460,7 @@ fn the_french_templates_have_the_same_slots_as_the_english_ones() {
         let en = slots(english.get(key).unwrap());
         assert_eq!(fr, en, "emplacements différents pour {key}");
     }
-    // Chaque refus s'accorde donc aussi avec le français.
+    // Each refusal therefore also matches the French.
     for diag in every_refusal() {
         assert_eq!(diag.message.check(Catalog::french()), Ok(()), "{diag}");
     }
@@ -480,7 +480,7 @@ fn every_plural_key_has_both_variants_in_each_language() {
                 );
             }
             if let Some(base) = key.strip_suffix(".other") {
-                // `G007.other` est une variante de refus, pas un pluriel.
+                // `G007.other` is a refusal variant, not a plural.
                 if base.starts_with("count.") {
                     assert!(
                         catalog.get(&format!("{base}.one")).is_some(),
@@ -495,9 +495,9 @@ fn every_plural_key_has_both_variants_in_each_language() {
 
 #[test]
 fn french_follows_its_typography() {
-    // Ni espace ordinaire ni rien avant `;`, `!`, `?`, ni dans les « » : une
-    // espace insécable. Les deux-points d'un repère (« {path}: », « {line}:{col}: »)
-    // gardent la forme anglaise ; ceux d'une phrase prennent l'insécable.
+    // Neither an ordinary space nor nothing before `;`, `!`, `?`, nor inside the « »: a
+    // non-breaking space. The colons of a locator (« {path}: », « {line}:{col}: »)
+    // keep the English form; those of a sentence take the non-breaking one.
     let nbsp = '\u{a0}';
     for key in Catalog::french().keys() {
         let text = Catalog::french().get(key).unwrap();
@@ -520,16 +520,16 @@ fn french_follows_its_typography() {
     }
 }
 
-/// Une clé employée existe : telle quelle, ou comme base d'un pluriel dont
-/// les deux variantes sont au catalogue.
+/// A used key exists: as is, or as the base of a plural whose
+/// two variants are in the catalogue.
 fn exists(catalog: &Catalog, key: &str) -> bool {
     catalog.get(key).is_some()
         || (catalog.get(&format!("{key}.one")).is_some()
             && catalog.get(&format!("{key}.other")).is_some())
 }
 
-/// Les entrées du catalogue qu'atteignent des clés employées : la clé
-/// elle-même, ou les deux variantes d'une base de pluriel.
+/// The catalogue entries reached by used keys: the key
+/// itself, or the two variants of a plural base.
 fn entries<'a>(catalog: &Catalog, keys: impl IntoIterator<Item = &'a str>) -> Vec<String> {
     let mut out = Vec::new();
     for key in keys {
@@ -543,7 +543,7 @@ fn entries<'a>(catalog: &Catalog, keys: impl IntoIterator<Item = &'a str>) -> Ve
     out
 }
 
-/// Les noms des emplacements `{nom}` d'un modèle, comme le lit la bibliothèque.
+/// The names of the `{name}` slots of a template, as the library reads them.
 fn slots(template: &str) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     let mut rest = template;
@@ -560,10 +560,10 @@ fn slots(template: &str) -> BTreeSet<String> {
     out
 }
 
-/// Les chaînes littérales qui ont la forme d'une clé de catalogue :
-/// un code (`G003`, `J005.zero`) ou un fragment pointé (`subject.node`) dont
-/// la famille, le premier segment, est une de celles du catalogue — ce qui
-/// écarte les identifiants d'options d'ELK, pointés eux aussi.
+/// The string literals shaped like a catalogue key:
+/// a code (`G003`, `J005.zero`) or a dotted fragment (`subject.node`) whose
+/// family, the first segment, is one of the catalogue's — which
+/// rules out ELK's option identifiers, dotted too.
 fn key_literals(source: &str) -> BTreeSet<String> {
     let families: BTreeSet<&str> = Catalog::english()
         .keys()
@@ -592,7 +592,7 @@ fn key_literals(source: &str) -> BTreeSet<String> {
     keys
 }
 
-/// Les chaînes littérales d'un source Rust, commentaires et caractère `'"'` écartés.
+/// The string literals of a Rust source, comments and the `'"'` character excluded.
 fn string_literals(source: &str) -> Vec<String> {
     let mut out = Vec::new();
     for line in source.lines() {
@@ -621,7 +621,7 @@ fn string_literals(source: &str) -> Vec<String> {
     out
 }
 
-/// Le même refus, sans position.
+/// The same refusal, without a position.
 fn report_bare(diag: &Diagnostic) -> Diagnostic {
     let mut bare = diag.clone();
     bare.pos = Pos::NONE;

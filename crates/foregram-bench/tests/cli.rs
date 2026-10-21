@@ -1,8 +1,8 @@
-// ForegramPM — tests de la ligne de commande du banc.
+// ForegramPM — tests of the bench's command line.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Un test qui échoue doit s'arrêter net : les règles du produit ne valent pas ici.
+// A failing test must stop dead: the product's rules do not apply here.
 #![allow(clippy::unwrap_used, clippy::panic)]
 
 use std::process::{Command, Output};
@@ -29,7 +29,7 @@ fn run(args: &[&str]) -> (i32, String, String) {
 fn a_wrong_call_exits_two_with_the_usage() {
     for args in [
         &[][..],
-        // Valider, mesurer et dessiner sont l'affaire de `foregram`.
+        // Validating, measuring and drawing are the business of `foregram`.
         &["validate", "x"],
         &["metrics", "x", "y"],
         &["render", "x", "y", "z.svg"],
@@ -61,7 +61,7 @@ fn help_and_version_exit_zero() {
 
 // ---------------------------------------------------------------- GraphML
 
-/// Un répertoire neuf sous la cible de compilation, vidé s'il existait.
+/// A fresh directory under the build target, emptied if it existed.
 fn scratch(name: &str) -> std::path::PathBuf {
     let dir = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
     let _ = std::fs::remove_dir_all(&dir);
@@ -75,7 +75,7 @@ fn write(path: &std::path::Path, text: &str) -> String {
     path.display().to_string()
 }
 
-/// Un graphe GraphML de `nodes` nœuds en chaîne, à la façon de Rome.
+/// A GraphML graph of `nodes` nodes in a chain, in the style of Rome.
 fn chain(nodes: usize) -> String {
     let mut text = String::from("<graphml>\n<graph edgedefault=\"undirected\" id=\"G\">\n");
     for n in 0..nodes {
@@ -117,7 +117,7 @@ fn a_graphml_file_comes_out_as_a_canonical_graph() {
     );
     assert_eq!(err, "");
 
-    // Ce qui sort se relit tel quel.
+    // What comes out reads back as is.
     assert!(Graph::parse(out.as_bytes()).is_ok());
 }
 
@@ -184,8 +184,8 @@ fn a_corpus_that_matches_its_graph_log_exits_zero() {
     assert_eq!(err, "");
 }
 
-/// Un `.elkt` qui emploie ce que l'import porte : conteneur, ports, côtés,
-/// étiquette de lien avec sa taille, et une étiquette de nœud, qui ne passe pas.
+/// An `.elkt` that uses what the import carries: container, ports, sides,
+/// link label with its size, and a node label, which does not pass.
 const ELKT: &str = "elk.direction: RIGHT\n\
     node sys {\n\
     \x20 node core { layout [size: 10, 5] portConstraints: FIXED_SIDE port in { side: WEST } label \"Core\" }\n\
@@ -220,7 +220,7 @@ fn an_elkt_file_comes_out_as_a_canonical_graph() {
         )
     );
 
-    // Ce qui sort se relit tel quel ; un fichier sans perte ne dit rien.
+    // What comes out reads back as is; a lossless file says nothing.
     assert!(Graph::parse(out.as_bytes()).is_ok());
     let plain = write(
         &dir.join("plain.elkt"),
@@ -229,7 +229,7 @@ fn an_elkt_file_comes_out_as_a_canonical_graph() {
     let (code, _, err) = run(&["elkt", &plain]);
     assert_eq!((code, err.as_str()), (0, ""));
 
-    // Un refus pointe dans le `.elkt`.
+    // A refusal points into the `.elkt`.
     let bad = write(
         &dir.join("bad.elkt"),
         "node a { layout [size: 1, 1] }\nedge a -> b\n",
@@ -312,8 +312,8 @@ fn a_cache_without_its_corpora_exits_two() {
 
 // ------------------------------------------------------------------- MCD
 
-/// Le corpus maison versionné, et ce que chaque modèle doit donner, compté
-/// à la main dans le `.mcd` : entités plus associations, liens.
+/// The versioned in-house corpus, and what each model must yield, counted
+/// by hand in the `.mcd`: entities plus associations, links.
 const IN_HOUSE: [(&str, usize, usize); 4] = [
     ("commande.mcd", 10 + 9, 18),
     ("employe.mcd", 2 + 4, 8),
@@ -336,7 +336,7 @@ fn every_in_house_model_converts_to_a_valid_graph() {
         let (code, out, err) = run(&["mcd", &format!("{corpus}/{name}")]);
         assert_eq!(code, 0, "{name} : {err}");
         assert_eq!(err, "");
-        // Ce qui sort se relit tel quel, et compte ce que le `.mcd` déclare.
+        // What comes out reads back as is, and counts what the `.mcd` declares.
         let graph = Graph::parse(out.as_bytes()).unwrap();
         assert_eq!(graph.all_nodes().len(), nodes, "{name}");
         assert_eq!(graph.edges.len(), edges, "{name}");
@@ -365,12 +365,12 @@ fn a_refused_model_says_where_in_the_mcd() {
     assert_eq!(code, 2);
 }
 
-// ----------------------------------------------------------------- Planche
+// ------------------------------------------------------------------- Board
 
-/// Le jeu de la planche : quatre petits corpus écrits ici, leurs placements
-/// par dot et ELK, figés, et ce que la planche doit en tirer. Le placement de
-/// `elk-models/e2.elkt` par dot est retiré et son échec `R003` écrit à la
-/// main dans `failures.txt` : un moteur qui n'a rien rendu.
+/// The board's fixture set: four small corpora written here, their placements
+/// by dot and ELK, frozen, and what the board must draw from them. The placement of
+/// `elk-models/e2.elkt` by dot is removed and its `R003` failure written by
+/// hand in `failures.txt`: an engine that returned nothing.
 fn board_data(name: &str) -> String {
     format!("{}/tests/data/board/{name}", env!("CARGO_MANIFEST_DIR"))
 }
@@ -423,7 +423,7 @@ fn the_board_is_written_as_expected_and_again_the_same() {
         let expected = std::fs::read_to_string(board_data(&format!("expected/{name}"))).unwrap();
         assert_eq!(written, expected, "{name}");
     }
-    // Un rendu par placement mesuré : dot n'a rien pour elk-models.
+    // One rendering per measured placement: dot has none for elk-models.
     let mut svgs = Vec::new();
     files_under(&out.join("svg"), &out, &mut svgs);
     svgs.sort();
@@ -442,8 +442,8 @@ fn the_board_is_written_as_expected_and_again_the_same() {
             "svg/elk/rome/r2.svg",
         ]
     );
-    // Un second passage rend les mêmes octets, et ne laisse aucun rendu
-    // d'un échantillon précédent.
+    // A second pass renders the same bytes, and leaves no rendering
+    // from a previous sample.
     let first: Vec<Vec<u8>> = svgs
         .iter()
         .map(|f| std::fs::read(out.join(f)).unwrap())

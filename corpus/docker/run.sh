@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
-# ForegramPM — lance la planche dans le second environnement (Docker) et en
-# rapporte l'empreinte, à comparer à celle de ce poste par fingerprint.sh.
+# ForegramPM — runs the board in the second environment (Docker) and reports
+# its fingerprint, to compare with that of this machine by fingerprint.sh.
 # Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Usage : corpus/docker/run.sh <out>
+# Usage: corpus/docker/run.sh <out>
 #
-# Construit l'image, puis écrit dans <out> : env.txt, board.log, board/ et
-# sums.txt, sous l'utilisateur courant. Le cache de ce poste est prêté au
-# conteneur en lecture seule s'il existe ; fetch.sh le revérifie là-bas.
-# Code de sortie : celui de Docker, 2 pour un appel incorrect.
+# Builds the image, then writes to <out>: env.txt, board.log, board/ and
+# sums.txt, as the current user. This machine's cache is lent to the
+# container read-only if it exists; fetch.sh rechecks it there.
+# Exit code: Docker's, 2 for an incorrect call.
 
 set -euo pipefail
 

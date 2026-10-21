@@ -1,8 +1,8 @@
-// ForegramPM — tests des formats d'échange : graphe et placement.
+// ForegramPM — tests of the exchange formats: graph and layout.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Un test qui échoue doit s'arrêter net : les règles du produit ne valent pas ici.
+// A failing test must stop dead: the product's rules do not apply here.
 #![allow(clippy::unwrap_used, clippy::panic)]
 
 use foregram_graph::{
@@ -10,7 +10,7 @@ use foregram_graph::{
     Side, Size,
 };
 
-/// Lit un fichier d'exemple par son nom, jamais par son rang.
+/// Reads an example file by its name, never by its rank.
 fn data(name: &str) -> Vec<u8> {
     let path = format!("{}/tests/data/{name}", env!("CARGO_MANIFEST_DIR"));
     std::fs::read(&path).unwrap_or_else(|e| panic!("{path} : {e}"))
@@ -20,7 +20,7 @@ fn gestpret() -> Graph {
     Graph::parse(&data("gestpret.graph.json")).unwrap()
 }
 
-/// Code, ligne et colonne de chaque refus, dans l'ordre rendu.
+/// Code, line and column of each refusal, in the order produced.
 fn places(diags: &[Diagnostic]) -> Vec<(&'static str, u32, u32)> {
     diags
         .iter()
@@ -40,7 +40,7 @@ fn layout_refusals(text: &str) -> Vec<Diagnostic> {
     Layout::parse(text.as_bytes()).unwrap_err()
 }
 
-/// Un graphe à deux nœuds « A » et « B », dont on remplace le corps.
+/// A graph with two nodes "A" and "B", whose body is replaced.
 fn graph_with(nodes: &str, edges: &str) -> String {
     format!(
         "{{\"format\": \"foregram-graph\", \"version\": 1, \"name\": \"g\",\n\
@@ -61,7 +61,7 @@ fn layout_with(nodes: &str, edges: &str) -> String {
     )
 }
 
-// ---------------------------------------------------------------- graphe
+// ---------------------------------------------------------------- graph
 
 #[test]
 fn the_example_graph_is_read_whole() {
@@ -113,7 +113,7 @@ fn a_graph_in_any_key_order_comes_back_canonical() {
          {\"id\": \"e\", \"source\": \"A\", \"target\": \"B\", \"source_side\": \"east\", \
          \"target_side\": \"west\"}\n  ]\n}\n"
     );
-    // La forme canonique est un point fixe : la relire puis la réécrire ne change rien.
+    // The canonical form is a fixed point: reading it back then rewriting it changes nothing.
     let again = Graph::parse(canonical.as_bytes()).unwrap().to_json();
     assert_eq!(again, canonical);
 }
@@ -176,7 +176,7 @@ fn the_root_must_be_a_graph_object() {
 fn format_and_version_are_checked() {
     let text = graph_with("", "").replace("foregram-graph", "foregram-layout");
     assert_eq!(codes(&graph_refusals(&text)), ["S004"]);
-    // La version 2 est lue, comme la 1 ; la 3 n'existe pas encore.
+    // Version 2 is read, like 1; 3 does not exist yet.
     let text = graph_with("", "").replace("\"version\": 1", "\"version\": 2");
     assert!(Graph::parse(text.as_bytes()).is_ok());
     let text = graph_with("", "").replace("\"version\": 1", "\"version\": 3");
@@ -205,14 +205,14 @@ fn structure_refusals_are_all_reported_with_their_place() {
     assert_eq!(
         places(&diags),
         [
-            ("S006", 1, 70), // direction inconnue
-            ("S001", 2, 32), // width n'est pas un entier
-            ("S002", 2, 56), // clé inconnue « colour »
-            ("S003", 3, 1),  // height absente
-            ("S001", 4, 1),  // un nœud n'est pas un objet
-            ("S006", 5, 68), // côté inconnu
-            ("S006", 6, 44), // ancrage inconnu
-            ("S002", 6, 58), // clé inconnue « extra »
+            ("S006", 1, 70), // unknown direction
+            ("S001", 2, 32), // width is not an integer
+            ("S002", 2, 56), // unknown key « colour »
+            ("S003", 3, 1),  // height missing
+            ("S001", 4, 1),  // a node is not an object
+            ("S006", 5, 68), // unknown side
+            ("S006", 6, 44), // unknown anchor
+            ("S002", 6, 58), // unknown key « extra »
         ]
     );
     assert!(diags[0].text().contains("right, down, left, up"));
@@ -253,12 +253,12 @@ fn sizes_and_constraints_have_bounds() {
     assert_eq!(
         places(&diags),
         [
-            ("S008", 2, 11), // A : width 0
-            ("S008", 2, 11), // A : height trop grande
-            ("S008", 3, 1),  // B : layer négatif
-            ("G004", 4, 1),  // C : order sans layer
-            ("G005", 6, 1),  // E : même place que D
-            ("S008", 8, 11), // étiquette n° 2 : width négative
+            ("S008", 2, 11), // A: width 0
+            ("S008", 2, 11), // A: height too large
+            ("S008", 3, 1),  // B: negative layer
+            ("G004", 4, 1),  // C: order without layer
+            ("G005", 6, 1),  // E: same place as D
+            ("S008", 8, 11), // label no. 2: negative width
         ]
     );
     assert!(diags[5].text().starts_with("edge \"e\", label #2"));
@@ -315,7 +315,7 @@ fn a_graph_built_in_memory_is_validated_the_same_way() {
         pos: Pos::NONE,
     };
     assert!(graph.validate().is_empty());
-    // Ce qui sort de la mémoire se relit à l'identique.
+    // What comes out of memory reads back identically.
     let text = graph.to_json();
     assert_eq!(Graph::parse(text.as_bytes()).unwrap().to_json(), text);
 
@@ -323,7 +323,7 @@ fn a_graph_built_in_memory_is_validated_the_same_way() {
     graph.edges[0].target = "Z".to_string();
     let diags = graph.validate();
     assert_eq!(codes(&diags), ["G001", "G003"]);
-    // Sans texte source, pas de position, et le message ne prétend pas en avoir.
+    // Without source text, no position, and the message does not pretend to have one.
     assert!(diags[0].pos.is_none());
     assert_eq!(
         diags[0].to_string(),
@@ -331,7 +331,7 @@ fn a_graph_built_in_memory_is_validated_the_same_way() {
     );
 }
 
-// ------------------------------------------------------------- placement
+// ------------------------------------------------------------- layout
 
 #[test]
 fn the_example_layout_fits_its_graph() {
@@ -399,7 +399,7 @@ fn layout_structure_is_strict() {
             .text()
             .contains("a route element is a point [x, y] or a curve")
     );
-    // Les étiquettes, elles, sont des points et rien d'autre.
+    // Labels, for their part, are points and nothing else.
     let edges = "{\"id\": \"e\", \"route\": [[0, 0], [1, 1]], \"labels\": [[1]]}";
     let diags = layout_refusals(&layout_with("", edges));
     assert_eq!(codes(&diags), ["S001"]);
@@ -413,11 +413,11 @@ fn a_layout_must_cover_its_graph_and_nothing_else() {
     assert_eq!(
         places(&diags),
         [
-            ("L004", 1, 1),  // MATERIEL non placé
-            ("L007", 1, 1),  // materiel-pret sans tracé
-            ("L002", 9, 5),  // INCONNU absent du graphe
-            ("L009", 12, 5), // départ hors du bord de MEMBRE
-            ("L011", 12, 5), // étiquette manquante
+            ("L004", 1, 1),  // MATERIEL not placed
+            ("L007", 1, 1),  // materiel-pret without route
+            ("L002", 9, 5),  // INCONNU absent from the graph
+            ("L009", 12, 5), // start outside the edge of MEMBRE
+            ("L011", 12, 5), // missing label
         ]
     );
     assert_eq!(
@@ -450,7 +450,7 @@ fn route_ends_sit_on_the_node_border() {
         graph_with(AB, "{\"id\": \"e\", \"source\": \"A\", \"target\": \"B\"}").as_bytes(),
     )
     .unwrap();
-    // A occupe (0,0)-(100,100) ; B occupe (300,0)-(400,100).
+    // A occupies (0,0)-(100,100); B occupies (300,0)-(400,100).
     let nodes = "{\"id\": \"A\", \"x\": 0, \"y\": 0}, {\"id\": \"B\", \"x\": 300, \"y\": 0}";
     let check = |route: &str| {
         let edges = format!("{{\"id\": \"e\", \"route\": {route}}}");
@@ -458,12 +458,12 @@ fn route_ends_sit_on_the_node_border() {
         codes(&layout.check(&graph))
     };
     let none: [&str; 0] = [];
-    assert_eq!(check("[[100, 50], [300, 50]]"), none); // bord droit, bord gauche
-    assert_eq!(check("[[100, 100], [300, 0]]"), none); // deux coins
-    assert_eq!(check("[[50, 0], [350, 100]]"), none); // bord haut, bord bas
-    assert_eq!(check("[[50, 50], [300, 50]]"), ["L009"]); // départ à l'intérieur
-    assert_eq!(check("[[101, 50], [300, 50]]"), ["L009"]); // départ un cran dehors
-    assert_eq!(check("[[100, 50], [299, 50]]"), ["L009"]); // arrivée un cran avant
+    assert_eq!(check("[[100, 50], [300, 50]]"), none); // right edge, left edge
+    assert_eq!(check("[[100, 100], [300, 0]]"), none); // two corners
+    assert_eq!(check("[[50, 0], [350, 100]]"), none); // top edge, bottom edge
+    assert_eq!(check("[[50, 50], [300, 50]]"), ["L009"]); // start inside
+    assert_eq!(check("[[101, 50], [300, 50]]"), ["L009"]); // start one notch outside
+    assert_eq!(check("[[100, 50], [299, 50]]"), ["L009"]); // arrival one notch short
     assert_eq!(check("[[100, 101], [401, 50]]"), ["L009", "L009"]);
 }
 
@@ -479,7 +479,7 @@ fn imposed_sides_are_respected() {
         layout.check(&graph)
     };
     assert!(check("[[100, 50], [350, 0]]").is_empty());
-    assert!(check("[[100, 0], [300, 0]]").is_empty()); // un coin est sur deux côtés
+    assert!(check("[[100, 0], [300, 0]]").is_empty()); // a corner lies on two sides
     let diags = check("[[50, 100], [300, 50]]");
     assert_eq!(codes(&diags), ["L010", "L010"]);
     assert!(
@@ -530,13 +530,13 @@ fn doc() -> String {
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path} : {e}"))
 }
 
-/// Les codes cités dans un texte : une lettre parmi J, S, G, L, X, E, M, R, V, puis trois chiffres.
+/// The codes cited in a text: a letter among J, S, G, L, X, E, M, R, V, then three digits.
 fn codes_in(text: &str, quoted: bool) -> std::collections::BTreeSet<String> {
     let chars: Vec<char> = text.chars().collect();
     let mut found = std::collections::BTreeSet::new();
     for window in chars.windows(if quoted { 6 } else { 4 }) {
         let code = if quoted {
-            // Entre guillemets : le code seul, ou le début d'une clé à variante (`"J005.zero"`).
+            // Between quotes: the code alone, or the start of a key with a variant (`"J005.zero"`).
             if window[0] != '"' || !(window[5] == '"' || window[5] == '.') {
                 continue;
             }
@@ -568,12 +568,12 @@ fn the_documentation_shows_the_example_files_as_they_are() {
     }
 }
 
-/// Ce qui sépare, dans un fichier source, le code de ses tests.
+/// What separates, in a source file, the code from its tests.
 const MARK: &str = concat!("#[cfg", "(test)]");
 
 #[test]
 fn the_documentation_lists_every_code_and_no_other() {
-    // Les codes que le produit sait prononcer sont ceux du catalogue.
+    // The codes the product can utter are those of the catalogue.
     let keys: Vec<&str> = foregram_graph::Catalog::english().keys().collect();
     let produced = codes_in(&keys.join("\n"), false);
     let table: String = doc()
@@ -585,10 +585,10 @@ fn the_documentation_lists_every_code_and_no_other() {
     assert_eq!(produced, documented);
     assert_eq!(produced.len(), 84);
 
-    // Chaque refus que le code sait prononcer est provoqué par un test au moins :
-    // ceux de ce fichier, et ceux qui suivent le code dans json.rs, dans les
-    // imports GraphML, ELK et MCD du banc, dans ses moteurs de référence et
-    // dans le rendu.
+    // Each refusal the code can utter is provoked by at least one test:
+    // those of this file, and those that follow the code in json.rs, in the
+    // GraphML, ELK and MCD imports of the bench, in its reference engines and
+    // in the rendering.
     let mut tests = String::new();
     for source in [
         "src/json.rs",

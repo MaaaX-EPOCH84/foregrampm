@@ -1,12 +1,12 @@
-// ForegramPM — banc de mesure du placement : positions dans un texte source.
+// ForegramPM — placement measurement bench: positions in a source text.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
 use foregram_graph::Pos;
 
-/// Début de chaque ligne d'un texte, pour passer d'un décalage en octets à
-/// une ligne et une colonne en points de code. Sert aux lecteurs de formats
-/// tiers, dont l'analyseur compte en octets ou relit le texte à chaque appel.
+/// Start of each line of a text, to go from a byte offset to a line and a
+/// column in code points. Used by the third-party format readers, whose parser
+/// counts in bytes or rereads the text on every call.
 pub struct Lines<'a> {
     text: &'a str,
     starts: Vec<usize>,

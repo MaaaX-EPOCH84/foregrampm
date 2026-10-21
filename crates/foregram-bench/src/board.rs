@@ -1,4 +1,4 @@
-// ForegramPM — planche et rapport du banc : mesures agrégées, rendus côte à côte.
+// ForegramPM — bench board and report: aggregated measures, side-by-side renderings.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -13,54 +13,54 @@ use crate::{
     LAYOUT_CORPORA, UNUSABLE, VALID, count, files_with, import_any, load, say, write_file,
 };
 
-/// Les moteurs comparés, dans l'ordre des colonnes.
+/// The engines compared, in column order.
 pub const ENGINES: [Kind; 2] = [Kind::Dot, Kind::Elk];
 
-/// Graphes pris à intervalle régulier dans chaque corpus, pour la planche.
+/// Graphs taken at regular intervals in each corpus, for the board.
 const REGULAR: usize = 8;
 
-/// Graphes pris, par corpus et par moteur, là où ce moteur fait le moins de
-/// croisements comparé à l'autre.
+/// Graphs taken, per corpus and per engine, where that engine makes the fewest
+/// crossings compared to the other.
 const AHEAD: usize = 3;
 
-/// Les noms des fichiers écrits, en deux morceaux : d'un bloc, la garde du
-/// catalogue les prendrait pour des clés des familles `metrics` et `board`.
+/// The names of the files written, in two pieces: in one block, the catalogue
+/// guard would take them for keys of the `metrics` and `board` families.
 const METRICS_JSON: &str = concat!("metrics", ".json");
 const BOARD_MD: &str = concat!("board", ".md");
 
-/// Les mesures de la comparaison par paires : moins vaut mieux.
+/// The measures of the pairwise comparison: lower is better.
 const PAIRED: [&str; 4] = ["crossings", "bends", "edge_length", "area"];
 
-/// Ce qu'un moteur a donné pour un graphe : ses mesures, ou ses refus,
-/// comptés par code.
+/// What an engine gave for a graph: its measures, or its refusals,
+/// counted by code.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Outcome {
     Measured(Metrics),
     Refused(BTreeMap<String, usize>),
 }
 
-/// Un graphe du corpus et ce que chaque moteur en a fait.
+/// A corpus graph and what each engine made of it.
 #[derive(Clone, Debug)]
 pub struct Entry {
     pub corpus: &'static str,
-    /// Le chemin sous lequel le banc le désigne : `rome/grafo….graphml`.
+    /// The path under which the bench designates it: `rome/grafo….graphml`.
     pub shown: PathBuf,
     pub outcomes: [Outcome; 2],
 }
 
-/// Pourquoi un graphe est sur la planche.
+/// Why a graph is on the board.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Why {
     Regular,
-    /// Le moteur de ce rang fait moins de croisements que l'autre, de tant.
+    /// The engine of this rank makes fewer crossings than the other, by this many.
     Ahead(usize, i64),
 }
 
-/// Écrit dans `out` le JSON des mesures, le rapport agrégé et la planche,
-/// d'après les placements que `layout-corpus` a laissés dans `layouts`.
-/// Les échecs des moteurs sont des données : ils sont comptés, pas fatals.
-/// Un placement absent sans échec listé, ou d'une autre version que celle
-/// du manifeste, rend la planche inexacte : rien n'est alors écrit.
+/// Writes to `out` the JSON of the measures, the aggregated report and the board,
+/// from the layouts that `layout-corpus` left in `layouts`.
+/// Engine failures are data: they are counted, not fatal.
+/// A missing layout with no listed failure, or one from a different version than
+/// the manifest's, makes the board inexact: nothing is then written.
 pub fn board(cache: &Path, layouts: &Path, out: &Path) -> u8 {
     let mut status = VALID;
     let manifest = cache.parent().unwrap_or(cache).join("manifest.txt");
@@ -184,8 +184,8 @@ pub fn board(cache: &Path, layouts: &Path, out: &Path) -> u8 {
         .collect();
     let rows = sample(&entries);
     let svg_dir = out.join("svg");
-    // Les rendus d'un passage précédent ne doivent pas survivre à un
-    // échantillon qui a changé.
+    // Renderings from a previous run must not survive a
+    // sample that has changed.
     if svg_dir.exists()
         && let Err(error) = std::fs::remove_dir_all(&svg_dir)
     {
@@ -197,8 +197,8 @@ pub fn board(cache: &Path, layouts: &Path, out: &Path) -> u8 {
             if !matches!(entry.outcomes[i], Outcome::Measured(_)) {
                 continue;
             }
-            // Déjà lus et mesurés plus haut : seul un fichier changé entre-temps
-            // fait échouer cette relecture.
+            // Already read and measured above: only a file changed in the meantime
+            // makes this re-read fail.
             let Some(svg) = draw(cache, layouts, *kind, entry, &mut status) else {
                 return status.max(UNUSABLE);
             };
@@ -235,7 +235,7 @@ fn unwritable(path: &Path, error: std::io::Error) -> u8 {
     UNUSABLE
 }
 
-/// Où `layout-corpus` a écrit le placement d'un graphe.
+/// Where `layout-corpus` wrote a graph's layout.
 fn layout_path(layouts: &Path, kind: Kind, shown: &Path) -> PathBuf {
     layouts
         .join(kind.name())
@@ -243,7 +243,7 @@ fn layout_path(layouts: &Path, kind: Kind, shown: &Path) -> PathBuf {
         .with_extension("layout.json")
 }
 
-/// Le rendu d'un graphe sur la planche, relatif à la planche.
+/// A graph's rendering on the board, relative to the board.
 fn svg_path(kind: Kind, shown: &Path) -> PathBuf {
     Path::new("svg")
         .join(kind.name())
@@ -251,7 +251,7 @@ fn svg_path(kind: Kind, shown: &Path) -> PathBuf {
         .with_extension("svg")
 }
 
-/// Relit le graphe et son placement, déjà mesurés, et les dessine.
+/// Re-reads the graph and its layout, already measured, and draws them.
 fn draw(
     cache: &Path,
     layouts: &Path,
@@ -273,7 +273,7 @@ fn draw(
     ))
 }
 
-/// Les refus d'un graphe, comptés par code.
+/// A graph's refusals, counted by code.
 fn codes(diags: &[Diagnostic]) -> BTreeMap<String, usize> {
     let mut codes = BTreeMap::new();
     for diag in diags {
@@ -282,10 +282,10 @@ fn codes(diags: &[Diagnostic]) -> BTreeMap<String, usize> {
     codes
 }
 
-/// Lit un `failures.txt` de `layout-corpus` : une ligne par refus,
-/// `<chemin>: error[CODE]: …` ou `<chemin>:<ligne>:<colonne>: error[CODE]: …`,
-/// telle que la présentation anglaise d'un refus l'écrit. Rend, par chemin,
-/// les refus comptés par code.
+/// Reads a `layout-corpus` `failures.txt`: one line per refusal,
+/// `<path>: error[CODE]: …` or `<path>:<line>:<column>: error[CODE]: …`,
+/// as the English presentation of a refusal writes it. Returns, per path,
+/// the refusals counted by code.
 pub fn read_failures(text: &str) -> BTreeMap<String, BTreeMap<String, usize>> {
     const MARK: &str = " error[";
     let mut out: BTreeMap<String, BTreeMap<String, usize>> = BTreeMap::new();
@@ -306,7 +306,7 @@ pub fn read_failures(text: &str) -> BTreeMap<String, BTreeMap<String, usize>> {
     out
 }
 
-/// `chemin:12:5` donne `chemin` ; un chemin sans position reste tel quel.
+/// `path:12:5` gives `path`; a path without a position stays as is.
 fn strip_position(path: &str) -> &str {
     let digits = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());
     let mut parts = path.rsplitn(3, ':');
@@ -316,11 +316,11 @@ fn strip_position(path: &str) -> &str {
     }
 }
 
-/// Les graphes de la planche, par corpus dans l'ordre des corpus : d'abord
-/// `REGULAR` graphes à intervalle régulier dans l'ordre des chemins, tous
-/// s'il y en a moins ; puis, pour chaque moteur, les `AHEAD` graphes placés
-/// par les deux où il fait le moins de croisements comparé à l'autre, du plus
-/// grand écart au plus petit, à écart égal dans l'ordre des chemins.
+/// The board's graphs, per corpus in corpus order: first
+/// `REGULAR` graphs at regular intervals in path order, all of them
+/// if there are fewer; then, for each engine, the `AHEAD` graphs placed
+/// by both where it makes the fewest crossings compared to the other, from the
+/// largest gap to the smallest, ties in path order.
 pub fn sample(entries: &[Entry]) -> Vec<(usize, Why)> {
     let mut rows = Vec::new();
     let mut corpora: Vec<&str> = Vec::new();
@@ -377,9 +377,9 @@ fn field(m: &Metrics, name: &str) -> i64 {
         .map_or(0, |(_, value)| *value)
 }
 
-/// La valeur de rang `⌈p·n/100⌉` dans l'ordre croissant, au rang le plus
-/// proche, sans interpolation : toujours une valeur observée. `None` sur une
-/// liste vide.
+/// The value of rank `⌈p·n/100⌉` in ascending order, nearest rank,
+/// no interpolation: always an observed value. `None` on an
+/// empty list.
 pub fn quantile(sorted: &[i64], percent: usize) -> Option<i64> {
     let n = sorted.len();
     if n == 0 {
@@ -389,8 +389,8 @@ pub fn quantile(sorted: &[i64], percent: usize) -> Option<i64> {
     sorted.get(rank - 1).copied()
 }
 
-/// Le JSON des mesures : en tête les moteurs et leur version, puis une ligne
-/// par graphe et par moteur, ses mesures ou ses refus comptés par code.
+/// The measures JSON: first the engines and their version, then one line
+/// per graph and per engine, its measures or its refusals counted by code.
 pub fn metrics_json(engines: &[(&str, &str)], entries: &[Entry]) -> String {
     let mut out = String::from("{\n  \"format\": \"foregram-board\",\n  \"version\": 1,\n");
     let engine_lines: Vec<String> = engines
@@ -439,14 +439,14 @@ pub fn metrics_json(engines: &[(&str, &str)], entries: &[Entry]) -> String {
     out
 }
 
-/// Ce qu'un moteur a donné sur un corpus.
+/// What an engine gave on a corpus.
 #[derive(Default)]
 struct Tally {
     placed: usize,
     refused: usize,
-    /// Par code, les graphes refusés au moins une fois avec lui.
+    /// By code, the graphs refused at least once with it.
     codes: BTreeMap<String, usize>,
-    /// Par mesure, les valeurs des graphes placés, triées.
+    /// By measure, the values of the placed graphs, sorted.
     values: BTreeMap<&'static str, Vec<i64>>,
 }
 
@@ -474,9 +474,9 @@ fn tally(entries: &[&Entry], engine: usize) -> Tally {
     t
 }
 
-/// Le rapport agrégé, une section par corpus : graphes placés et refusés,
-/// refus par code, quatre statistiques par mesure et par moteur, et la
-/// comparaison sur les graphes placés par les deux.
+/// The aggregated report, one section per corpus: graphs placed and refused,
+/// refusals by code, four statistics per measure and per engine, and the
+/// comparison on the graphs placed by both.
 pub fn report(engines: &[(&str, &str)], entries: &[Entry]) -> String {
     let named: Vec<String> = engines
         .iter()
@@ -590,8 +590,8 @@ pub fn report(engines: &[(&str, &str)], entries: &[Entry]) -> String {
     out
 }
 
-/// La planche : par corpus, une ligne par graphe retenu, le rendu de chaque
-/// moteur côte à côte avec ses croisements et ses coudes, ou ses refus.
+/// The board: per corpus, one line per retained graph, each engine's rendering
+/// side by side with its crossings and bends, or its refusals.
 pub fn board_md(engines: &[(&str, &str)], entries: &[Entry], rows: &[(usize, Why)]) -> String {
     let (a, b) = (engines[0].0, engines[1].0);
     let mut out = say(Message::new("board.board-title")
@@ -670,10 +670,10 @@ mod tests {
         assert_eq!(quantile(&[], 50), None);
         assert_eq!(quantile(&[7], 50), Some(7));
         assert_eq!(quantile(&[7], 90), Some(7));
-        // Rang ⌈n/2⌉ : la médiane basse sur un nombre pair.
+        // Rank ⌈n/2⌉: the lower median on an even count.
         assert_eq!(quantile(&[1, 2, 3, 4], 50), Some(2));
         assert_eq!(quantile(&[1, 2, 3, 4, 5], 50), Some(3));
-        // Rang ⌈9n/10⌉ : 9 sur 10 et 10 sur 11, la valeur de ce rang.
+        // Rank ⌈9n/10⌉: 9 of 10 and 10 of 11, the value at that rank.
         let ten: Vec<i64> = (1..=10).collect();
         assert_eq!(quantile(&ten, 90), Some(9));
         let eleven: Vec<i64> = (1..=11).collect();
@@ -702,7 +702,7 @@ mod tests {
 
     #[test]
     fn the_sample_takes_regular_graphs_then_the_widest_gaps() {
-        // Vingt graphes : dot croise i fois, ELK 10 fois ; le 3 est refusé par ELK.
+        // Twenty graphs: dot crosses i times, ELK 10 times; 3 is refused by ELK.
         let mut entries: Vec<Entry> = (0..20)
             .map(|i| entry("rome", &format!("g{i:02}"), measured(i), measured(10)))
             .collect();
@@ -714,10 +714,10 @@ mod tests {
             .filter(|(_, why)| *why == Why::Regular)
             .map(|(i, _)| *i)
             .collect();
-        // 0, 2, 5, 7, 10, 12, 15, 17 dans Rome ; le seul graphe de mcd.
+        // 0, 2, 5, 7, 10, 12, 15, 17 in Rome; the only mcd graph.
         assert_eq!(regular, vec![0, 2, 5, 7, 10, 12, 15, 17, 20]);
-        // dot devant : 1 (écart 9), 4 (6), 6 (4) ; le 3 n'est pas placé par
-        // ELK et le 0 est déjà pris. ELK devant : 19, 18, 16.
+        // dot ahead: 1 (gap 9), 4 (6), 6 (4); 3 is not placed by
+        // ELK and 0 is already taken. ELK ahead: 19, 18, 16.
         let ahead: Vec<(usize, Why)> = rows
             .iter()
             .filter(|(_, why)| *why != Why::Regular)
@@ -752,7 +752,7 @@ mod tests {
         assert!(text.contains("| refused | 1 | 2 |"), "{text}");
         assert!(text.contains("| refused with `L009` | 0 | 1 |"), "{text}");
         assert!(text.contains("| refused with `R003` | 1 | 1 |"), "{text}");
-        // dot : 1, 2, 5 ; ELK : 3, 2.
+        // dot: 1, 2, 5; ELK: 3, 2.
         assert!(
             text.contains("| crossings | 8 | 2 | 5 | 5 | 5 | 2 | 3 | 3 |"),
             "{text}"

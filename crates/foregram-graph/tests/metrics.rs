@@ -1,8 +1,8 @@
-// ForegramPM — tests des mesures d'un placement, sur des cas à valeurs connues.
+// ForegramPM — tests of the measures of a layout, on cases with known values.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Un test qui échoue doit s'arrêter net : les règles du produit ne valent pas ici.
+// A failing test must stop dead: the product's rules do not apply here.
 #![allow(clippy::unwrap_used, clippy::panic)]
 
 mod common;
@@ -10,8 +10,8 @@ mod common;
 use common::{LEAF_A, LEAF_B, data, graph, layout};
 use foregram_graph::{CURVE_STEPS, Catalog, Graph, Layout, Metrics, json};
 
-/// Mesure un graphe et un placement écrits en JSON, après les avoir
-/// validés l'un pour l'autre.
+/// Measures a graph and a layout written in JSON, after validating them
+/// against each other.
 fn measure(nodes: &str, edges: &str, placed: &str, routed: &str) -> Metrics {
     let graph = Graph::parse(graph(nodes, edges).as_bytes()).unwrap();
     let layout = Layout::parse(layout(placed, routed).as_bytes()).unwrap();
@@ -35,8 +35,8 @@ fn route(id: &str, points: &str) -> String {
     format!("{{\"id\": \"{id}\", \"route\": {points}}}")
 }
 
-/// Quatre feuilles de 100 × 100 aux coins d'un carré de 1 000 : A en haut
-/// à gauche, B en bas à droite, C en haut à droite, D en bas à gauche.
+/// Four 100 × 100 leaves at the corners of a 1 000 square: A top
+/// left, B bottom right, C top right, D bottom left.
 fn corners() -> (String, String) {
     let nodes = [LEAF_A, LEAF_B, &leaf("C", 100, 100), &leaf("D", 100, 100)].join(", ");
     let placed = [
@@ -57,14 +57,14 @@ fn an_empty_graph_measures_zero() {
 #[test]
 fn a_straight_edge_has_its_euclidean_length_and_no_bend() {
     let (nodes, placed) = corners();
-    // De (100, 100) à (400, 500) : 3-4-5, donc 500.
+    // From (100, 100) to (400, 500): 3-4-5, hence 500.
     let m = measure(
         &nodes,
         &edge("e", "A", "B"),
         &placed,
         &route("e", "[[100, 100], [400, 500], [1000, 1000]]"),
     );
-    // Puis de (400, 500) à (1000, 1000) : √610 000 = 781,02.
+    // Then from (400, 500) to (1000, 1000): √610 000 = 781.02.
     let tail = 781;
     assert_eq!(m.edge_length, 500 + tail);
     assert_eq!(m.longest_edge, 500 + tail);
@@ -85,7 +85,7 @@ fn bends_count_direction_changes_between_straight_segments_only() {
         )
         .bends
     };
-    // Un L, puis un U ; un point aligné ne compte pas ; un demi-tour compte.
+    // An L, then a U; an aligned point does not count; a U-turn does.
     assert_eq!(
         bends(
             "[[100, 50], [500, 50], [1000, 1000]]",
@@ -114,7 +114,7 @@ fn bends_count_direction_changes_between_straight_segments_only() {
         ),
         2
     );
-    // Un point répété ne fait pas de sommet.
+    // A repeated point makes no vertex.
     assert_eq!(
         bends(
             "[[100, 50], [500, 50], [500, 50], [1000, 1000]]",
@@ -122,7 +122,7 @@ fn bends_count_direction_changes_between_straight_segments_only() {
         ),
         1
     );
-    // Une courbe, et sa jonction avec un segment droit, ne font aucun coude.
+    // A curve, and its junction with a straight segment, make no bend.
     assert_eq!(
         bends(
             "[[100, 50], [[500, 50], [500, 500], [1000, 1000]]]",
@@ -143,23 +143,23 @@ fn bends_count_direction_changes_between_straight_segments_only() {
 fn a_curve_is_flattened_in_sixteen_steps() {
     assert_eq!(CURVE_STEPS, 16);
     let (nodes, placed) = corners();
-    // Une courbe dont les points de contrôle sont sur la corde a la
-    // longueur de la corde, au centième près à chaque pas.
+    // A curve whose control points lie on the chord has the
+    // length of the chord, to within a hundredth at each step.
     let m = measure(
         &nodes,
         &edge("e", "A", "B"),
         &placed,
         &route("e", "[[100, 100], [[400, 400], [700, 700], [1000, 1000]]]"),
     );
-    // √(2 × 900²) = 1 272,79.
+    // √(2 × 900²) = 1 272.79.
     let chord = 1273;
     assert!(
         (m.edge_length - chord).abs() <= CURVE_STEPS,
         "{} vs {chord}",
         m.edge_length
     );
-    // Une courbe bombée est plus longue que sa corde et plus courte que son
-    // polygone de contrôle.
+    // A bulging curve is longer than its chord and shorter than its
+    // control polygon.
     let m = measure(
         &nodes,
         &edge("e", "A", "B"),
@@ -174,8 +174,8 @@ fn a_curve_is_flattened_in_sixteen_steps() {
     assert_eq!(m.bends, 0);
 }
 
-/// Deux liens d'A à B : leurs bouts communs ne comptent jamais, et ce qui
-/// se passe entre les deux est ce que le cas construit.
+/// Two links from A to B: their common ends never count, and what
+/// happens between them is what the case builds.
 fn pair_of(e: &str, f: &str) -> Metrics {
     let (nodes, placed) = corners();
     let edges = [edge("e", "A", "B"), edge("f", "A", "B")].join(", ");
@@ -189,7 +189,7 @@ fn pair_of(e: &str, f: &str) -> Metrics {
 
 #[test]
 fn two_edges_in_an_x_cross_once() {
-    // `e` est la diagonale ; `f` la traverse une fois, puis deux.
+    // `e` is the diagonal; `f` crosses it once, then twice.
     let diagonal = "[[100, 100], [1000, 1000]]";
     let m = pair_of(
         diagonal,
@@ -206,10 +206,10 @@ fn two_edges_in_an_x_cross_once() {
 #[test]
 fn a_common_end_is_not_a_crossing() {
     let diagonal = "[[100, 100], [1000, 1000]]";
-    // Même point de départ, même point d'arrivée.
+    // Same start point, same end point.
     let m = pair_of(diagonal, "[[100, 100], [1050, 100], [1050, 1000]]");
     assert_eq!((m.crossings, m.shared_segments), (0, 0));
-    // Un lien qui aboutit sur l'autre et repart du même côté.
+    // A link that ends on the other and leaves again on the same side.
     let m = pair_of(
         diagonal,
         "[[100, 50], [500, 500], [500, 50], [1050, 50], [1050, 1000]]",
@@ -219,8 +219,8 @@ fn a_common_end_is_not_a_crossing() {
 
 #[test]
 fn a_route_through_a_vertex_of_the_other_crosses_or_touches() {
-    // `e` fait un détour horizontal à y = 500 ; `f` coude dessus et passe
-    // de l'autre côté : 1 ; revient du même côté : 0.
+    // `e` makes a horizontal detour at y = 500; `f` bends on it and passes
+    // to the other side: 1; comes back on the same side: 0.
     let detour = "[[100, 100], [100, 500], [1000, 500], [1000, 1000]]";
     let m = pair_of(
         detour,
@@ -232,12 +232,12 @@ fn a_route_through_a_vertex_of_the_other_crosses_or_touches() {
         "[[100, 100], [500, 100], [500, 500], [800, 100], [1100, 100], [1100, 1000], [1000, 1000]]",
     );
     assert_eq!(m.crossings, 0);
-    // Un sommet de `e` sur un segment de `f` : `f` le traverse tout droit.
+    // A vertex of `e` on a segment of `f`: `f` crosses it straight through.
     let peak = "[[100, 100], [500, 300], [1000, 1000]]";
     let m = pair_of(peak, "[[100, 50], [500, 50], [500, 1050], [1000, 1050]]");
     assert_eq!(m.crossings, 1);
-    // Sommet sur sommet : `f` plie sur la pointe de `e` sans entrer dans
-    // l'angle, puis en y entrant.
+    // Vertex on vertex: `f` folds on the tip of `e` without entering
+    // the angle, then entering it.
     let m = pair_of(
         peak,
         "[[100, 50], [500, 50], [500, 300], [800, 50], [1100, 50], [1100, 1000], [1000, 1000]]",
@@ -261,15 +261,15 @@ fn collinear_stretches_are_shared_not_crossed() {
         (m.crossings, m.shared_segments, m.shared_length),
         (0, 1, 400)
     );
-    // Deux morceaux dans le même sens, bout à bout, ne se recouvrent pas.
+    // Two pieces in the same direction, end to end, do not overlap.
     let m = pair_of(
         "[[100, 100], [100, 500], [500, 500], [1000, 1000]]",
         "[[100, 50], [500, 50], [500, 500], [900, 500], [1050, 500], [1050, 1000]]",
     );
     assert_eq!((m.crossings, m.shared_segments), (0, 0));
-    // Un tronçon vertical, en x = 500, de 100 à 600 : les boîtes des deux
-    // segments sont plates et ne font que se toucher, elles sont confrontées
-    // quand même. `f` reste du même côté de `e` avant et après : 0.
+    // A vertical stretch, at x = 500, from 100 to 600: the boxes of the two
+    // segments are flat and merely touch, they are compared
+    // all the same. `f` stays on the same side of `e` before and after: 0.
     let m = pair_of(
         "[[100, 100], [500, 100], [500, 1000], [1000, 1000]]",
         "[[100, 50], [500, 50], [500, 600], [1050, 600], [1050, 1000]]",
@@ -285,18 +285,18 @@ fn overlapping_nodes_are_counted_with_their_area() {
     let nodes = [LEAF_A, LEAF_B].join(", ");
     let m = measure(&nodes, "", &[at("A", 0, 0), at("B", 50, 50)].join(", "), "");
     assert_eq!((m.node_overlaps, m.node_overlap_area), (1, 2500));
-    // Se toucher n'est pas se recouvrir.
+    // Touching is not overlapping.
     let m = measure(&nodes, "", &[at("A", 0, 0), at("B", 100, 0)].join(", "), "");
     assert_eq!((m.node_overlaps, m.node_overlap_area), (0, 0));
-    // Un enfant dans son parent, non plus ; deux conteneurs l'un sur
-    // l'autre, si.
+    // Nor is a child inside its parent; two containers on top of
+    // each other are.
     let nodes = "{\"id\": \"C\", \"children\": [{\"id\": \"A\", \"width\": 100, \"height\": 100}]}, \
                  {\"id\": \"D\", \"children\": [{\"id\": \"B\", \"width\": 100, \"height\": 100}]}";
     let placed = "{\"id\": \"C\", \"x\": 0, \"y\": 0, \"width\": 200, \"height\": 200}, \
                   {\"id\": \"A\", \"x\": 10, \"y\": 10}, \
                   {\"id\": \"D\", \"x\": 150, \"y\": 0, \"width\": 200, \"height\": 200}, \
                   {\"id\": \"B\", \"x\": 10, \"y\": 10}";
-    // C sur D : 50 × 200 ; B, enfant de D, sur C : 40 × 100.
+    // C on D: 50 × 200; B, child of D, on C: 40 × 100.
     let m = measure(nodes, "", placed, "");
     assert_eq!(
         (m.node_overlaps, m.node_overlap_area),
@@ -315,7 +315,7 @@ fn an_edge_through_a_foreign_node_is_counted_once_per_node() {
         &route("e", "[[100, 50], [300, 50]]"),
     );
     assert_eq!(m.edge_node_overlaps, 1);
-    // Le long du bord, ou en deux segments dans le même nœud : rien de plus.
+    // Along the edge, or in two segments within the same node: nothing more.
     let m = measure(
         &nodes,
         &edge("e", "A", "B"),
@@ -330,7 +330,7 @@ fn an_edge_through_a_foreign_node_is_counted_once_per_node() {
         &route("e", "[[100, 50], [200, 20], [300, 50]]"),
     );
     assert_eq!(m.edge_node_overlaps, 1);
-    // Un conteneur qui enferme un bout du lien n'est pas étranger.
+    // A container that encloses one end of the link is not foreign.
     let nodes = "{\"id\": \"C\", \"children\": [{\"id\": \"A\", \"width\": 100, \"height\": 100}]}, \
                  {\"id\": \"B\", \"width\": 100, \"height\": 100}";
     let placed = "{\"id\": \"C\", \"x\": 0, \"y\": 0, \"width\": 200, \"height\": 200}, \
@@ -357,7 +357,7 @@ fn labels_overlapping_anything_but_their_own_edge_are_counted() {
     let placed_label = |id: &str, points: &str, x: i64, y: i64| {
         format!("{{\"id\": \"{id}\", \"route\": {points}, \"labels\": [[{x}, {y}]]}}")
     };
-    // Sur son propre lien : rien. Sur un nœud : 1.
+    // On its own link: nothing. On a node: 1.
     let e = labelled("e", "A", "B");
     let m = measure(
         &nodes,
@@ -373,7 +373,7 @@ fn labels_overlapping_anything_but_their_own_edge_are_counted() {
         &placed_label("e", "[[100, 50], [300, 50]]", 170, 190),
     );
     assert_eq!(m.label_overlaps, 1);
-    // Sur l'autre lien, et sur son étiquette : 1 chacun.
+    // On the other link, and on its label: 1 each.
     let edges = [e.clone(), labelled("f", "C", "B")].join(", ");
     let m = measure(
         &nodes,
@@ -397,7 +397,7 @@ fn labels_overlapping_anything_but_their_own_edge_are_counted() {
         .join(", "),
     );
     assert_eq!(m.label_overlaps, 1);
-    // Dans le conteneur de son lien : rien.
+    // Inside the container of its link: nothing.
     let nested = "{\"id\": \"D\", \"children\": [{\"id\": \"A\", \"width\": 100, \"height\": 100}, \
                   {\"id\": \"B\", \"width\": 100, \"height\": 100}]}";
     let inside = "{\"id\": \"D\", \"x\": 0, \"y\": 0, \"width\": 500, \"height\": 300}, \
@@ -419,7 +419,7 @@ fn the_extent_covers_nodes_routes_and_labels() {
     assert_eq!((m.width, m.height, m.area), (300, 200, 60_000));
     assert_eq!(m.proportion, 1500);
     assert_eq!(m.density, 333);
-    // Un tracé qui déborde agrandit la boîte ; une étiquette aussi.
+    // A route that overflows enlarges the box; so does a label.
     let m = measure(
         &nodes,
         &edge("e", "A", "B"),
@@ -435,7 +435,7 @@ fn the_extent_covers_nodes_routes_and_labels() {
         "{\"id\": \"e\", \"route\": [[100, 50], [200, 150]], \"labels\": [[-100, 50]]}",
     );
     assert_eq!((m.width, m.height), (400, 200));
-    // Les millièmes s'arrondissent au plus près : 200/300 = 666,67.
+    // Thousandths round to nearest: 200/300 = 666.67.
     let m = measure(
         &nodes,
         "",
@@ -443,7 +443,7 @@ fn the_extent_covers_nodes_routes_and_labels() {
         "",
     );
     assert_eq!((m.proportion, m.density), (667, 333));
-    // Un seul nœud : proportion 1 000, densité 1 000.
+    // A single node: ratio 1 000, density 1 000.
     let m = measure(LEAF_A, "", &at("A", 0, 0), "");
     assert_eq!((m.proportion, m.density), (1000, 1000));
 }
@@ -456,7 +456,7 @@ fn broken_layer_and_order_constraints_are_counted_by_pair() {
         )
     };
     let nodes = [layered("A", 0, 0), layered("B", 1, 0), layered("C", 1, 1)].join(", ");
-    // Direction `right` par défaut : B et C après A, C sous B.
+    // Direction `right` by default: B and C after A, C below B.
     let m = measure(
         &nodes,
         "",
@@ -464,7 +464,7 @@ fn broken_layer_and_order_constraints_are_counted_by_pair() {
         "",
     );
     assert_eq!((m.layer_violations, m.order_violations), (0, 0));
-    // A après B et C, C au-dessus de B : deux couches et un ordre violés.
+    // A after B and C, C above B: two layers and one order violated.
     let m = measure(
         &nodes,
         "",
@@ -472,7 +472,7 @@ fn broken_layer_and_order_constraints_are_counted_by_pair() {
         "",
     );
     assert_eq!((m.layer_violations, m.order_violations), (2, 1));
-    // À la même hauteur le long de la direction : violé aussi.
+    // At the same height along the direction: violated too.
     let m = measure(
         &nodes,
         "",
@@ -480,7 +480,7 @@ fn broken_layer_and_order_constraints_are_counted_by_pair() {
         "",
     );
     assert_eq!((m.layer_violations, m.order_violations), (1, 0));
-    // Direction `down` : les couches suivent y, l'ordre suit x.
+    // Direction `down`: layers follow y, order follows x.
     let down = graph(&nodes, "").replace(
         "\"name\": \"g\"",
         "\"name\": \"g\", \"direction\": \"down\"",
@@ -505,7 +505,7 @@ fn port_order_is_read_clockwise_on_each_side() {
     let placed =
         |ports: &str| format!("{{\"id\": \"A\", \"x\": 0, \"y\": 0, \"ports\": [{ports}]}}");
     let north = node("{\"id\": \"p\", \"side\": \"north\"}, {\"id\": \"q\", \"side\": \"north\"}");
-    // Au nord, de gauche à droite.
+    // On the north side, left to right.
     let m = measure(
         &north,
         "",
@@ -520,7 +520,7 @@ fn port_order_is_read_clockwise_on_each_side() {
         "",
     );
     assert_eq!(m.port_order_violations, 1);
-    // À l'ouest, de bas en haut ; un autre côté ne compte pas.
+    // On the west side, bottom to top; another side does not count.
     let west = node(
         "{\"id\": \"p\", \"side\": \"west\"}, {\"id\": \"q\", \"side\": \"west\"}, {\"id\": \"r\", \"side\": \"east\"}",
     );
@@ -542,7 +542,7 @@ fn port_order_is_read_clockwise_on_each_side() {
         "",
     );
     assert_eq!(m.port_order_violations, 1);
-    // Au sud, de droite à gauche.
+    // On the south side, right to left.
     let south = node("{\"id\": \"p\", \"side\": \"south\"}, {\"id\": \"q\", \"side\": \"south\"}");
     let m = measure(
         &south,
@@ -558,7 +558,7 @@ fn port_order_is_read_clockwise_on_each_side() {
         "",
     );
     assert_eq!(m.port_order_violations, 1);
-    // Sans `ports_ordered`, rien n'est imposé.
+    // Without `ports_ordered`, nothing is imposed.
     let free = north.replace("\"ports_ordered\": true, ", "");
     let m = measure(
         &free,
@@ -574,8 +574,8 @@ fn the_example_files_measure_as_counted_by_hand() {
     let graph = Graph::parse(&data("components.graph.json")).unwrap();
     let layout = Layout::parse(&data("components.layout.json")).unwrap();
     let m = Metrics::measure(&graph, &layout);
-    // e1 : 3 500 + 1 000 + 3 500 en deux coudes ; e2 : 6 000 ; e3 : une
-    // courbe entre sa corde (3 606) et son polygone de contrôle (4 032).
+    // e1: 3 500 + 1 000 + 3 500 in two bends; e2: 6 000; e3: a
+    // curve between its chord (3 606) and its control polygon (4 032).
     assert_eq!(m.bends, 2);
     assert!(
         m.edge_length > 14_000 + 3_606 && m.edge_length < 14_000 + 4_032,
@@ -586,7 +586,7 @@ fn the_example_files_measure_as_counted_by_hand() {
     assert_eq!((m.crossings, m.shared_segments, m.node_overlaps), (0, 0, 0));
     assert_eq!((m.edge_node_overlaps, m.label_overlaps), (0, 0));
     assert_eq!((m.width, m.height), (48_000, 10_000));
-    // Feuilles : 60 + 72 + 40 millions sur 480 millions.
+    // Leaves: 60 + 72 + 40 million over 480 million.
     assert_eq!(m.density, 358);
     assert_eq!(m.proportion, 4800);
     assert_eq!(m.port_order_violations, 0);
@@ -626,7 +626,7 @@ fn the_json_has_one_integer_key_per_measure_in_a_fixed_order() {
     let m = Metrics::measure(&graph, &layout);
     let text = m.to_json();
     assert!(!text.contains('\n'));
-    // Les valeurs vérifiées à la main pour `components`, aux bonnes clés.
+    // The values checked by hand for `components`, under the right keys.
     assert!(
         text.starts_with(
             "{\"crossings\": 0, \"shared_segments\": 0, \"shared_length\": 0, \"bends\": 2, "
@@ -639,7 +639,7 @@ fn the_json_has_one_integer_key_per_measure_in_a_fixed_order() {
         "{text}"
     );
     assert!(text.ends_with(", \"port_order_violations\": 0}"), "{text}");
-    // Relu par le lecteur strict : un objet, chaque mesure une fois, en entier.
+    // Read back by the strict reader: one object, each measure once, as an integer.
     let value = json::parse(text.as_bytes()).unwrap();
     let json::Kind::Object(members) = value.kind else {
         panic!("{text}");

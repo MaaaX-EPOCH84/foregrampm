@@ -1,11 +1,11 @@
-// ForegramPM — banc de mesure : `dot` de Graphviz comme moteur de référence.
+// ForegramPM — measurement bench: Graphviz `dot` as a reference engine.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Le graphe devient un texte DOT, `dot -Tjson0` le place, et sa sortie JSON —
-// des chaînes, aucun flottant — est relue avec le lecteur strict du format.
-// Un pixel du format vaut un point de Graphviz ; les positions sortent au
-// centième de point, les tracés au millième, arrondis au centième.
+// The graph becomes DOT text, `dot -Tjson0` places it, and its JSON output —
+// strings, no floats — is read back with the format's strict reader.
+// One pixel of the format equals one Graphviz point; positions come out in
+// hundredths of a point, routes in thousandths, rounded to hundredths.
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -18,21 +18,21 @@ use foregram_graph::{
 
 use super::{Kind, Tools, garbled, number, px};
 
-/// Les réglages passés à `dot`, tels que le placement les cite.
+/// The settings passed to `dot`, as the layout cites them.
 pub const OPTIONS: &str = "dot -Tjson0; shape=box fixedsize=true; arrowhead=none; compound=true; \
                            labels as fixed-size HTML tables; rankdir from direction";
 
-/// Marge d'un conteneur sans `padding`, en points : celle que `dot` donne à un
-/// `cluster` par défaut, écrite pour qu'un conteneur imbriqué n'hérite pas
-/// de celle de son parent.
+/// Margin of a container without `padding`, in points: the one `dot` gives a
+/// default `cluster`, written out so a nested container does not inherit
+/// its parent's.
 const DEFAULT_MARGIN: &str = "8";
 
-/// L'exécutable, dans le cache de `corpus/fetch.sh`.
+/// The executable, in the cache of `corpus/fetch.sh`.
 pub fn executable(cache: &Path) -> PathBuf {
     cache.join("graphviz").join("usr").join("bin").join("dot")
 }
 
-/// La bibliothèque partagée voisine de l'exécutable.
+/// The shared library next to the executable.
 fn lib_dir(executable: &Path) -> PathBuf {
     executable
         .parent()
@@ -47,7 +47,7 @@ fn command(executable: &Path) -> Command {
     command
 }
 
-/// La version que `dot -V` annonce : `dot - graphviz version 16.1.0 (…)`.
+/// The version that `dot -V` reports: `dot - graphviz version 16.1.0 (…)`.
 pub fn installed_version(executable: &Path) -> Option<String> {
     let output = command(executable).arg("-V").output().ok()?;
     let text = String::from_utf8_lossy(&output.stderr);
@@ -56,7 +56,7 @@ pub fn installed_version(executable: &Path) -> Option<String> {
     words.next().map(str::to_string)
 }
 
-/// Place un graphe avec `dot`.
+/// Places a graph with `dot`.
 pub fn layout(tools: &Tools, graph: &Graph) -> Result<Layout, Diagnostic> {
     let source = lower(graph);
     let mut command = command(&tools.path);
@@ -72,9 +72,9 @@ pub fn layout(tools: &Tools, graph: &Graph) -> Result<Layout, Diagnostic> {
 
 // ------------------------------------------------------------- lowering
 
-/// Les nœuds du graphe dans l'ordre de `Graph::all_nodes`, avec le rang de
-/// chacun : `dot` les connaît par `n<rang>`, et un conteneur par
-/// `cluster<rang>`.
+/// The graph's nodes in the order of `Graph::all_nodes`, with the rank of
+/// each: `dot` knows them as `n<rank>`, and a container as
+/// `cluster<rank>`.
 struct Names<'a> {
     nodes: Vec<&'a Node>,
 }
@@ -90,9 +90,9 @@ impl<'a> Names<'a> {
         self.nodes.iter().position(|n| n.id == id)
     }
 
-    /// Le nœud que `dot` attache : la feuille elle-même, ou la première feuille
-    /// d'un conteneur, qu'une tête ou une queue de groupe (`lhead`, `ltail`)
-    /// ramène ensuite sur le bord du groupe.
+    /// The node `dot` attaches to: the leaf itself, or the first leaf
+    /// of a container, which a group head or tail (`lhead`, `ltail`)
+    /// then pulls back onto the group's edge.
     fn stand_in(&self, index: usize) -> usize {
         let mut at = index;
         while let Some(node) = self.nodes.get(at)
@@ -104,7 +104,7 @@ impl<'a> Names<'a> {
     }
 }
 
-/// Le texte DOT d'un graphe.
+/// The DOT text of a graph.
 pub fn lower(graph: &Graph) -> String {
     let names = Names::new(graph);
     let mut out = String::from("digraph g {\n  graph [compound=true");
@@ -185,8 +185,8 @@ fn lower_node(node: &Node, index: &mut usize, depth: usize, out: &mut String) {
     }
 }
 
-/// Des centièmes de point en pouces, à six décimales : `dot` ne prend les
-/// tailles de nœud qu'en pouces.
+/// Hundredths of a point to inches, with six decimals: `dot` takes
+/// node sizes only in inches.
 fn inches(hundredths: i64) -> String {
     let whole = hundredths / 7200;
     let rest = hundredths % 7200;
@@ -203,8 +203,8 @@ fn compass(side: Side) -> &'static str {
     }
 }
 
-/// Une étiquette de taille fixe : un tableau HTML vide. `dot` ne lit ces
-/// tailles qu'en points entiers, arrondis au plus près.
+/// A fixed-size label: an empty HTML table. `dot` reads these
+/// sizes only in whole points, rounded to nearest.
 fn html_label(width: i64, height: i64) -> String {
     let (w, h) = ((width + 50) / 100, (height + 50) / 100);
     format!(
@@ -216,7 +216,7 @@ fn html_label(width: i64, height: i64) -> String {
 
 // -------------------------------------------------------------- reading
 
-/// Un rectangle absolu lu dans la sortie, l'axe des y déjà retourné.
+/// An absolute rectangle read from the output, y axis already flipped.
 #[derive(Clone, Copy)]
 struct Abs {
     x: i64,
@@ -225,14 +225,14 @@ struct Abs {
     height: i64,
 }
 
-/// Ce que `dot` rend d'un lien : son tracé et le centre de chaque étiquette.
+/// What `dot` returns for an edge: its route and the centre of each label.
 type Routed = (Vec<Segment>, Vec<(Anchor, Point)>);
 
-/// Construit le placement à partir de la sortie `-Tjson0` de `dot`.
+/// Builds the layout from the `-Tjson0` output of `dot`.
 pub fn read(graph: &Graph, engine: Engine, bytes: &[u8]) -> Result<Layout, Diagnostic> {
     let root = json::parse(bytes).map_err(|d| garbled(Kind::Dot, d.text()))?;
     let names = Names::new(graph);
-    // Le cadre : son coin bas gauche et son haut, pour retourner l'axe des y.
+    // The frame: its bottom-left corner and its top, to flip the y axis.
     let bb = member(&root, "bb").ok_or_else(|| garbled(Kind::Dot, "no bb"))?;
     let [left, _, _, top] = quad(bb)?;
     let flip = |x: i64, y: i64| Point {
@@ -240,7 +240,7 @@ pub fn read(graph: &Graph, engine: Engine, bytes: &[u8]) -> Result<Layout, Diagn
         y: top - y,
     };
 
-    // Les objets : `n<rang>` avec son centre, `cluster<rang>` avec son cadre.
+    // The objects: `n<rank>` with its centre, `cluster<rank>` with its frame.
     let mut boxes: Vec<Option<Abs>> = vec![None; names.nodes.len()];
     for object in array(&root, "objects")? {
         let name = string(object, "name")?;
@@ -270,7 +270,7 @@ pub fn read(graph: &Graph, engine: Engine, bytes: &[u8]) -> Result<Layout, Diagn
         }
     }
 
-    // Les liens, par leur attribut `id`.
+    // The edges, by their `id` attribute.
     let mut routes: Vec<Option<Routed>> = vec![None; graph.edges.len()];
     for object in array(&root, "edges")? {
         let id = string(object, "id")?;
@@ -293,7 +293,7 @@ pub fn read(graph: &Graph, engine: Engine, bytes: &[u8]) -> Result<Layout, Diagn
         routes[rank] = Some((route, labels));
     }
 
-    // Le placement : positions relatives au parent, ancres des ports.
+    // The layout: positions relative to the parent, port anchors.
     let mut nodes = Vec::new();
     for (rank, (node, parent)) in graph.all_nodes().into_iter().enumerate() {
         let Some(abs) = boxes[rank] else {
@@ -333,8 +333,8 @@ pub fn read(graph: &Graph, engine: Engine, bytes: &[u8]) -> Result<Layout, Diagn
         let Some((route, placed_labels)) = placed else {
             continue;
         };
-        // Chaque étiquette du graphe prend la position de son bout ; `dot` n'en
-        // place qu'une par bout, la deuxième reste sans position.
+        // Each label of the graph takes the position of its end; `dot` places
+        // only one per end, the second stays without a position.
         let mut taken = Vec::new();
         let labels = edge
             .labels
@@ -368,10 +368,10 @@ pub fn read(graph: &Graph, engine: Engine, bytes: &[u8]) -> Result<Layout, Diagn
     })
 }
 
-/// L'ancre d'un port, que `dot` ne connaît pas : la position que le graphe
-/// fixe ; sinon le bout du premier lien qui l'emprunte, ramené sur le bord du
-/// nœud — `dot` attache un point cardinal un point en dehors ; sinon le milieu
-/// de son côté, le nord à défaut. Relative au nœud.
+/// The anchor of a port, which `dot` does not know: the position the graph
+/// fixes; otherwise the end of the first edge that uses it, pulled back onto the edge of the
+/// node — `dot` attaches a compass point one point outside; otherwise the middle
+/// of its side, north by default. Relative to the node.
 fn port_anchor(
     graph: &Graph,
     node: &Node,
@@ -430,8 +430,8 @@ fn port_anchor(
     }
 }
 
-/// Le tracé : `x,y x,y …`, un point puis des triplets de Bézier cubique. Les
-/// bouts fléchés (`e,x,y`, `s,x,y`) n'apparaissent pas sans pointe de flèche.
+/// The route: `x,y x,y …`, a point then cubic Bézier triplets. The
+/// arrowed ends (`e,x,y`, `s,x,y`) do not appear without an arrowhead.
 fn route(value: &Value, flip: &dyn Fn(i64, i64) -> Point) -> Result<Vec<Segment>, Diagnostic> {
     let text = text_of(value)?;
     let mut points = Vec::new();
@@ -500,7 +500,7 @@ fn text_of(value: &Value) -> Result<&str, Diagnostic> {
     }
 }
 
-/// `x,y` en centièmes.
+/// `x,y` in hundredths.
 fn pair(value: &Value) -> Result<(i64, i64), Diagnostic> {
     let text = text_of(value)?;
     let (x, y) = text
@@ -509,7 +509,7 @@ fn pair(value: &Value) -> Result<(i64, i64), Diagnostic> {
     Ok((number(Kind::Dot, x)?, number(Kind::Dot, y)?))
 }
 
-/// `llx,lly,urx,ury` en centièmes.
+/// `llx,lly,urx,ury` in hundredths.
 fn quad(value: &Value) -> Result<[i64; 4], Diagnostic> {
     let text = text_of(value)?;
     let parts: Vec<&str> = text.split(',').collect();
@@ -574,8 +574,8 @@ mod tests {
         ));
     }
 
-    /// Une sortie `-Tjson0` de `dot` 16.1.0 sur le texte ci-dessus, abrégée aux
-    /// clés lues, retournée ici : y vers le haut, cadre de 0 à 126.
+    /// A `-Tjson0` output of `dot` 16.1.0 on the text above, abridged to the
+    /// keys read, flipped here: y up, frame from 0 to 126.
     const JSON0: &str = r#"{
       "name": "g", "bb": "0,0,152,126", "_subgraph_cnt": 1,
       "objects": [
@@ -597,9 +597,9 @@ mod tests {
         let graph = components();
         let layout = read(&graph, engine(), JSON0.as_bytes()).unwrap();
         let node = |id: &str| layout.nodes.iter().find(|n| n.id == id).unwrap();
-        // n0, centre (50, 81) et 100 × 60 : coin (0, 126 − 81 − 30) = (0, 15).
+        // n0, centre (50, 81) and 100 × 60: corner (0, 126 − 81 − 30) = (0, 15).
         assert_eq!((node("Client").x, node("Client").y), (0, 1500));
-        // Le conteneur : cadre 88..144 × 8..118, soit (88, 8) et 56 × 110 une fois retourné.
+        // The container: frame 88..144 × 8..118, i.e. (88, 8) and 56 × 110 once flipped.
         assert_eq!((node("System").x, node("System").y), (8800, 800));
         assert_eq!(
             node("System").size,
@@ -608,29 +608,29 @@ mod tests {
                 height: 11000
             })
         );
-        // Core, centre (116, 90) et 120 × 60, relatif au conteneur : (56 − 60, 6 − 30)… en centièmes.
+        // Core, centre (116, 90) and 120 × 60, relative to the container: (56 − 60, 6 − 30)… in hundredths.
         assert_eq!(
             (node("Core").x, node("Core").y),
             (11600 - 6000 - 8800, 3600 - 3000 - 800)
         );
-        // Le tracé de e0 : un départ puis une courbe, au centième.
+        // The route of e0: a start then a curve, in hundredths.
         let e0 = &layout.edges[0];
         assert_eq!(e0.route[0], Segment::Line(Point { x: 10016, y: 4339 }));
         assert!(
             matches!(e0.route[1], Segment::Cubic { end, .. } if end == Point { x: 11566, y: 3762 })
         );
-        // Son étiquette, centrée en (67, 94.571) : coin (67 − 15, 31.43 − 7).
+        // Its label, centred at (67, 94.571): corner (67 − 15, 31.43 − 7).
         assert_eq!(e0.labels, vec![Point { x: 5200, y: 2443 }]);
         assert!(layout.edges[1].labels.is_empty());
-        // Les ports : `req` prend le départ de e0 ; `in` l'arrivée de e0 ; `out` sa position fixée.
+        // The ports: `req` takes the start of e0; `in` the arrival of e0; `out` its fixed position.
         let port = |n: &str, p: &str| {
             let port = node(n).ports.iter().find(|q| q.id == p).unwrap();
             (port.x, port.y)
         };
-        // `req` est à l'est : le départ de e0, 16 centièmes trop loin, revient sur le bord.
+        // `req` is on the east: the start of e0, 16 hundredths too far, comes back onto the edge.
         assert_eq!(port("Client", "req"), (10000, 4339 - 1500));
         assert_eq!(port("Core", "out"), (12000, 3000));
-        // `in` est à l'ouest de Core, dont le coin absolu est (5600, 600).
+        // `in` is on the west of Core, whose absolute corner is (5600, 600).
         assert_eq!(port("Core", "in"), (0, 3762 - 600));
     }
 

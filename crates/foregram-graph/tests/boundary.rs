@@ -1,22 +1,22 @@
-// ForegramPM — garde de la frontière des crates de produit : des octets entrent, des valeurs sortent.
+// ForegramPM — guard of the boundary of the product crates: bytes come in, values go out.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! `foregram-graph` et `foregram-render` ne touchent ni fichier, ni horloge,
-//! ni environnement, ni sortie standard : tout entre par des octets ou des
-//! `&str`, tout sort par une valeur rendue. L'exécutable fait les
-//! entrées-sorties. Cette propriété se lit dans les sources, ligne par
-//! ligne, hors commentaires et hors tests unitaires.
+//! `foregram-graph` and `foregram-render` touch no file, no clock,
+//! no environment, no standard output: everything comes in as bytes or
+//! `&str`, everything goes out as a returned value. The executable does the
+//! input and output. This property is read in the sources, line by
+//! line, outside comments and outside unit tests.
 
-// Un test qui échoue doit s'arrêter net : les règles du produit ne valent pas ici.
+// A failing test must stop dead: the product's rules do not apply here.
 #![allow(clippy::unwrap_used, clippy::panic)]
 
 use std::path::{Path, PathBuf};
 
-/// Modules de `std` dont la bibliothèque n'a pas l'usage.
+/// Modules of `std` the library has no use for.
 const MODULES: [&str; 7] = ["fs", "env", "time", "io", "process", "net", "thread"];
 
-/// Macros qui lisent l'environnement de compilation ou écrivent sur un flux.
+/// Macros that read the build environment or write to a stream.
 const MACROS: [&str; 7] = [
     "print!",
     "println!",
@@ -27,10 +27,10 @@ const MACROS: [&str; 7] = [
     "option_env!",
 ];
 
-/// Les tests unitaires qui suivent cette marque ont le droit d'écrire.
+/// The unit tests that follow this marker are allowed to write.
 const MARK: &str = concat!("#[cfg", "(test)]");
 
-/// Les sources `.rs` d'un répertoire, sous-répertoires compris, triés.
+/// The `.rs` sources of a directory, subdirectories included, sorted.
 fn sources(dir: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
     for entry in std::fs::read_dir(dir).unwrap_or_else(|e| panic!("{} : {e}", dir.display())) {
@@ -45,8 +45,8 @@ fn sources(dir: &Path) -> Vec<PathBuf> {
     out
 }
 
-/// Les chemins `std::…` d'une ligne, un groupe `std::{a, b::c}` déplié en
-/// `std::a` et `std::b::c`.
+/// The `std::…` paths of a line, a group `std::{a, b::c}` unfolded into
+/// `std::a` and `std::b::c`.
 fn std_paths(line: &str) -> Vec<String> {
     let mut out = Vec::new();
     for (at, _) in line.match_indices("std::") {
@@ -69,7 +69,7 @@ fn std_paths(line: &str) -> Vec<String> {
     out
 }
 
-/// Ce qu'une ligne de source emploie de défendu.
+/// What a source line uses that is forbidden.
 fn offences(line: &str) -> Vec<String> {
     let mut out = Vec::new();
     if line.trim_start().starts_with("//") {

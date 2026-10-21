@@ -1,4 +1,4 @@
-// ForegramPM — cas de refus de la version 2 du format, partagés entre les tests.
+// ForegramPM — refusal cases of version 2 of the format, shared between the tests.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -31,8 +31,8 @@ pub fn layout(nodes: &str, edges: &str) -> String {
 pub const LEAF_A: &str = "{\"id\": \"A\", \"width\": 100, \"height\": 100}";
 pub const LEAF_B: &str = "{\"id\": \"B\", \"width\": 100, \"height\": 100}";
 
-/// Un conteneur `C` qui enferme `A`, avec un port `p` à l'est de `A`,
-/// et une feuille `B` dehors avec un port `q` à l'ouest.
+/// A container `C` that encloses `A`, with a port `p` on the east of `A`,
+/// and a leaf `B` outside with a port `q` on the west.
 pub fn nested() -> Graph {
     let nodes = "{\"id\": \"C\", \"padding\": 10, \"children\": [\
                    {\"id\": \"A\", \"width\": 100, \"height\": 100, \
@@ -45,17 +45,17 @@ pub fn nested() -> Graph {
     Graph::parse(graph(nodes, edges).as_bytes()).unwrap()
 }
 
-/// Un placement du graphe [`nested`] : `C` en (0, 0), 200 × 200 ; `A` en
-/// (10, 10) dedans ; `B` en (300, 0) ; `e` du port `p` au port `q` ;
-/// `f` d'`A` au bord bas de `C`, en courbe.
+/// A layout of the graph [`nested`]: `C` at (0, 0), 200 × 200; `A` at
+/// (10, 10) inside it; `B` at (300, 0); `e` from port `p` to port `q`;
+/// `f` from `A` to the bottom edge of `C`, as a curve.
 pub const NESTED_LAYOUT_NODES: &str = "{\"id\": \"C\", \"x\": 0, \"y\": 0, \"width\": 200, \"height\": 200},\n\
      {\"id\": \"A\", \"x\": 10, \"y\": 10, \"ports\": [{\"id\": \"p\", \"x\": 100, \"y\": 50}]},\n\
      {\"id\": \"B\", \"x\": 300, \"y\": 0, \"ports\": [{\"id\": \"q\", \"x\": 0, \"y\": 50}]}";
 pub const NESTED_LAYOUT_EDGES: &str = "{\"id\": \"e\", \"route\": [[110, 60], [300, 50]]},\n\
      {\"id\": \"f\", \"route\": [[60, 110], [[60, 150], [80, 180], [100, 200]]]}";
 
-/// Les refus propres à la version 2, nommés, pour que chaque test en
-/// vérifie les siens et que le catalogue les voie tous.
+/// The refusals specific to version 2, named, so that each test
+/// checks its own and the catalogue sees them all.
 pub fn cases() -> Vec<(&'static str, Vec<Diagnostic>)> {
     let g = |nodes: &str, edges: &str| Graph::parse(graph(nodes, edges).as_bytes()).unwrap_err();
     let l = |nodes: &str, edges: &str| Layout::parse(layout(nodes, edges).as_bytes()).unwrap_err();

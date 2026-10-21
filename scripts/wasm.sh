@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# ForegramPM — vérifie que les crates de produit se compilent pour WebAssembly.
+# ForegramPM — checks that the product crates compile for WebAssembly.
 # Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Usage : scripts/wasm.sh
+# Usage: scripts/wasm.sh
 #
-# Compile `foregram-graph` et `foregram-render` (sans la feature `png`) pour
-# `wasm32-unknown-unknown`, sans drapeau particulier. Seule la compilation
-# est tenue : rien n'est exécuté, aucune API n'est exposée pour le web.
-# La cible n'est jamais installée ici ; si elle manque, le script le dit.
+# Compiles `foregram-graph` and `foregram-render` (without the `png` feature) for
+# `wasm32-unknown-unknown`, with no particular flag. Only compilation
+# is held: nothing is run, no web API is exposed.
+# The target is never installed here; if it is missing, the script says so.
 #
-# Codes de sortie : 0 compile, 1 la compilation échoue, 2 outil ou cible absents.
+# Exit codes: 0 compiles, 1 compilation fails, 2 tool or target missing.
 
 set -euo pipefail
 

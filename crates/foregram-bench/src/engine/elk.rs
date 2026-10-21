@@ -1,15 +1,15 @@
-// ForegramPM — banc de mesure : ELK Layered comme moteur de référence, par le
-// pilote Java `java/ElkDriver.java`.
+// ForegramPM — bench: ELK Layered as a reference engine, through the
+// Java driver `java/ElkDriver.java`.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Un seul processus Java place tous les graphes d'un passage. Le dialogue,
-// ligne à ligne et champs séparés par une tabulation, est décrit en tête du
-// pilote ; ici on l'écrit depuis un graphe et on le relit en placement. Le
-// pilote rend tout en absolu, en pixels flottants ; chaque nombre est arrondi
-// au centième une seule fois, et les positions relatives se déduisent des
-// absolues arrondies, pour que le bord d'un nœud et le bout d'un lien
-// tombent sur le même centième.
+// A single Java process lays out all the graphs of a pass. The dialogue,
+// line by line with tab-separated fields, is described at the top of the
+// driver; here it is written from a graph and read back as a layout. The
+// driver returns everything in absolute, floating-point pixels; each number is rounded
+// to the hundredth once, and relative positions are derived from the
+// rounded absolute ones, so that a node's border and a link's end
+// land on the same hundredth.
 
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
@@ -22,15 +22,15 @@ use foregram_graph::{
 
 use super::{Kind, Tools, garbled, number, px};
 
-/// Les réglages passés à ELK, tels que le placement les cite.
+/// The settings passed to ELK, as the layout cites them.
 pub const OPTIONS: &str = "org.eclipse.elk.layered; hierarchyHandling=INCLUDE_CHILDREN when nested; \
                            portConstraints from the ports; portBorderOffset=-size/2; direction from the graph";
 
-/// Le jar dont le nom porte la version d'ELK.
+/// The jar whose name carries ELK's version.
 const CORE_JAR: &str = "org.eclipse.elk.core-";
 
-/// La version d'ELK présente : celle du jar `org.eclipse.elk.core-<version>.jar`
-/// dans `<dir>/jars`, si le pilote compilé est là aussi.
+/// The ELK version present: that of the jar `org.eclipse.elk.core-<version>.jar`
+/// in `<dir>/jars`, if the compiled driver is there too.
 pub fn installed_version(dir: &Path) -> Option<String> {
     if !dir.join("classes").join("ElkDriver.class").is_file() {
         return None;
@@ -44,15 +44,15 @@ pub fn installed_version(dir: &Path) -> Option<String> {
     })
 }
 
-/// Options de la JVM : un hachage d'identité constant, pour qu'ELK rende
-/// toujours le même placement. `RoutingDirector` (ELK 0.12.0) tire les deux
-/// tracés candidats d'une boucle entre côtés opposés d'une `HashMap` à clés
-/// `PortSide`, dont le hachage est celui de l'objet, différent à chaque JVM ;
-/// à coût égal le premier gagne. Drapeau de HotSpot, mesuré en P8 : même
-/// placement sur le plus gros Ptolemy, 0,14 s de plus.
+/// JVM options: a constant identity hash, so that ELK always returns
+/// the same layout. `RoutingDirector` (ELK 0.12.0) draws the two candidate
+/// routes of a loop between opposite sides from a `HashMap` keyed by
+/// `PortSide`, whose hash is the object's, different on each JVM;
+/// at equal cost the first wins. HotSpot flag, measured in P8: same
+/// layout on the largest Ptolemy, 0.14 s more.
 pub const JVM_OPTIONS: [&str; 2] = ["-XX:+UnlockExperimentalVMOptions", "-XX:hashCode=2"];
 
-/// La ligne de commande du pilote, sur les jars et les classes du cache.
+/// The driver's command line, over the cache's jars and classes.
 fn command(classpath: &str) -> Command {
     let mut command = Command::new("java");
     command
@@ -63,7 +63,7 @@ fn command(classpath: &str) -> Command {
     command
 }
 
-/// Le pilote en cours, prêt à placer le graphe suivant.
+/// The running driver, ready to lay out the next graph.
 pub struct Process {
     tools: Tools,
     child: Child,
@@ -72,7 +72,7 @@ pub struct Process {
 }
 
 impl Process {
-    /// Lance `java` sur le pilote, avec tous les jars du cache.
+    /// Starts `java` on the driver, with all the cache's jars.
     pub fn start(tools: Tools) -> Result<Process, Diagnostic> {
         let failed = |detail: String| {
             let message = Message::new("R003")
@@ -105,7 +105,7 @@ impl Process {
         })
     }
 
-    /// Place un graphe : écrit sa description, lit la réponse jusqu'à `end`.
+    /// Lays out a graph: writes its description, reads the reply up to `end`.
     pub fn layout(&mut self, graph: &Graph) -> Result<Layout, Diagnostic> {
         let failed = |detail: String| {
             let message = Message::new("R003")
@@ -145,7 +145,7 @@ impl Process {
 
 impl Drop for Process {
     fn drop(&mut self) {
-        // Fermer l'entrée suffit : le pilote s'arrête à la fin du texte.
+        // Closing the input is enough: the driver stops at the end of the text.
         let _ = self.child.kill();
         let _ = self.child.wait();
     }
@@ -153,8 +153,8 @@ impl Drop for Process {
 
 // ------------------------------------------------------------- lowering
 
-/// Le niveau de contrainte des ports d'un nœud, celui d'ELK : le plus exigeant
-/// que ses ports, ou les côtés imposés aux liens qui l'atteignent, demandent.
+/// The constraint level of a node's ports, ELK's: the most demanding
+/// that its ports, or the sides imposed on the links reaching it, ask for.
 fn constraints(graph: &Graph, node: &Node) -> &'static str {
     if node.ports.iter().any(|p| p.position.is_some()) {
         "FIXED_POS"
@@ -176,7 +176,7 @@ fn opt<T: ToString>(value: Option<T>) -> String {
     value.map_or_else(|| String::from("-"), |v| v.to_string())
 }
 
-/// La description d'un graphe pour le pilote.
+/// A graph's description for the driver.
 pub fn lower(graph: &Graph) -> String {
     let mut out = format!(
         "graph\t{}\t{}\n",
@@ -235,11 +235,11 @@ pub fn lower(graph: &Graph) -> String {
 
 // -------------------------------------------------------------- reading
 
-/// Construit le placement à partir des lignes rendues par le pilote, `end`
-/// exclu.
+/// Builds the layout from the lines the driver returned, `end`
+/// excluded.
 pub fn read(graph: &Graph, engine: Engine, lines: &[String]) -> Result<Layout, Diagnostic> {
     let mut nodes: Vec<NodePlace> = Vec::new();
-    // Par nœud placé : son coin absolu, pour y rapporter enfants et ports.
+    // Per placed node: its absolute corner, to which children and ports are related.
     let mut corners: Vec<(String, Point)> = Vec::new();
     let mut edges: Vec<EdgePlace> = Vec::new();
     let all = graph.all_nodes();
@@ -295,7 +295,7 @@ pub fn read(graph: &Graph, engine: Engine, lines: &[String]) -> Result<Layout, D
                 let Some(corner) = corner_of(&corners, node_id) else {
                     return Err(garbled(Kind::Elk, format!("port {id} of {node_id}")));
                 };
-                // Le pilote rend le coin de la boîte ; l'ancre est son centre.
+                // The driver returns the box's corner; the anchor is its centre.
                 let anchor = Point {
                     x: number(Kind::Elk, x)? + number(Kind::Elk, width)? / 2 - corner.x,
                     y: number(Kind::Elk, y)? + number(Kind::Elk, height)? / 2 - corner.y,
@@ -345,7 +345,7 @@ pub fn read(graph: &Graph, engine: Engine, lines: &[String]) -> Result<Layout, D
             _ => return Err(garbled(Kind::Elk, line.clone())),
         }
     }
-    // Les ports d'un nœud dans l'ordre du graphe, pour une sortie stable.
+    // A node's ports in the graph's order, for a stable output.
     for place in &mut nodes {
         if let Some(node) = graph.node(&place.id) {
             place
@@ -417,7 +417,7 @@ mod tests {
         assert!(lower(&graph).contains("edge\te\ta\tb\t-\t-\t-\tsouth\n"));
     }
 
-    /// La réponse du pilote sur `components`, ELK 0.12.0, telle qu'elle est sortie.
+    /// The driver's reply on `components`, ELK 0.12.0, as it came out.
     const REPLY: &str = "layout\tcomponents\n\
         node\tClient\t12.0\t12.0\t100.0\t60.0\n\
         port\tClient\treq\t112.0\t42.0\t0.0\t0.0\n\
@@ -447,7 +447,7 @@ mod tests {
         );
         assert_eq!((node("Core").x, node("Core").y), (1000, 1000));
         assert_eq!(node("Core").size, None);
-        // Les ports reviennent dans l'ordre du graphe, ancrés au centre de leur boîte.
+        // Ports come back in the graph's order, anchored at the centre of their box.
         let ports: Vec<(&str, i64, i64)> = node("Core")
             .ports
             .iter()

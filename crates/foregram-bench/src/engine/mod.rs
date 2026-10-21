@@ -1,5 +1,5 @@
-// ForegramPM — banc de mesure : moteurs de référence, ELK et Graphviz, à
-// version figée, qui rendent leurs coordonnées dans le format d'échange.
+// ForegramPM — bench: reference engines, ELK and Graphviz, at a pinned
+// version, that return their coordinates in the exchange format.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -15,15 +15,15 @@ use std::time::{Duration, Instant};
 
 use foregram_graph::{Diagnostic, Graph, Layout, Message, Pos, Rect};
 
-/// Délai accordé à un moteur pour un graphe. Le pilote d'ELK applique le même.
+/// Time allowed for an engine on one graph. ELK's driver applies the same.
 pub const TIMEOUT: Duration = Duration::from_secs(60);
 
-/// Un moteur de référence.
+/// A reference engine.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Kind {
-    /// `dot`, de Graphviz.
+    /// `dot`, from Graphviz.
     Dot,
-    /// ELK Layered, par le pilote Java du banc.
+    /// ELK Layered, through the bench's Java driver.
     Elk,
 }
 
@@ -36,7 +36,7 @@ impl Kind {
         }
     }
 
-    /// Le nom du moteur, tel que le placement le porte et la commande le prend.
+    /// The engine's name, as the layout carries it and the command takes it.
     pub fn name(self) -> &'static str {
         match self {
             Kind::Dot => "dot",
@@ -44,7 +44,7 @@ impl Kind {
         }
     }
 
-    /// La section du manifeste qui fige sa version.
+    /// The manifest section that pins its version.
     pub fn section(self) -> &'static str {
         match self {
             Kind::Dot => "graphviz",
@@ -53,18 +53,18 @@ impl Kind {
     }
 }
 
-/// Un moteur trouvé dans le cache, à la version que le manifeste fige.
+/// An engine found in the cache, at the version the manifest pins.
 #[derive(Clone, Debug)]
 pub struct Tools {
     pub kind: Kind,
     pub version: String,
-    /// `dot` : l'exécutable ; ELK : le répertoire des jars et des classes.
+    /// `dot`: the executable; ELK: the directory of jars and classes.
     pub path: PathBuf,
 }
 
 impl Tools {
-    /// Cherche le moteur dans le cache de `corpus/fetch.sh` et confronte sa
-    /// version à celle du manifeste voisin. Refuse si l'un manque ou diffère.
+    /// Looks for the engine in the `corpus/fetch.sh` cache and checks its
+    /// version against the neighbouring manifest. Refuses if either is missing or differs.
     pub fn locate(kind: Kind, cache: &Path) -> Result<Tools, Diagnostic> {
         let manifest = cache.parent().unwrap_or(cache).join("manifest.txt");
         let bytes = std::fs::read(&manifest).unwrap_or_default();
@@ -104,15 +104,15 @@ fn missing(kind: Kind, path: &Path) -> Diagnostic {
     Diagnostic::new(Pos::NONE, message)
 }
 
-/// Un moteur prêt à placer des graphes, l'un après l'autre.
+/// An engine ready to lay out graphs, one after another.
 pub enum Runner {
     Dot(Tools),
     Elk(elk::Process),
 }
 
-/// Ce qu'un passage sur un graphe laisse : le placement s'il a pu être
-/// construit, les refus — du moteur, puis du validateur —, et les bouts de
-/// tracé ramenés sur leur bord.
+/// What a pass over one graph leaves: the layout if it could be
+/// built, the refusals — from the engine, then from the validator —, and the route
+/// ends pulled back onto their border.
 pub struct Outcome {
     pub layout: Option<Layout>,
     pub diags: Vec<Diagnostic>,
@@ -127,8 +127,8 @@ impl Runner {
         }
     }
 
-    /// Place un graphe. Le placement rendu est construit même s'il est refusé :
-    /// un échec se lit mieux sur le fichier que sur son absence.
+    /// Lays out a graph. The returned layout is built even if it is refused:
+    /// a failure reads better on the file than on its absence.
     pub fn layout(&mut self, graph: &Graph) -> Outcome {
         let built = match self {
             Runner::Dot(tools) => dot::layout(tools, graph),
@@ -153,8 +153,8 @@ impl Runner {
     }
 }
 
-/// Lance une commande, lui donne `input`, et rend sa sortie standard. Refuse
-/// si elle échoue (R003) ou dépasse le délai (R004).
+/// Runs a command, gives it `input`, and returns its standard output. Refuses
+/// if it fails (R003) or exceeds the time limit (R004).
 pub fn run(
     kind: Kind,
     command: &mut Command,
@@ -178,8 +178,8 @@ pub fn run(
     else {
         return Err(failed(String::from("no pipe")));
     };
-    // L'entrée s'écrit et les sorties se lisent à part : un tuyau plein
-    // bloquerait le moteur avant qu'il ait fini.
+    // Input is written and outputs are read separately: a full pipe
+    // would block the engine before it finished.
     let input = input.to_vec();
     let writer = std::thread::spawn(move || stdin.write_all(&input));
     let out_reader = std::thread::spawn(move || {
@@ -226,7 +226,7 @@ pub fn run(
     Ok(out)
 }
 
-/// Dans `[section]`, la valeur de `key = …`, première ligne qui la porte.
+/// In `[section]`, the value of `key = …`, from the first line that carries it.
 pub fn manifest_value(bytes: &[u8], section: &str, key: &str) -> Option<String> {
     let text = String::from_utf8_lossy(bytes);
     let header = format!("[{section}]");
@@ -246,9 +246,9 @@ pub fn manifest_value(bytes: &[u8], section: &str, key: &str) -> Option<String> 
     None
 }
 
-/// Un nombre écrit en pixels — `12.5`, `-0.0`, `1.0E-4` —, porté en centièmes
-/// de pixel : `12.5` donne 1250. Au-delà de deux décimales, arrondi au plus
-/// près, la moitié vers l'extérieur. `None` s'il ne tient pas dans un `i64`.
+/// A number written in pixels — `12.5`, `-0.0`, `1.0E-4` —, carried in hundredths
+/// of a pixel: `12.5` gives 1250. Beyond two decimals, rounded to nearest,
+/// half away from zero. `None` if it does not fit in an `i64`.
 pub fn hundredths(text: &str) -> Option<i64> {
     let (negative, rest) = match text.strip_prefix('-') {
         Some(rest) => (true, rest),
@@ -267,7 +267,7 @@ pub fn hundredths(text: &str) -> Option<i64> {
         .chain(fraction.bytes())
         .map(|b| b.checked_sub(b'0').filter(|d| *d < 10))
         .collect::<Option<_>>()?;
-    // Valeur = chiffres × 10^(exposant − décimales) ; en centièmes, deux de plus.
+    // Value = digits × 10^(exponent − decimals); in hundredths, two more.
     let shift = exponent
         .checked_sub(i64::try_from(fraction.len()).ok()?)?
         .checked_add(2)?;
@@ -286,14 +286,14 @@ pub fn hundredths(text: &str) -> Option<i64> {
     i64::try_from(if negative { -value } else { value }).ok()
 }
 
-/// Des centièmes de pixel écrits en pixels, exactement : 4950 donne `49.50`.
+/// Hundredths of a pixel written in pixels, exactly: 4950 gives `49.50`.
 pub fn px(hundredths: i64) -> String {
     let sign = if hundredths < 0 { "-" } else { "" };
     let abs = hundredths.unsigned_abs();
     format!("{sign}{}.{:02}", abs / 100, abs % 100)
 }
 
-/// Un refus « sortie non comprise » (R005).
+/// A refusal for output that cannot be understood (R005).
 pub fn garbled(kind: Kind, detail: impl ToString) -> Diagnostic {
     let message = Message::new("R005")
         .text("engine", kind.name())
@@ -301,8 +301,8 @@ pub fn garbled(kind: Kind, detail: impl ToString) -> Diagnostic {
     Diagnostic::new(Pos::NONE, message)
 }
 
-/// Un nombre lu dans la sortie d'un moteur, en centièmes ; refuse ce qui n'y
-/// tient pas (R006).
+/// A number read from an engine's output, in hundredths; refuses what does not
+/// fit (R006).
 pub fn number(kind: Kind, text: &str) -> Result<i64, Diagnostic> {
     hundredths(text).ok_or_else(|| {
         let message = Message::new("R006")
@@ -312,10 +312,10 @@ pub fn number(kind: Kind, text: &str) -> Result<i64, Diagnostic> {
     })
 }
 
-/// Les rectangles absolus des nœuds d'un placement, par identifiant : la
-/// taille d'une feuille vient du graphe, celle d'un conteneur du placement.
-/// Un nœud que le placement oublie, ou dont le parent n'a pas de rectangle,
-/// n'y figure pas.
+/// The absolute rectangles of a layout's nodes, by identifier: a leaf's
+/// size comes from the graph, a container's from the layout.
+/// A node the layout forgets, or whose parent has no rectangle,
+/// is left out.
 pub fn absolute_rects(graph: &Graph, layout: &Layout) -> BTreeMap<String, Rect> {
     let places: BTreeMap<&str, &foregram_graph::NodePlace> =
         layout.nodes.iter().map(|p| (p.id.as_str(), p)).collect();

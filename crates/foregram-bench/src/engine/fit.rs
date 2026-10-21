@@ -1,33 +1,33 @@
-// ForegramPM — banc de mesure : ramène sur leur bord les bouts de tracé qu'un
-// moteur laisse à un cheveu de leur nœud.
+// ForegramPM — measurement bench: pulls route ends back onto their edge when an
+// engine leaves them a hair away from their node.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 //
-// Le format veut qu'un tracé parte du bord exact de son nœud, de l'ancre
-// exacte de son port. Un moteur calcule en flottants et `dot` coupe ses
-// courbes par approximation : le bout tombe à quelques centièmes du bord, et
-// le validateur refuserait tout. Un bout à moins d'un pixel de sa cible y est
-// donc projeté, et chaque déplacement est compté : le banc le dit, il ne le
-// cache pas. Au-delà, le bout reste où le moteur l'a mis et le validateur le
-// relève.
+// The format requires a route to start at the exact edge of its node, at the
+// exact anchor of its port. An engine computes in floats and `dot` cuts its
+// curves by approximation: the end lands a few hundredths from the edge, and
+// the validator would refuse everything. An end within one pixel of its target is
+// therefore projected onto it, and every move is counted: the bench reports it, it does not
+// hide it. Beyond that, the end stays where the engine put it and the validator
+// flags it.
 
 use foregram_graph::{Graph, Layout, Point, Rect, Segment, Side};
 
 use super::absolute_rects;
 
-/// Distance au-delà de laquelle un bout de tracé n'est plus ramené, en
-/// centièmes de pixel : un pixel et demi. Mesuré sur les corpus : `dot`
-/// laisse ses bouts à 55 centièmes au plus, et attache un point cardinal
-/// exactement 1 pt hors du nœud ; le demi-pixel de plus est la marge.
+/// Distance beyond which a route end is no longer pulled back, in
+/// hundredths of a pixel: one and a half pixels. Measured on the corpora: `dot`
+/// leaves its ends at 55 hundredths at most, and attaches a compass point
+/// exactly 1 pt outside the node; the extra half pixel is the margin.
 pub const TOLERANCE: i64 = 150;
 
-/// Ce que l'ajustement a déplacé.
+/// What the fit moved.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Stats {
-    /// Bouts de tracé déplacés.
+    /// Route ends moved.
     pub moved: usize,
-    /// Le plus grand déplacement, en centièmes de pixel, par la plus grande
-    /// des deux coordonnées.
+    /// The largest move, in hundredths of a pixel, by the larger
+    /// of the two coordinates.
     pub max: i64,
 }
 
@@ -42,29 +42,29 @@ impl Stats {
     }
 }
 
-/// Le point du contour de `rect` — de son côté `side`, s'il est donné — le
-/// plus proche de `p`.
+/// The point on the outline of `rect` — on its side `side`, if given — closest
+/// to `p`.
 pub fn onto_border(rect: Rect, side: Option<Side>, p: Point) -> Point {
     Target::Border(rect, side).nearest(p)
 }
 
-/// Ce qu'un bout de tracé doit toucher.
+/// What a route end must touch.
 enum Target {
-    /// L'ancre d'un port, exactement.
+    /// The anchor of a port, exactly.
     Anchor(Point),
-    /// La boîte d'un port, centrée sur son ancre : écarts doublés admis
-    /// jusqu'à la taille.
+    /// The box of a port, centred on its anchor: doubled gaps allowed
+    /// up to its size.
     PortBox {
         anchor: Point,
         width: i64,
         height: i64,
     },
-    /// Le contour d'un nœud, ou l'un de ses côtés.
+    /// The outline of a node, or one of its sides.
     Border(Rect, Option<Side>),
 }
 
 impl Target {
-    /// Le point de la cible le plus proche de `p`.
+    /// The point of the target closest to `p`.
     fn nearest(&self, p: Point) -> Point {
         match *self {
             Target::Anchor(anchor) => anchor,
@@ -86,8 +86,8 @@ impl Target {
                     Some(Side::North) => Point { x: cx, y: rect.y },
                     Some(Side::South) => Point { x: cx, y: bottom },
                     None => {
-                        // Le point ramené dans le rectangle, puis poussé vers le
-                        // côté le plus proche s'il est à l'intérieur.
+                        // The point pulled into the rectangle, then pushed towards the
+                        // nearest side if it is inside.
                         let to_sides = [
                             (cx - rect.x, Point { x: rect.x, y: cy }),
                             (right - cx, Point { x: right, y: cy }),
@@ -105,8 +105,8 @@ impl Target {
     }
 }
 
-/// Ramène sur leur cible les bouts de tracé qui en sont à [`TOLERANCE`] au
-/// plus, et dit combien ont bougé.
+/// Pulls route ends back onto their target when they are within [`TOLERANCE`] at
+/// most, and reports how many moved.
 pub fn fit(graph: &Graph, layout: &mut Layout) -> Stats {
     let rects = absolute_rects(graph, layout);
     let mut stats = Stats::default();
@@ -153,7 +153,7 @@ pub fn fit(graph: &Graph, layout: &mut Layout) -> Stats {
     stats
 }
 
-/// Les ancres placées des ports d'un nœud, relatives au nœud.
+/// The placed anchors of a node's ports, relative to the node.
 fn layout_ports<'a>(
     nodes: &'a [foregram_graph::NodePlace],
     node_id: &str,
@@ -226,9 +226,9 @@ mod tests {
     #[test]
     fn ends_within_a_pixel_are_brought_back_and_counted() {
         let (graph, mut layout) = components();
-        // e1 part du port `req`, un point : son départ glisse de 7 centièmes.
-        // e2 arrive sur le côté ouest de Store : son arrivée s'enfonce de 100.
-        // e3 arrive sur le bord de System (courbe) : 151 centièmes, trop loin.
+        // e1 leaves from port `req`, a point: its start slides by 7 hundredths.
+        // e2 arrives on the west side of Store: its arrival sinks by 100.
+        // e3 arrives on the edge of System (curve): 151 hundredths, too far.
         for edge in &mut layout.edges {
             match edge.id.as_str() {
                 "e1" => edge.route[0] = Segment::Line(Point { x: 10007, y: 4995 }),
@@ -254,8 +254,8 @@ mod tests {
     #[test]
     fn a_port_box_keeps_an_end_that_is_inside_it() {
         let (graph, mut layout) = components();
-        // e2 part du port `out`, boîte 600 × 600 : un point dedans ne bouge pas,
-        // un point à côté est ramené dans la boîte.
+        // e2 leaves from port `out`, box 600 × 600: a point inside does not move,
+        // a point beside it is pulled into the box.
         let out = layout.edges.iter_mut().find(|e| e.id == "e2").unwrap();
         out.route[0] = Segment::Line(Point { x: 29200, y: 4200 });
         assert_eq!(fit(&graph, &mut layout), Stats::default());

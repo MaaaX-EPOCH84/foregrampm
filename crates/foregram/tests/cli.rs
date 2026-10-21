@@ -1,8 +1,8 @@
-// ForegramPM — tests de la ligne de commande du produit.
+// ForegramPM — tests of the product's command line.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Un test qui échoue doit s'arrêter net : les règles du produit ne valent pas ici.
+// A failing test must stop dead: the product's rules do not apply here.
 #![allow(clippy::unwrap_used, clippy::panic)]
 
 use std::io::Write;
@@ -27,7 +27,7 @@ fn golden(name: &str) -> Vec<u8> {
     std::fs::read(path).unwrap()
 }
 
-/// Lance `foregram`, l'entrée standard remplie de `stdin`.
+/// Runs `foregram`, standard input filled with `stdin`.
 fn run_with(args: &[&str], stdin: &[u8]) -> (i32, String, String) {
     let mut child = Command::new(env!("CARGO_BIN_EXE_foregram"))
         .args(args)
@@ -53,7 +53,7 @@ fn run(args: &[&str]) -> (i32, String, String) {
     run_with(args, b"")
 }
 
-/// Un répertoire neuf sous la cible de compilation, vidé s'il existait.
+/// A fresh directory under the build target, emptied if it existed.
 fn scratch(name: &str) -> PathBuf {
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(name);
     let _ = std::fs::remove_dir_all(&dir);
@@ -138,7 +138,7 @@ fn an_unreadable_file_exits_two() {
         "{err}"
     );
 
-    // Illisible l'emporte sur refusé : le code dit ce qu'il y a de plus grave.
+    // Unreadable wins over refused: the code reports the graver case.
     let bad = data("refuse-lien-orphelin.graph.json");
     let (code, _, _) = run(&["validate", &bad, &missing]);
     assert_eq!(code, 2);
@@ -169,7 +169,7 @@ fn a_version_one_graph_comes_out_in_version_two_with_keys_in_order() {
          \"nodes\": [\n    {\"id\": \"A\", \"width\": 1, \"height\": 2}\n  ],\n  \
          \"edges\": []\n}\n"
     );
-    // Réécrire la forme canonique ne la change pas.
+    // Rewriting the canonical form does not change it.
     let (code, again, _) = run_with(&["canon", "-"], out.as_bytes());
     assert_eq!(code, 0);
     assert_eq!(again, out);
@@ -186,13 +186,13 @@ fn a_refused_file_is_not_rewritten() {
         "{err}"
     );
 
-    // Un placement se reconnaît à sa clé `format` : celui-ci est valide seul,
-    // il n'est refusé que confronté à son graphe.
+    // A placement is recognised by its `format` key: this one is valid alone,
+    // it is refused only when checked against its graph.
     let layout = data("refuse-hors-bord.layout.json");
     let (code, _, err) = run(&["canon", &layout]);
     assert_eq!(code, 0, "{err}");
 
-    // Ni graphe ni placement : lu comme un graphe, qui dit ce qui manque.
+    // Neither graph nor placement: read as a graph, which says what is missing.
     let (code, out, err) = run_with(&["canon", "-"], b"[1, 2]");
     assert_eq!(code, 1);
     assert_eq!(out, "");
@@ -263,12 +263,12 @@ fn a_png_is_written_at_the_scale_asked() {
         assert_eq!(code, 0, "{err}");
         let png = std::fs::read(&out_path).unwrap();
         assert_eq!(&png[..8], b"\x89PNG\r\n\x1a\n");
-        // Largeur de l'en-tête IHDR, gros-boutiste.
+        // Width from the IHDR header, big-endian.
         sizes.push(u32::from_be_bytes(png[16..20].try_into().unwrap()));
     }
     assert_eq!(sizes[1], 2 * sizes[0]);
 
-    // Une échelle hors bornes est un refus du rendu, rien n'est écrit.
+    // An out-of-range scale is a refusal of the rendering, nothing is written.
     let out_path = dir.join("trop.png");
     let out_file = out_path.display().to_string();
     let (code, _, err) = run(&["render", &graph, &layout, &out_file, "--scale", "9"]);
@@ -289,7 +289,7 @@ fn a_refused_layout_is_not_drawn() {
     assert!(!out_path.exists());
 }
 
-// --------------------------------------------------------- entrée standard
+// ---------------------------------------------------------- standard input
 
 #[test]
 fn a_file_named_dash_is_the_standard_input() {
@@ -309,7 +309,7 @@ fn a_file_named_dash_is_the_standard_input() {
     assert_eq!(code, 0, "{err}");
     assert_eq!(std::fs::read(&out_path).unwrap(), golden("components.svg"));
 
-    // Refusée, l'entrée standard est nommée.
+    // Refused, standard input is named.
     let (code, _, err) = run_with(&["validate", "-"], b"{");
     assert_eq!(code, 1);
     assert!(err.ends_with("<stdin>: refused (1 error)\n"), "{err}");
@@ -323,7 +323,7 @@ fn the_standard_input_is_read_once_per_call() {
     assert!(err.starts_with("usage: foregram "), "{err}");
 }
 
-// ---------------------------------------------------------------- l'appel
+// --------------------------------------------------------------- the call
 
 #[test]
 fn lang_chooses_english_or_french_and_refuses_any_other() {
@@ -335,7 +335,7 @@ fn lang_chooses_english_or_french_and_refuses_any_other() {
     assert_eq!(code, 0);
     assert_eq!(out, format!("{graph}: graphe valide (3 nœuds, 2 liens)\n"));
 
-    // Sans `--lang`, l'anglais, quelle que soit la langue du système.
+    // Without `--lang`, English, whatever the system language.
     let english = Command::new(env!("CARGO_BIN_EXE_foregram"))
         .args(["validate", &graph])
         .env("LANG", "fr_FR.UTF-8")
@@ -489,15 +489,15 @@ fn help_and_version_exit_zero() {
 
 // -------------------------------------------------------------------- JSON
 
-/// Chaque ligne du flux, relue par le lecteur strict de la bibliothèque :
-/// ce qu'un programme lira.
+/// Every line of the stream, read back by the library's strict reader:
+/// what a program will read.
 fn objects(out: &str) -> Vec<Value> {
     out.lines()
         .map(|line| json::parse(line.as_bytes()).unwrap_or_else(|d| panic!("{line} : {d}")))
         .collect()
 }
 
-/// La valeur d'un membre de l'objet.
+/// The value of a member of the object.
 fn field<'a>(value: &'a Value, key: &str) -> &'a Kind {
     let Kind::Object(members) = &value.kind else {
         panic!("pas un objet : {value:?}");
@@ -512,7 +512,7 @@ fn string(value: &Value, key: &str) -> String {
     }
 }
 
-/// Les clés de l'objet, dans l'ordre écrit.
+/// The keys of the object, in written order.
 fn keys(value: &Value) -> Vec<&str> {
     let Kind::Object(members) = &value.kind else {
         panic!("pas un objet : {value:?}");
@@ -571,7 +571,7 @@ fn json_refusals_carry_code_place_key_arguments_and_sentence() {
         "node identifier \"A\" already used (line 6)"
     );
 
-    // Un message dans un message garde sa clé et ses arguments, sans phrase.
+    // A message within a message keeps its key and arguments, without a phrase.
     let nested = out.lines().nth(1).unwrap();
     assert!(
         nested.contains(
@@ -581,7 +581,7 @@ fn json_refusals_carry_code_place_key_arguments_and_sentence() {
         "{nested}"
     );
 
-    // Le placement n'est pas confronté au graphe refusé : un objet `error`.
+    // The placement is not checked against the refused graph: an `error` object.
     assert_eq!(string(&all[3], "kind"), "error");
     assert_eq!(string(&all[3], "key"), "cli.not-checked");
 }
@@ -649,7 +649,7 @@ fn json_canon_wraps_the_canonical_document() {
             canonical.trim_end_matches('\n').replace('\n', "\n  ")
         );
         assert_eq!(out, expected, "{name}");
-        // Un seul objet, qu'un lecteur JSON relit entier.
+        // A single object, which a JSON reader reads back whole.
         let value = json::parse(out.as_bytes()).unwrap();
         assert_eq!(keys(&value), ["kind", "file", "document"]);
     }

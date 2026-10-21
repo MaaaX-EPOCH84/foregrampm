@@ -1,52 +1,52 @@
-// ForegramPM — banc de mesure du placement : import des MCD (corpus maison).
+// ForegramPM — placement bench: MCD import (in-house corpus).
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Lit un MCD écrit au format du germe, `dessiner_mcd.py`, et en fait un
-//! [`Graph`] au format d'échange, en mémoire.
+//! Reads an MCD written in the seed format, `dessiner_mcd.py`, and turns it into a
+//! [`Graph`] in the exchange format, in memory.
 //!
-//! Le format, repris tel que le germe le lit :
+//! The format, as the seed reads it:
 //!
 //! ```text
-//! # commentaire, en colonne 1
+//! # comment, in column 1
 //! entite MEMBRE
-//!   #id_membre            identifiant
-//!   nom                   propriété
+//!   #id_membre            identifier
+//!   nom                   property
 //! association PRET
-//!   date_pret             propriété portée par l'association
-//!   MEMBRE 0,n            lien : entité, puis cardinalité
+//!   date_pret             property carried by the association
+//!   MEMBRE 0,n            link: entity, then cardinality
 //! ```
 //!
-//! Un bloc commence en colonne 1, son contenu est indenté. Mêmes refus que
-//! le germe, avec une position : ligne non comprise, ligne indentée hors
-//! bloc, lien dans une entité, bloc en double, lien vers ce qui n'est pas
-//! une entité, association à moins de deux liens.
+//! A block starts in column 1, its content is indented. Same refusals as
+//! the seed, with a position: line not understood, indented line outside a
+//! block, link in an entity, duplicate block, link to something that is not
+//! an entity, association with fewer than two links.
 //!
-//! Le graphe : un nœud par entité et par association, dans l'ordre du
-//! fichier ; un lien de l'entité vers l'association pour chaque ligne de
-//! lien, la cardinalité en étiquette contre l'entité ; sens `right`, celui
-//! du germe. Les tailles suivent une règle provisoire, faute de police
-//! embarquée : voir [`text_box`].
+//! The graph: one node per entity and per association, in file order;
+//! one link from the entity to the association for each link line, the
+//! cardinality as a label against the entity; direction `right`, the seed's.
+//! Sizes follow a provisional rule, for lack of an embedded font:
+//! see [`text_box`].
 
 use foregram_graph::{Anchor, Diagnostic, Direction, Edge, Graph, Label, Message, Node, Pos, Size};
 
-/// Avance d'un caractère, en centièmes de pixel : 7 px, une moyenne de Lato
-/// en corps 11. Provisoire : les métriques de la police embarquée la
-/// remplaceront (P6).
+/// Advance of one character, in hundredths of a pixel: 7 px, an average of Lato
+/// at size 11. Provisional: the metrics of the embedded font will
+/// replace it (P6).
 pub const ADVANCE: i64 = 700;
-/// Hauteur d'une ligne de texte : 18 px.
+/// Height of a line of text: 18 px.
 pub const LINE: i64 = 1800;
-/// Marge autour du texte d'un nœud, de chaque côté : 8 px.
+/// Margin around a node's text, on each side: 8 px.
 pub const MARGIN: i64 = 800;
-/// Marge autour d'une cardinalité, à gauche et à droite : 2 px.
+/// Margin around a cardinality, left and right: 2 px.
 pub const LABEL_MARGIN: i64 = 200;
 
-/// Les cardinalités que le germe admet.
+/// The cardinalities the seed accepts.
 const CARDINALITIES: [&str; 4] = ["0,1", "0,n", "1,1", "1,n"];
 
-/// Lit un MCD. `name` devient le nom du graphe.
+/// Reads an MCD. `name` becomes the graph's name.
 ///
-/// Rend le graphe, ou tous les refus relevés, par position.
+/// Returns the graph, or all the refusals found, by position.
 pub fn import(name: &str, bytes: &[u8]) -> Result<Graph, Vec<Diagnostic>> {
     let text = match std::str::from_utf8(bytes) {
         Ok(text) => text,
@@ -174,7 +174,7 @@ fn parse<'t>(text: &'t str, diags: &mut Vec<Diagnostic>) -> Vec<Block<'t>> {
     blocks
 }
 
-/// Refuse ce qui dessinerait faux sans rien dire.
+/// Refuses what would draw wrongly without saying anything.
 fn check(blocks: &[Block], diags: &mut Vec<Diagnostic>) {
     for (index, block) in blocks.iter().enumerate() {
         if let Some(first) = blocks[..index].iter().find(|b| b.name == block.name) {
@@ -224,8 +224,8 @@ fn build(name: &str, blocks: &[Block]) -> Graph {
     let mut edges = Vec::new();
     for block in blocks.iter().filter(|b| b.kind == Kind::Association) {
         for (index, link) in block.links.iter().enumerate() {
-            // Une association réflexive relie deux fois la même entité : la
-            // deuxième occurrence prend le suffixe `.2`, et ainsi de suite.
+            // A reflexive association links the same entity twice: the
+            // second occurrence takes the suffix `.2`, and so on.
             let rank = block.links[..=index]
                 .iter()
                 .filter(|l| l.target == link.target)
@@ -258,10 +258,10 @@ fn build(name: &str, blocks: &[Block]) -> Graph {
     }
 }
 
-/// La boîte d'un nœud : la plus longue ligne en points de code fois
-/// [`ADVANCE`], le nombre de lignes fois [`LINE`], et [`MARGIN`] tout
-/// autour. Règle provisoire, à remplacer par la mesure du texte avec la
-/// police embarquée.
+/// A node's box: the longest line in code points times
+/// [`ADVANCE`], the number of lines times [`LINE`], and [`MARGIN`] all
+/// around. Provisional rule, to be replaced by measuring the text with the
+/// embedded font.
 pub fn text_box(lines: &[&str]) -> Size {
     let widest = lines.iter().map(|l| l.chars().count()).max().unwrap_or(0);
     let widest = i64::try_from(widest).unwrap_or(i64::MAX / ADVANCE);
@@ -272,7 +272,7 @@ pub fn text_box(lines: &[&str]) -> Size {
     }
 }
 
-/// Une cardinalité, contre l'entité : la source du lien.
+/// A cardinality, against the entity: the source of the link.
 fn label(cardinality: &str) -> Label {
     let chars = i64::try_from(cardinality.chars().count()).unwrap_or(0);
     Label {
@@ -321,7 +321,7 @@ mod tests {
         assert_eq!(
             nodes,
             [
-                // « id_membre », 9 points de code sans le `#`, sur 3 lignes.
+                // “id_membre”, 9 code points without the `#`, on 3 lines.
                 (
                     "MEMBRE",
                     size(9 * 700 + 1600, 3 * 1800 + 1600),
@@ -470,7 +470,7 @@ mod tests {
 
     #[test]
     fn an_association_has_two_links_at_least() {
-        // Sans aucun lien, ou avec un seul.
+        // With no link at all, or with only one.
         assert_eq!(
             refusals("entite A\nassociation R\nassociation S\n  A 0,n\n"),
             [("M008", 2, 1), ("M008", 3, 1)]

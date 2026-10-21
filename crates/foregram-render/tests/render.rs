@@ -1,14 +1,14 @@
-// ForegramPM — tests du rendu neutre : SVG figé à l'octet, PNG relu.
+// ForegramPM — tests of the neutral rendering: SVG frozen to the byte, PNG read back.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-// Un test qui échoue doit s'arrêter net : les règles du produit ne valent pas ici.
+// A failing test must stop dead: the product's rules do not apply here.
 #![allow(clippy::unwrap_used, clippy::panic)]
 
 use foregram_graph::{Graph, Layout};
 use foregram_render::{Class, PIXELS_MAX, SCALE_MAX, Scene, Shape, Style, png, svg};
 
-/// Un fichier d'exemple de la bibliothèque du graphe.
+/// An example file of the graph library.
 fn graph_data(name: &str) -> Vec<u8> {
     let path = format!(
         "{}/../foregram-graph/tests/data/{name}",
@@ -17,7 +17,7 @@ fn graph_data(name: &str) -> Vec<u8> {
     std::fs::read(&path).unwrap_or_else(|e| panic!("{path} : {e}"))
 }
 
-/// Un fichier d'or de ce dossier.
+/// A golden file of this folder.
 fn golden(name: &str) -> String {
     let path = format!("{}/tests/data/{name}", env!("CARGO_MANIFEST_DIR"));
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path} : {e}"))
@@ -30,7 +30,7 @@ fn example(name: &str) -> (Graph, Layout) {
     (graph, layout)
 }
 
-/// Décode un PNG : dimensions et pixels gris.
+/// Decodes a PNG: dimensions and grey pixels.
 fn decode(bytes: &[u8]) -> (u32, u32, Vec<u8>) {
     let decoder = ::png::Decoder::new(std::io::Cursor::new(bytes));
     let mut reader = decoder.read_info().unwrap();
@@ -88,10 +88,10 @@ fn the_scene_draws_in_a_fixed_order() {
         classes.iter().filter(|c| **c == Class::Arrow).count(),
         graph.edges.len()
     );
-    // La fenêtre : la boîte englobante plus la marge.
+    // The window: the bounding box plus the margin.
     assert_eq!((scene.view.x, scene.view.y), (-1000, -1000));
     assert_eq!((scene.view.width, scene.view.height), (50000, 12000));
-    // Un port sans boîte est un carré du style, centré sur son ancre.
+    // A port without a box is a square of the style, centred on its anchor.
     let req = scene
         .items
         .iter()
@@ -116,18 +116,18 @@ fn the_png_has_the_size_of_the_view_and_the_leaf_grey_inside_a_leaf() {
     let (width, height, pixels) = decode(&bytes);
     assert_eq!((width, height), (500, 120));
     let at = |x: u32, y: u32| pixels[usize::try_from(y * width + x).unwrap()];
-    // La fenêtre commence à (-10, -10) : le pixel (60, 60) est au cœur de
-    // `Client`, le pixel (5, 5) dans la marge, le pixel (330, 95) dans le
-    // conteneur `System` mais hors de ses feuilles.
+    // The window starts at (-10, -10): pixel (60, 60) is at the heart of
+    // `Client`, pixel (5, 5) in the margin, pixel (330, 95) in the
+    // container `System` but outside its leaves.
     assert_eq!(at(60, 60), style.leaf_fill);
     assert_eq!(at(5, 5), style.sheet);
     assert_eq!(at(330, 95), style.sheet);
-    // Le bord de `Client`, à x = 0 du dessin, donc x = 10 de l'image, est
-    // un trait de 1 px centré sur le contour : deux pixels à moitié.
+    // The edge of `Client`, at x = 0 of the drawing, hence x = 10 of the image, is
+    // a 1 px stroke centred on the outline: two half-covered pixels.
     assert!(at(9, 60) < style.sheet && at(10, 60) < style.leaf_fill);
-    // Le port `req`, carré de 4 px centré sur (100, 50) du dessin, est
-    // creux : son cœur a le fond de la feuille, par-dessus le lien et le
-    // bord de `Client`, et son bord est sombre.
+    // The port `req`, a 4 px square centred on (100, 50) of the drawing, is
+    // hollow: its core has the sheet background, over the link and the
+    // edge of `Client`, and its edge is dark.
     assert_eq!(at(110, 60), style.sheet);
     assert!(at(108, 60) < style.sheet);
     assert_eq!(bytes, png(&graph, &layout, &style, 1).unwrap());
@@ -206,7 +206,7 @@ fn the_view_grows_with_a_protruding_route_and_label() {
     .unwrap();
     assert!(layout.check(&graph).is_empty());
     let scene = Scene::build(&graph, &layout, &Style::default());
-    // De (0, -60) à (420, 120) en pixels — le tracé descend à 120 —, plus la marge.
+    // From (0, -60) to (420, 120) in pixels — the route goes down to 120 —, plus the margin.
     assert_eq!((scene.view.x, scene.view.y), (-1000, -7000));
     assert_eq!((scene.view.width, scene.view.height), (44000, 20000));
 }

@@ -1,20 +1,20 @@
-// ForegramPM — ligne de commande du produit : valider, réécrire, mesurer, dessiner.
+// ForegramPM — the product's command line: validate, rewrite, measure, draw.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! `foregram` ne lit que le format d'échange. Les imports de formats tiers
-//! (GraphML, ELK, MCD) et les moteurs de référence restent au banc, dont la
-//! sortie arrive ici par l'entrée standard (`-`).
+//! `foregram` reads only the interchange format. Imports of third-party formats
+//! (GraphML, ELK, MCD) and the reference engines stay in the bench, whose
+//! output arrives here on standard input (`-`).
 //!
-//! Toute l'entrée-sortie est ici : la bibliothèque reçoit des octets et rend
-//! des valeurs.
+//! All input/output lives here: the library receives bytes and returns
+//! values.
 //!
-//! Sous `--json`, chaque résultat et chaque refus est un objet JSON sur une
-//! ligne, tous sur la sortie standard et dans l'ordre des fichiers ; l'erreur
-//! standard ne porte plus que l'usage.
+//! Under `--json`, every result and every refusal is a JSON object on one
+//! line, all on standard output and in file order; standard error
+//! carries only the usage.
 //!
-//! `--lang` choisit le catalogue des phrases ; sans lui, l'anglais. Aucune
-//! variable d'environnement n'y entre : même appel, mêmes octets.
+//! `--lang` picks the phrase catalogue; without it, English. No
+//! environment variable plays a part: same call, same bytes.
 
 use std::ffi::{OsStr, OsString};
 use std::io::{Read, Write};
@@ -26,14 +26,14 @@ use foregram_graph::{
     Catalog, Diagnostic, Graph, LAYOUT_FORMAT, Layout, Message, Metrics, file_report,
 };
 
-/// Tout est valide.
+/// Everything is valid.
 const VALID: u8 = 0;
-/// Un fichier au moins est refusé.
+/// At least one file is refused.
 const REFUSED: u8 = 1;
-/// L'appel est incorrect, ou un fichier n'a pas pu être lu ou écrit.
+/// The call is incorrect, or a file could not be read or written.
 const UNUSABLE: u8 = 2;
 
-/// Le nom de fichier qui désigne l'entrée standard.
+/// The file name that stands for standard input.
 const STDIN: &str = "-";
 
 fn main() -> ExitCode {
@@ -42,7 +42,7 @@ fn main() -> ExitCode {
 }
 
 fn run(args: &[OsString]) -> u8 {
-    // Les options générales précèdent la commande.
+    // General options come before the command.
     let mut rest = args;
     let mut out = Out {
         json: false,
@@ -70,7 +70,7 @@ fn run(args: &[OsString]) -> u8 {
             _ => break,
         }
     }
-    // L'entrée standard ne se lit qu'une fois.
+    // Standard input can be read only once.
     if rest.iter().filter(|a| a.as_os_str() == STDIN).count() > 1 {
         return usage(out);
     }
@@ -106,9 +106,9 @@ fn usage(out: Out) -> u8 {
     UNUSABLE
 }
 
-/// La façon d'écrire les résultats : des lignes de texte, les refus sur
-/// l'erreur standard ; ou, sous `--json`, un objet par ligne, tout sur la
-/// sortie standard. Les phrases se composent dans la langue du catalogue.
+/// How results are written: lines of text, refusals on
+/// standard error; or, under `--json`, one object per line, all on
+/// standard output. Phrases are composed in the catalogue's language.
 #[derive(Clone, Copy)]
 struct Out {
     json: bool,
@@ -116,13 +116,13 @@ struct Out {
 }
 
 impl Out {
-    /// Compose une phrase dans la langue choisie.
+    /// Composes a phrase in the chosen language.
     fn say(self, message: Message) -> String {
         debug_assert_eq!(message.check(self.catalog), Ok(()));
         message.render(self.catalog)
     }
 
-    /// Un résultat : un fichier valide, mesuré ou dessiné.
+    /// A result: a file that is valid, measured or drawn.
     fn said(self, kind: &str, file: &str, message: Message) {
         if self.json {
             emit(&self.object(kind, file, &message, ""));
@@ -131,7 +131,7 @@ impl Out {
         }
     }
 
-    /// Un fichier qui n'a pu être lu, écrit ou confronté au graphe.
+    /// A file that could not be read, written or checked against the graph.
     fn error(self, file: &str, message: Message) {
         if self.json {
             emit(&self.object("error", file, &message, ""));
@@ -153,9 +153,9 @@ impl Out {
         *status = (*status).max(REFUSED);
     }
 
-    /// Un objet du flux JSON hors refus : sa sorte, son fichier, son message
-    /// en clé et arguments, sa phrase, puis ce que la sorte ajoute (`extra`,
-    /// membres précédés d'une virgule).
+    /// An object of the JSON stream other than a refusal: its kind, its file, its message
+    /// as key and arguments, its phrase, then what the kind adds (`extra`,
+    /// members preceded by a comma).
     fn object(self, kind: &str, file: &str, message: &Message, extra: &str) -> String {
         format!(
             "{{\"kind\": {}, \"file\": {}, \"key\": {}, \"args\": {}, \"text\": {}{extra}}}",
@@ -168,14 +168,14 @@ impl Out {
     }
 }
 
-/// Un fichier lu : le nom sous lequel le dire, et ses octets.
+/// A file read: the name to report it under, and its bytes.
 struct Input {
     name: String,
     bytes: Vec<u8>,
 }
 
-/// Lit un fichier, ou l'entrée standard pour `-`. Un échec est dit, et porte
-/// le code de sortie à 2.
+/// Reads a file, or standard input for `-`. A failure is reported, and sets
+/// the exit code to 2.
 fn load(out: Out, arg: &OsStr, status: &mut u8) -> Option<Input> {
     let (name, read) = if arg == STDIN {
         let mut bytes = Vec::new();
@@ -197,8 +197,8 @@ fn load(out: Out, arg: &OsStr, status: &mut u8) -> Option<Input> {
     }
 }
 
-/// Valide le graphe, puis chaque placement et sa confrontation au graphe.
-/// Chaque fichier est lu, même après un refus.
+/// Validates the graph, then each placement and its check against the graph.
+/// Every file is read, even after a refusal.
 fn validate(out: Out, graph_arg: &OsStr, layout_args: &[OsString]) -> u8 {
     let mut status = VALID;
     let graph = match load(out, graph_arg, &mut status) {
@@ -247,10 +247,10 @@ fn validate(out: Out, graph_arg: &OsStr, layout_args: &[OsString]) -> u8 {
     status
 }
 
-/// Relit un graphe ou un placement et l'écrit sous sa forme canonique, en
-/// version 2. Les deux se distinguent par leur clé `format` ; à défaut d'en
-/// porter une qui dise placement, le fichier est lu comme un graphe, dont les
-/// refus diront ce qui manque.
+/// Reads back a graph or a placement and writes it in its canonical form, in
+/// version 2. The two are told apart by their `format` key; failing one
+/// that says placement, the file is read as a graph, whose
+/// refusals will say what is missing.
 fn canon(out: Out, arg: &OsStr) -> u8 {
     let mut status = VALID;
     let Some(input) = load(out, arg, &mut status) else {
@@ -269,8 +269,8 @@ fn canon(out: Out, arg: &OsStr) -> u8 {
     status
 }
 
-/// La forme canonique dans son objet du flux JSON : la seule sur plusieurs
-/// lignes, le document tel quel sous `document`, décalé d'un cran.
+/// The canonical form inside its object of the JSON stream: the only one on several
+/// lines, the document as is under `document`, indented one step.
 fn canonical(file: &str, text: &str) -> String {
     let document = text.trim_end_matches('\n').replace('\n', "\n  ");
     format!(
@@ -279,7 +279,7 @@ fn canonical(file: &str, text: &str) -> String {
     )
 }
 
-/// Le texte est un objet JSON dont la clé `format` nomme le placement.
+/// The text is a JSON object whose `format` key names the placement.
 fn is_layout(bytes: &[u8]) -> bool {
     let Ok(value) = json::parse(bytes) else {
         return false;
@@ -292,8 +292,8 @@ fn is_layout(bytes: &[u8]) -> bool {
         .any(|m| m.key == "format" && m.value.kind == Kind::Str(LAYOUT_FORMAT.to_string()))
 }
 
-/// Mesure chaque placement pour le graphe. Un placement qui ne passe pas la
-/// confrontation au graphe est refusé, pas mesuré.
+/// Measures each placement for the graph. A placement that fails the
+/// check against the graph is refused, not measured.
 fn metrics(out: Out, graph_arg: &OsStr, layout_args: &[OsString]) -> u8 {
     let mut status = VALID;
     let Some(graph) = load_graph(out, graph_arg, &mut status) else {
@@ -318,8 +318,8 @@ fn metrics(out: Out, graph_arg: &OsStr, layout_args: &[OsString]) -> u8 {
     status
 }
 
-/// Dessine un placement pour son graphe, en SVG ou en PNG selon l'extension
-/// du fichier de sortie. Un placement refusé n'est pas dessiné.
+/// Draws a placement for its graph, as SVG or PNG depending on the extension
+/// of the output file. A refused placement is not drawn.
 fn render(out: Out, graph_arg: &OsStr, layout_arg: &OsStr, image_path: &Path, scale: i64) -> u8 {
     let svg = match image_path.extension().and_then(|e| e.to_str()) {
         Some("svg") => true,
@@ -369,7 +369,7 @@ fn load_graph(out: Out, arg: &OsStr, status: &mut u8) -> Option<Graph> {
     }
 }
 
-/// Un placement lu et confronté au graphe, avec le nom sous lequel le dire.
+/// A placement read and checked against the graph, with the name to report it under.
 fn load_layout(out: Out, arg: &OsStr, graph: &Graph, status: &mut u8) -> Option<(String, Layout)> {
     let input = load(out, arg, status)?;
     let layout = match Layout::parse(&input.bytes) {
@@ -388,7 +388,7 @@ fn load_layout(out: Out, arg: &OsStr, graph: &Graph, status: &mut u8) -> Option<
     }
 }
 
-/// Une ligne qui nomme un placement : son fichier, son graphe, son moteur.
+/// A line naming a placement: its file, its graph, its engine.
 fn about_layout(key: &'static str, name: &str, layout: &Layout) -> Message {
     Message::new(key)
         .text("path", name)
@@ -405,9 +405,9 @@ fn count_edges(graph: &Graph) -> Message {
     Message::count(graph.edges.len(), "count.edge")
 }
 
-/// Une ligne sur la sortie standard. Un lecteur qui ferme le tube avant la
-/// fin (`foregram metrics … | head`) n'est pas une faute de l'appel : la
-/// sortie perdue est ignorée, le code de sortie dit toujours la validité.
+/// A line on standard output. A reader that closes the pipe before the
+/// end (`foregram metrics … | head`) is not a fault of the call: the
+/// lost output is ignored, the exit code still reports validity.
 fn emit(line: &str) {
     write_out(&format!("{line}\n"));
 }
@@ -416,7 +416,7 @@ fn write_out(text: &str) {
     let _ = std::io::stdout().lock().write_all(text.as_bytes());
 }
 
-/// Une ligne sur la sortie d'erreur, dans les mêmes conditions.
+/// A line on standard error, under the same conditions.
 fn emit_err(line: &str) {
     let _ = writeln!(std::io::stderr().lock(), "{line}");
 }

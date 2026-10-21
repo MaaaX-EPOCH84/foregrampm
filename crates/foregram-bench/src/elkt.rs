@@ -1,14 +1,14 @@
-// ForegramPM — banc de mesure du placement : lecteur du format texte d'ELK (.elkt).
+// ForegramPM — placement measurement bench: reader for ELK's text format (.elkt).
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Lit un fichier `.elkt`, le format texte d'ELK, et rend l'arbre qu'il
-//! décrit, tel qu'écrit : rien n'est interprété, rien n'est perdu. C'est
-//! `elk.rs` qui en tire ensuite un graphe du format d'échange.
+//! Reads an `.elkt` file, ELK's text format, and returns the tree it
+//! describes, as written: nothing is interpreted, nothing is lost. It is
+//! `elk.rs` that then derives an exchange-format graph from it.
 //!
-//! Le lecteur suit la grammaire officielle `ElkGraph.xtext` du dépôt
-//! `eclipse-elk/elk` (`plugins/org.eclipse.elk.graph.text`, commit
-//! `60b6846` du 2026-07-09), et les terminaux Xtext qu'elle importe :
+//! The reader follows the official grammar `ElkGraph.xtext` of the
+//! `eclipse-elk/elk` repository (`plugins/org.eclipse.elk.graph.text`, commit
+//! `60b6846` of 2026-07-09), and the Xtext terminals it imports:
 //!
 //! ```text
 //! RootNode : ('graph' ID)? Layout? Property* (Label | Port | Node | Edge)*
@@ -26,33 +26,33 @@
 //!             & ('start' ':' Number ',' Number)? & ('end' ':' Number ',' Number)?)
 //!               ('bends' ':' Number ',' Number ('|' Number ',' Number)*)? Property*
 //! Property : PropertyKey ':' (STRING | QualifiedId | Number | 'true' | 'false' | 'null')
-//! PropertyKey : ID ('.' ID)*       -- sans blanc entre les segments
+//! PropertyKey : ID ('.' ID)*       -- no whitespace between segments
 //! QualifiedId : ID ('.' ID)*
-//! ID     : '^'? [a-zA-Z_] [a-zA-Z_0-9]*   -- le '^' lève un mot-clé, et s'ôte
+//! ID     : '^'? [a-zA-Z_] [a-zA-Z_0-9]*   -- the '^' escapes a keyword, and is dropped
 //! STRING : '"' ('\' . | [^\"])* '"' | "'" ('\' . | [^\'])* "'"
 //! Number : ('+' | '-')? INT ('.' INT)? (('e' | 'E') ('+' | '-')? INT)?
 //! ```
 //!
-//! Les blancs (espace, tabulation, retours) et les commentaires `/* */` et
-//! `//` séparent les jetons. Un groupe `&` admet chaque membre au plus une
-//! fois, dans l'ordre qu'on veut. Un `label` est un élément à part dans le
-//! modèle d'ELK ; sa `position` et sa `size` sont lues comme celles d'un nœud.
+//! Whitespace (spaces, tabs, line breaks) and the comments `/* */` and
+//! `//` separate tokens. An `&` group admits each member at most once,
+//! in any order. A `label` is a separate element in ELK's model; its
+//! `position` and `size` are read like those of a node.
 //!
-//! Les nombres restent en texte : c'est l'import qui les interprète. Une
-//! chaîne est rendue sans ses guillemets ni ses échappements, à la manière de
-//! Java, comme le fait ELK pour le texte d'une étiquette.
+//! Numbers stay as text: the import interprets them. A string is returned
+//! without its quotes or escapes, Java-style, as ELK does for a label's
+//! text.
 //!
-//! Un défaut de syntaxe arrête la lecture au premier, famille `E`, avec sa
-//! position dans le `.elkt`.
+//! A syntax error stops the reading at the first one, family `E`, with its
+//! position in the `.elkt`.
 
 use foregram_graph::{Diagnostic, Message, Pos};
 
 use crate::lines::Lines;
 
-/// Un nœud : la racine du fichier, ou un `node`.
+/// A node: the file's root, or a `node`.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ElkNode {
-    /// `None` pour une racine sans `graph <id>`.
+    /// `None` for a root without `graph <id>`.
     pub id: Option<String>,
     pub layout: Shape,
     pub properties: Vec<Property>,
@@ -93,15 +93,15 @@ pub struct ElkEdge {
     pub pos: Pos,
 }
 
-/// Le `layout [...]` d'un nœud, d'un port ou d'une étiquette.
+/// The `layout [...]` of a node, a port or a label.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Shape {
     pub position: Option<(Number, Number)>,
     pub size: Option<(Number, Number)>,
 }
 
-/// Une section du tracé d'un lien. La section unique d'un `layout` sans
-/// `section` n'a pas d'identifiant.
+/// A section of an edge's route. The single section of a `layout` without
+/// `section` has no identifier.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Section {
     pub id: Option<String>,
@@ -115,7 +115,7 @@ pub struct Section {
     pub pos: Pos,
 }
 
-/// Une propriété : sa clé telle qu'écrite, et sa valeur.
+/// A property: its key as written, and its value.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Property {
     pub key: String,
@@ -125,23 +125,23 @@ pub struct Property {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Value {
-    /// Une chaîne, sans ses guillemets.
+    /// A string, without its quotes.
     Str(String),
-    /// Un identifiant, éventuellement qualifié : `FIXED_SIDE`, `a.b`.
+    /// An identifier, possibly qualified: `FIXED_SIDE`, `a.b`.
     Id(String),
     Number(Number),
     Bool(bool),
     Null,
 }
 
-/// Un nombre, gardé tel qu'écrit.
+/// A number, kept as written.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Number {
     pub text: String,
     pub pos: Pos,
 }
 
-/// Un nom qualifié : `parent.child.port`, un segment par `ID`.
+/// A qualified name: `parent.child.port`, one segment per `ID`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct QualifiedId {
     pub segments: Vec<String>,
@@ -154,7 +154,7 @@ impl QualifiedId {
     }
 }
 
-/// Lit un fichier `.elkt`. Rend la racine, ou le premier défaut de syntaxe.
+/// Reads an `.elkt` file. Returns the root, or the first syntax error.
 pub fn parse(bytes: &[u8]) -> Result<ElkNode, Diagnostic> {
     let text = match std::str::from_utf8(bytes) {
         Ok(text) => text,
@@ -181,12 +181,12 @@ pub fn parse(bytes: &[u8]) -> Result<ElkNode, Diagnostic> {
     root.map_err(|(offset, message)| Diagnostic::new(parser.lines.pos(offset), message))
 }
 
-// ------------------------------------------------------------------ jetons
+// ------------------------------------------------------------------ tokens
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Tok {
-    /// Un mot : identifiant ou mot-clé. `escaped` vaut pour `^mot`, qui
-    /// est toujours un identifiant.
+    /// A word: identifier or keyword. `escaped` is set for `^word`, which
+    /// is always an identifier.
     Word {
         escaped: bool,
     },
@@ -212,7 +212,7 @@ const KEYWORDS: [&str; 17] = [
 
 type Fail = (usize, Message);
 
-/// Découpe le texte en jetons. Le défaut est rendu avec son décalage en octets.
+/// Splits the text into tokens. The error is returned with its byte offset.
 fn lex(text: &str) -> Result<Vec<Token>, Fail> {
     let bytes = text.as_bytes();
     let mut tokens = Vec::new();
@@ -331,7 +331,7 @@ fn digits(bytes: &[u8], mut i: usize) -> usize {
     i
 }
 
-// ------------------------------------------------------------------ analyse
+// ------------------------------------------------------------------ parsing
 
 struct Parser<'t> {
     text: &'t str,
@@ -340,7 +340,7 @@ struct Parser<'t> {
     at: usize,
 }
 
-/// Ce qu'un élément d'un `&`-groupe de `layout` peut être.
+/// What an element of a `layout` `&` group can be.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Slot {
     Position,
@@ -391,7 +391,7 @@ impl<'t> Parser<'t> {
         self.text.get(token.start..token.end).unwrap_or("")
     }
 
-    /// Vrai si le prochain jeton est ce mot-clé, non échappé.
+    /// True if the next token is this keyword, unescaped.
     fn is_keyword(&self, word: &str) -> bool {
         self.keyword_at(0) == Some(word)
     }
@@ -411,8 +411,8 @@ impl<'t> Parser<'t> {
         self.peek().tok == Tok::Punct(c)
     }
 
-    /// Le refus « `x` inattendu : y attendu », `expected` étant un fragment
-    /// du catalogue ou, pour un signe, `expect.literal`.
+    /// The refusal "`x` unexpected: y expected", `expected` being a fragment
+    /// of the catalogue or, for a sign, `expect.literal`.
     fn unexpected(&self, expected: Message) -> Fail {
         let token = self.peek();
         let message = if token.tok == Tok::End {
@@ -447,7 +447,7 @@ impl<'t> Parser<'t> {
         }
     }
 
-    /// Un `ID` : un mot qui n'est pas un mot-clé, ou un mot échappé par `^`.
+    /// An `ID`: a word that is not a keyword, or a word escaped by `^`.
     fn ident(&mut self) -> Result<String, Fail> {
         let token = self.peek();
         match token.tok {
@@ -494,7 +494,7 @@ impl<'t> Parser<'t> {
         Ok((x, y))
     }
 
-    /// Une chaîne, sans guillemets, échappements de Java résolus.
+    /// A string, without quotes, Java escapes resolved.
     fn string(&mut self) -> Result<String, Fail> {
         let token = self.peek();
         if token.tok != Tok::Str {
@@ -536,7 +536,7 @@ impl<'t> Parser<'t> {
         Ok(out)
     }
 
-    // -- éléments
+    // -- elements
 
     fn root(&mut self) -> Result<ElkNode, Fail> {
         let mut node = ElkNode {
@@ -554,7 +554,7 @@ impl<'t> Parser<'t> {
         Ok(node)
     }
 
-    /// Le contenu d'un nœud, racine ou `node`, jusqu'à ce qui n'en est pas.
+    /// The content of a node, root or `node`, up to whatever is not part of it.
     fn node_body(&mut self, node: &mut ElkNode) -> Result<(), Fail> {
         node.layout = self.shape_layout()?;
         node.properties = self.properties()?;
@@ -669,7 +669,7 @@ impl<'t> Parser<'t> {
         Ok(ids)
     }
 
-    /// Le `}` qui ferme un bloc ; sinon, dire ce qui aurait pu y figurer.
+    /// The `}` that closes a block; otherwise, say what could have appeared there.
     fn expect_close(&mut self, elements: &[&str]) -> Result<(), Fail> {
         if self.is_punct('}') {
             self.bump();
@@ -700,8 +700,8 @@ impl<'t> Parser<'t> {
         Ok(shape)
     }
 
-    /// Un `&`-groupe : chacun des mots-clés, au plus une fois, dans l'ordre
-    /// qu'on veut, chacun suivi de `:` et de ce que `read` en lit.
+    /// An `&` group: each of the keywords, at most once, in any order,
+    /// each followed by `:` and by whatever `read` reads from it.
     fn group(
         &mut self,
         slots: &[Slot],
@@ -789,7 +789,7 @@ impl<'t> Parser<'t> {
         Ok(section)
     }
 
-    // -- propriétés
+    // -- properties
 
     fn properties(&mut self) -> Result<Vec<Property>, Fail> {
         let mut properties = Vec::new();
@@ -802,7 +802,7 @@ impl<'t> Parser<'t> {
     fn property(&mut self) -> Result<Property, Fail> {
         let first = self.peek();
         let mut key = self.ident()?;
-        // `PropertyKey` est écrit `hidden()` : aucun blanc entre ses segments.
+        // `PropertyKey` is written `hidden()`: no whitespace between its segments.
         let mut last_end = first.end;
         while self.is_punct('.') {
             let dot = self.peek();
@@ -935,7 +935,7 @@ mod tests {
             ..ElkNode::default()
         };
         assert_eq!(read(""), empty);
-        // La racine se place sur son premier jeton, ou sur la fin du texte.
+        // The root is placed on its first token, or at the end of the text.
         assert_eq!(read("\u{feff} // nothing\n").pos, Pos { line: 2, col: 1 });
     }
 
@@ -981,7 +981,7 @@ mod tests {
                 "unexpected `node`: an identifier expected".into()
             )
         );
-        // Un mot-clé en valeur de propriété est refusé aussi.
+        // A keyword as a property value is refused too.
         assert_eq!(refusal("k: size").0, "E004");
     }
 
@@ -997,7 +997,7 @@ mod tests {
                 pos: Pos { line: 1, col: 28 }
             })
         );
-        // `1.` n'est pas un flottant : le point commence autre chose.
+        // `1.` is not a float: the dot starts something else.
         assert_eq!(refusal("layout [size: 1., 2]").0, "E004");
     }
 
@@ -1104,7 +1104,7 @@ mod tests {
             refusal("edge a -> b { layout [ end: 1, 1 end: 2, 2 ] }").0,
             "E006"
         );
-        // Dans l'autre ordre, chacun une fois : accepté.
+        // In the other order, each once: accepted.
         let root = read("layout [position: 0, 0 size: 2, 2]");
         assert!(root.layout.position.is_some() && root.layout.size.is_some());
     }

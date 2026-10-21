@@ -1,4 +1,4 @@
-// ForegramPM — tests de la version 2 du format : ports, imbrication, courbes.
+// ForegramPM — tests of version 2 of the format: ports, nesting, curves.
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -24,7 +24,7 @@ fn case(name: &str) -> Vec<Diagnostic> {
         .unwrap_or_else(|| panic!("cas inconnu : {name}"))
 }
 
-// ------------------------------------------------------------ l'exemple
+// ------------------------------------------------------------ the example
 
 #[test]
 fn the_components_example_is_valid_and_canonical() {
@@ -36,7 +36,7 @@ fn the_components_example_is_valid_and_canonical() {
     assert_eq!(layout.to_json().as_bytes(), bytes.as_slice());
     assert!(layout.check(&graph).is_empty());
 
-    // Quatre nœuds dont deux enfants, trois ports, un tracé courbe.
+    // Four nodes including two children, three ports, a curved route.
     let all = graph.all_nodes();
     assert_eq!(all.len(), 4);
     let parents: Vec<Option<&str>> = all
@@ -97,7 +97,7 @@ fn nested_nodes_are_written_one_per_line_with_deeper_indentation() {
     assert_eq!(Layout::parse(text.as_bytes()).unwrap().to_json(), text);
 }
 
-// --------------------------------------------------------------- graphe
+// --------------------------------------------------------------- graph
 
 #[test]
 fn port_identifiers_are_unique_in_the_whole_graph() {
@@ -150,7 +150,7 @@ fn a_port_identifier_follows_the_identifier_rules() {
 
 #[test]
 fn an_edge_may_join_a_node_to_its_own_ancestor() {
-    // `f` va d'`A` à `C`, qui le contient : valide dans le graphe et dans le placement.
+    // `f` goes from `A` to `C`, which contains it: valid in the graph and in the layout.
     let graph = nested();
     assert_eq!(graph.edges[1].target, "C");
     assert!(graph.validate().is_empty());
@@ -203,7 +203,7 @@ fn a_graph_built_in_memory_reports_duplicate_ports_without_a_line() {
     );
 }
 
-// ------------------------------------------------------------ placement
+// ------------------------------------------------------------ layout
 
 #[test]
 fn a_layout_checks_its_own_ports_and_route_shapes() {
@@ -280,8 +280,8 @@ fn a_route_with_a_port_touches_the_port() {
         keys(&case("check-port-interior")),
         ["L015.border", "L016.end"]
     );
-    // Le port `q` a une boîte de 20 × 20 centrée sur son ancrage : tout point
-    // de la boîte convient, le premier point hors de la boîte non.
+    // The port `q` has a 20 × 20 box centred on its anchor: any point
+    // of the box fits, the first point outside the box does not.
     let graph = nested();
     let check = |end: &str| {
         let edges = format!(
@@ -301,7 +301,7 @@ fn a_route_with_a_port_touches_the_port() {
 
 #[test]
 fn padding_counts_when_a_child_is_placed_against_the_border() {
-    // `C` a un retrait de 10 : un enfant en (10, 10) tient, en (9, 10) non.
+    // `C` has a padding of 10: a child at (10, 10) fits, at (9, 10) does not.
     let graph = nested();
     let check = |a: &str| {
         let nodes = format!(
@@ -326,8 +326,8 @@ fn padding_counts_when_a_child_is_placed_against_the_border() {
 
 #[test]
 fn nested_positions_are_relative_to_the_parent() {
-    // `A` en (10, 10) dans `C` en (0, 0) : son port `p` est en absolu en (110, 60).
-    // Déplacer `C` déplace `A` et `p` : le tracé doit suivre.
+    // `A` at (10, 10) in `C` at (0, 0): its port `p` is at (110, 60) in absolute terms.
+    // Moving `C` moves `A` and `p`: the route must follow.
     let graph = nested();
     let nodes = NESTED_LAYOUT_NODES.replace(
         "\"id\": \"C\", \"x\": 0, \"y\": 0",

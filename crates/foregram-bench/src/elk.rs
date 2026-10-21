@@ -1,32 +1,32 @@
-// ForegramPM — banc de mesure du placement : import d'ELK (elk-models).
+// ForegramPM — placement measurement bench: ELK import (elk-models).
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! Tire d'un fichier `.elkt`, lu par [`crate::elkt`], un [`Graph`] du format
-//! d'échange : nœuds et imbrication, tailles, ports, liens et étiquettes de
-//! liens. Les options de placement d'ELK ne passent pas, sauf celles que le
-//! format sait dire : `direction`, `portConstraints` et `port.side`,
-//! `port.index`, `edgeLabels.placement`. Les positions et tracés écrits dans
-//! le fichier sont des résultats de placement, pas des données : ils ne
-//! passent pas non plus.
+//! Extracts from an `.elkt` file, read by [`crate::elkt`], a [`Graph`] of the
+//! interchange format: nodes and nesting, sizes, ports, edges and edge
+//! labels. ELK's layout options do not carry over, except those the
+//! format can express: `direction`, `portConstraints` and `port.side`,
+//! `port.index`, `edgeLabels.placement`. The positions and routes written in
+//! the file are layout results, not data: they do not
+//! carry over either.
 //!
-//! Ce qui ne passe pas est compté dans [`Notes`], pour que rien ne se perde
-//! en silence : étiquettes de nœuds et de ports, étiquettes de liens sans
-//! taille, feuilles sans taille (ELK les tient pour nulles ; elles reçoivent
-//! ici 1 × 1, la plus petite taille du format), positions de ports fixées
-//! sur un conteneur (le format ne les admet pas, la taille du conteneur
-//! n'étant connue qu'au placement).
+//! What does not carry over is counted in [`Notes`], so that nothing is lost
+//! silently: node and port labels, edge labels without a size, leaves without
+//! a size (ELK treats them as null; here they get 1 × 1, the smallest size of
+//! the format), port positions fixed on a container (the format does not
+//! allow them, the container's size being only known at layout
+//! time).
 //!
-//! Les identifiants d'ELK ne sont uniques que dans leur conteneur ; ceux du
-//! format le sont dans tout le graphe. Un nœud garde son identifiant si tous
-//! les nœuds du fichier en ont un distinct, sinon tous prennent leur chemin
-//! (`parent.enfant`) ; de même les ports, préfixés de leur nœud au besoin, et
-//! les liens, préfixés du chemin de leur conteneur. Un lien sans identifiant
-//! en reçoit un, `e1`, `e2`…, libre.
+//! ELK identifiers are only unique within their container; those of the
+//! format are unique across the whole graph. A node keeps its identifier if all
+//! the nodes of the file have a distinct one, otherwise all take their path
+//! (`parent.child`); likewise ports, prefixed with their node when needed, and
+//! edges, prefixed with the path of their container. An edge without an
+//! identifier gets one, `e1`, `e2`…, the first free.
 //!
-//! Les refus d'import portent la famille `E`, à la suite de ceux du lecteur,
-//! et pointent dans le `.elkt` ; ceux du graphe produit sont ceux du
-//! validateur, avec la même position.
+//! Import refusals carry the `E` family, following those of the reader,
+//! and point into the `.elkt`; those of the produced graph are the validator's,
+//! with the same position.
 
 use std::collections::BTreeMap;
 
@@ -36,31 +36,31 @@ use foregram_graph::{
 
 use crate::elkt::{self, ElkEdge, ElkNode, Number, Property, QualifiedId, Value};
 
-/// Le graphe importé, et ce qui n'y est pas passé.
+/// The imported graph, and what did not carry over into it.
 #[derive(Clone, Debug)]
 pub struct Imported {
     pub graph: Graph,
     pub notes: Notes,
 }
 
-/// Ce que l'import n'a pas porté dans le graphe.
+/// What the import did not carry into the graph.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Notes {
-    /// Étiquettes de nœuds, de ports, et de liens sans taille.
+    /// Labels of nodes, of ports, and of edges without a size.
     pub labels: usize,
-    /// Feuilles sans taille, mises à 1 × 1.
+    /// Leaves without a size, set to 1 × 1.
     pub sizeless: usize,
-    /// Ports d'un conteneur dont la position fixée n'est pas portée.
+    /// Ports of a container whose fixed position is not carried over.
     pub container_ports: usize,
 }
 
-/// Taille donnée à une feuille sans `layout [size: …]`.
+/// Size given to a leaf without `layout [size: …]`.
 pub const POINT: Size = Size {
     width: 1,
     height: 1,
 };
 
-/// Lit et importe un `.elkt`. `name` devient le nom du graphe.
+/// Reads and imports an `.elkt`. `name` becomes the graph's name.
 pub fn import(name: &str, bytes: &[u8]) -> Result<Imported, Vec<Diagnostic>> {
     let root = elkt::parse(bytes).map_err(|d| vec![d])?;
     let mut index = Index::default();
@@ -109,8 +109,8 @@ pub fn import(name: &str, bytes: &[u8]) -> Result<Imported, Vec<Diagnostic>> {
 
 // ----------------------------------------------------------------- options
 
-/// Les options d'ELK que l'import lit, par leur identifiant complet. Une
-/// clé écrite les désigne entière ou par un suffixe à partir d'un point :
+/// The ELK options the import reads, by their full identifier. A written
+/// key designates them whole or by a suffix starting at a dot:
 /// `org.eclipse.elk.port.side`, `elk.port.side`, `port.side`, `side`.
 const DIRECTION: &str = "org.eclipse.elk.direction";
 const PORT_CONSTRAINTS: &str = "org.eclipse.elk.portConstraints";
@@ -118,7 +118,7 @@ const PORT_SIDE: &str = "org.eclipse.elk.port.side";
 const PORT_INDEX: &str = "org.eclipse.elk.port.index";
 const LABEL_PLACEMENT: &str = "org.eclipse.elk.edgeLabels.placement";
 
-/// La dernière propriété qui désigne cette option, comme ELK garde la dernière.
+/// The last property designating this option, as ELK keeps the last.
 fn option<'a>(properties: &'a [Property], id: &str) -> Option<&'a Property> {
     properties.iter().rev().find(|p| {
         p.key == id
@@ -128,8 +128,8 @@ fn option<'a>(properties: &'a [Property], id: &str) -> Option<&'a Property> {
     })
 }
 
-/// Les mots d'une option d'ELK et leur sens ; `None` pour `UNDEFINED`, qui
-/// vaut absence.
+/// The words of an ELK option and their meaning; `None` for `UNDEFINED`, which
+/// means absence.
 type Words<T> = [(&'static str, Option<T>)];
 
 const DIRECTIONS: [(&str, Option<Direction>); 5] = [
@@ -171,8 +171,8 @@ const PLACEMENTS: [(&str, Option<Anchor>); 4] = [
     ("TAIL", Some(Anchor::Source)),
 ];
 
-/// La valeur d'une option à mots, écrite nue ou entre guillemets. `None`
-/// pour un mot hors liste, qui est refusé.
+/// The value of a word option, written bare or in quotes. `None`
+/// for a word outside the list, which is refused.
 fn choice<T: Copy>(
     property: &Property,
     words: &Words<T>,
@@ -196,43 +196,43 @@ fn choice<T: Copy>(
     None
 }
 
-/// Un nombre d'ELK, en pixels, porté en centièmes de pixel : `12.5` donne
-/// 1250. Au-delà de deux décimales, arrondi au plus près, la moitié vers
-/// l'extérieur. `None` si le nombre ne tient pas dans un `i64`.
+/// An ELK number, in pixels, carried in hundredths of a pixel: `12.5` gives
+/// 1250. Beyond two decimals, rounded to nearest, half away from
+/// zero. `None` if the number does not fit in an `i64`.
 pub fn hundredths(number: &Number) -> Option<i64> {
     crate::engine::hundredths(&number.text)
 }
 
 // ------------------------------------------------------------------- index
 
-/// Ce qu'un nom qualifié peut désigner.
+/// What a qualified name can designate.
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Target {
     Root,
-    /// Un nœud, par son identifiant retenu.
+    /// A node, by its retained identifier.
     Node(String),
-    /// Un port, par l'identifiant retenu de son nœud et le sien.
+    /// A port, by the retained identifier of its node and its own.
     Port(String, String),
 }
 
-/// Les noms de tous les nœuds et ports, tels qu'ELK les qualifie, et les
-/// identifiants que le graphe leur donne.
+/// The names of all nodes and ports, as ELK qualifies them, and the
+/// identifiers the graph gives them.
 #[derive(Default)]
 struct Index {
-    /// Nom qualifié d'ELK (racine comprise) → cible.
+    /// ELK qualified name (root included) → target.
     names: BTreeMap<String, Target>,
-    /// Par nœud : son identifiant écrit, et son chemin depuis le premier niveau.
+    /// Per node: its written identifier, and its path from the first level.
     nodes: Vec<(String, String)>,
-    /// Par port : son identifiant écrit, et le chemin de son nœud.
+    /// Per port: its written identifier, and the path of its node.
     ports: Vec<(String, String)>,
-    /// Vrai si les identifiants écrits suffisent, faux s'il faut les chemins.
+    /// True if the written identifiers suffice, false if paths are needed.
     plain_nodes: bool,
     plain_ports: bool,
 }
 
 impl Index {
-    /// `qualified` est le nom d'ELK du conteneur, `path` son chemin sans la
-    /// racine ; `root` est l'identifiant de la racine, ou vide.
+    /// `qualified` is the ELK name of the container, `path` its path without the
+    /// root; `root` is the root's identifier, or empty.
     fn collect(&mut self, node: &ElkNode, qualified: &str, path: &str, root: &str) {
         if path.is_empty() && qualified == root {
             self.names.insert(root.to_string(), Target::Root);
@@ -252,7 +252,7 @@ impl Index {
         }
     }
 
-    /// Tranche entre identifiants écrits et chemins, puis nomme toutes les cibles.
+    /// Decides between written identifiers and paths, then names all the targets.
     fn choose(&mut self) {
         self.plain_nodes = distinct(self.nodes.iter().map(|(id, _)| id.as_str()));
         self.plain_ports = distinct(self.ports.iter().map(|(id, _)| id.as_str()));
@@ -295,9 +295,9 @@ impl Index {
         }
     }
 
-    /// Résout un nom écrit dans un conteneur : relatif au conteneur, puis à
-    /// chacun de ses ancêtres, racine comprise, puis absolu — comme la portée
-    /// d'Xtext qu'ELK emploie.
+    /// Resolves a name written in a container: relative to the container, then to
+    /// each of its ancestors, root included, then absolute — like the Xtext
+    /// scope ELK uses.
     fn resolve(&self, name: &QualifiedId, scopes: &[&str]) -> Option<&Target> {
         let text = name.text();
         scopes
@@ -328,12 +328,12 @@ struct Importer<'i> {
     direction: Option<Direction>,
     notes: Notes,
     diags: Vec<Diagnostic>,
-    /// Les liens, en attente de leur identifiant.
+    /// The edges, awaiting their identifier.
     edges: Vec<Pending>,
 }
 
-/// Un lien lu, avant son identifiant : celui qu'il écrit s'il en a un, et le
-/// chemin du conteneur où il est écrit.
+/// An edge as read, before its identifier: the one it writes if it has one, and
+/// the path of the container where it is written.
 struct Pending {
     written: Option<String>,
     path: String,
@@ -341,8 +341,8 @@ struct Pending {
 }
 
 impl Importer<'_> {
-    /// Les enfants d'un conteneur, `path` étant son chemin et `scopes` les
-    /// noms d'ELK du conteneur et de ses ancêtres, du plus proche à la racine.
+    /// The children of a container, `path` being its path and `scopes` the
+    /// ELK names of the container and its ancestors, from nearest to root.
     fn children(&mut self, container: &ElkNode, path: &str, scopes: &[&str]) -> Vec<Node> {
         for edge in &container.edges {
             self.edge(edge, path, scopes);
@@ -406,11 +406,11 @@ impl Importer<'_> {
         value
     }
 
-    /// Les ports d'un nœud. Sous `FIXED_SIDE` et au-delà, chaque port a un
-    /// côté : celui qu'il écrit, ou celui qu'ELK déduirait de sa position ;
-    /// sous `FIXED_ORDER`, la liste suit l'ordre d'ELK, par côté puis par
-    /// `index` ou position ; sous `FIXED_POS`, le point d'ancrage est fixé,
-    /// une position absente valant (0, 0) comme dans ELK.
+    /// The ports of a node. Under `FIXED_SIDE` and above, each port has a
+    /// side: the one it writes, or the one ELK would deduce from its position;
+    /// under `FIXED_ORDER`, the list follows ELK's order, by side then by
+    /// `index` or position; under `FIXED_POS`, the anchor point is fixed,
+    /// an absent position being (0, 0) as in ELK.
     fn ports(
         &mut self,
         node: &ElkNode,
@@ -499,10 +499,10 @@ impl Importer<'_> {
         ports.into_iter().map(|(_, port)| port).collect()
     }
 
-    /// Le côté qu'ELK donne à un port sans `side` d'un nœud à côtés fixés
-    /// (`ElkUtil.calcPortSide`), depuis la position du port, ou la direction
-    /// du placement si le nœud n'a pas de taille. Positions et tailles
-    /// absentes valent zéro, comme dans ELK.
+    /// The side ELK gives to a port without `side` on a node with fixed sides
+    /// (`ElkUtil.calcPortSide`), from the port's position, or the layout
+    /// direction if the node has no size. Absent positions and sizes are
+    /// zero, as in ELK.
     fn inferred_side(
         &self,
         position: Option<Point>,
@@ -527,8 +527,8 @@ impl Importer<'_> {
             Direction::Up | Direction::Down if y + h > node.height => return Some(Side::South),
             _ => {}
         }
-        // Le centre du port, en fractions de la taille du nœud, multipliées
-        // par 2 × largeur × hauteur pour rester en entiers.
+        // The port's center, in fractions of the node's size, multiplied
+        // by 2 × width × height to stay in integers.
         let cx = (2 * x + w) * node.height;
         let cy = (2 * y + h) * node.width;
         let whole = 2 * node.width * node.height;
@@ -593,7 +593,7 @@ impl Importer<'_> {
         });
     }
 
-    /// Le nœud et, s'il y a lieu, le port qu'une extrémité désigne.
+    /// The node and, where applicable, the port an endpoint designates.
     fn end(&mut self, name: &QualifiedId, scopes: &[&str]) -> Option<(String, Option<String>)> {
         match self.index.resolve(name, scopes) {
             Some(Target::Node(id)) => Some((id.clone(), None)),
@@ -611,9 +611,9 @@ impl Importer<'_> {
         }
     }
 
-    /// Remet les liens dans l'ordre du fichier et les nomme : l'identifiant
-    /// écrit, préfixé du chemin de son conteneur si les identifiants écrits
-    /// se répètent ; sinon le premier `e<n>` libre.
+    /// Puts the edges back in file order and names them: the written identifier,
+    /// prefixed with the path of its container if the written identifiers
+    /// repeat; otherwise the first free `e<n>`.
     fn name_edges(&mut self) -> Vec<Edge> {
         let mut pending = std::mem::take(&mut self.edges);
         pending.sort_by_key(|p| p.edge.pos);
@@ -649,8 +649,8 @@ impl Importer<'_> {
     }
 }
 
-/// Clé d'ordre des ports d'un même côté, dans le sens des aiguilles d'une
-/// montre : par x au nord, par y à l'est, à rebours au sud et à l'ouest.
+/// Ordering key of the ports on one side, clockwise:
+/// by x on the north, by y on the east, reversed on the south and west.
 fn order_key(side: Option<Side>, position: Option<Point>) -> i64 {
     let Point { x, y } = position.unwrap_or(Point { x: 0, y: 0 });
     match side {
@@ -661,9 +661,9 @@ fn order_key(side: Option<Side>, position: Option<Point>) -> i64 {
     }
 }
 
-/// Le point d'ancrage d'un port à position fixée : le centre de sa boîte,
-/// ramené sur le bord de son côté. La boîte d'ELK a son coin en `position` ;
-/// celle du format est centrée sur l'ancrage.
+/// The anchor point of a port with a fixed position: the center of its box,
+/// brought back onto the edge of its side. ELK's box has its corner at `position`;
+/// the format's is centered on the anchor.
 fn on_border(position: Point, box_size: Option<Size>, side: Side, node: Size) -> Point {
     let (w, h) = box_size.map_or((0, 0), |s| (s.width, s.height));
     let cx = (2 * position.x + w).div_euclid(2).clamp(0, node.width);
@@ -791,7 +791,7 @@ mod tests {
                 container_ports: 0,
             }
         );
-        // Les positions viennent du `.elkt`.
+        // Positions come from the `.elkt`.
         assert_eq!(
             imported.graph.nodes[1].children[0].pos,
             Pos { line: 9, col: 3 }
@@ -801,7 +801,7 @@ mod tests {
 
     #[test]
     fn names_are_resolved_like_elk_and_kept_plain_when_distinct() {
-        // Relatif au conteneur d'abord, puis aux ancêtres, puis absolu.
+        // Relative to the container first, then to the ancestors, then absolute.
         let g = graph(
             "graph G\nnode x { layout [size: 1, 1] }\nnode p {\n node x { layout [size: 1, 1] }\n node q { node x { layout [size: 1, 1] }\n  edge x -> p.x\n  edge G.x -> q.x }\n}\nedge x -> p.q.x",
         );
@@ -823,7 +823,7 @@ mod tests {
         assert_eq!(g.nodes[0].ports[0].id, "a.p");
         assert_eq!(g.edges[0].source_port.as_deref(), Some("a.p"));
         assert_eq!(g.edges[0].target_port.as_deref(), Some("b.p"));
-        // Des noms de nœuds répétés entraînent les ports avec eux.
+        // Repeated node names carry the ports along with them.
         let g = graph(
             "node a { node p { layout [size: 1, 1] port q } }\nnode b { node p { layout [size: 1, 1] port q } }",
         );
@@ -837,7 +837,7 @@ mod tests {
         );
         let ids: Vec<&str> = g.edges.iter().map(|e| e.id.as_str()).collect();
         assert_eq!(ids, ["e2", "e1", "e3", "e4"]);
-        // Des identifiants répétés d'un conteneur à l'autre : préfixés du chemin.
+        // Identifiers repeated from one container to another: prefixed with the path.
         let g = graph(
             "node a { node x { layout [size: 1, 1] } edge e1: x -> x }\n\
              node b { node x { layout [size: 1, 1] } edge e1: x -> x edge x -> x }\nedge e1: a -> b",
@@ -848,10 +848,10 @@ mod tests {
 
     #[test]
     fn port_sides_follow_the_constraints() {
-        // FREE : rien n'est porté, même écrit.
+        // FREE: nothing is carried, even if written.
         let g = graph("node a { layout [size: 10, 10] port p { side: WEST } }");
         assert_eq!(g.nodes[0].ports[0].side, None);
-        // FIXED_SIDE sans côté : déduit de la position, à la manière d'ELK.
+        // FIXED_SIDE without a side: deduced from the position, the way ELK does.
         let text = |pos: &str| {
             format!(
                 "node a {{ layout [size: 10, 10] portConstraints: FIXED_SIDE \
@@ -865,14 +865,14 @@ mod tests {
         assert_eq!(side("4, 8"), Some(Side::South));
         assert_eq!(side("1, 4"), Some(Side::West));
         assert_eq!(side("7, 4"), Some(Side::East));
-        // Direction verticale : les bords nord et sud l'emportent.
+        // Vertical direction: the north and south edges win.
         let g = graph(&format!("elk.direction: DOWN\n{}", text("4, 9")));
         assert_eq!(g.nodes[0].ports[0].side, Some(Side::South));
-        // Un nœud sans taille : le côté qui regarde la direction.
+        // A node without a size: the side facing the direction.
         let g = graph("node a { portConstraints: FIXED_SIDE port p }");
         assert_eq!(g.nodes[0].ports[0].side, Some(Side::East));
         assert_eq!(g.nodes[0].size, Some(POINT));
-        // UNDEFINED vaut absence, et `side` écrit l'emporte sur la position.
+        // UNDEFINED means absence, and a written `side` wins over the position.
         let g = graph(
             "node a { layout [size: 10, 10] portConstraints: FIXED_SIDE \
              port p { layout [position: -1, 4] side: UNDEFINED } port q { layout [position: -1, 4] side: NORTH } }",
@@ -893,7 +893,7 @@ mod tests {
         let ids: Vec<&str> = g.nodes[0].ports.iter().map(|p| p.id.as_str()).collect();
         assert_eq!(ids, ["n", "e1", "w1", "w2"]);
         assert!(g.nodes[0].ports_ordered);
-        // Sans index : par position, à rebours à l'ouest et au sud.
+        // Without an index: by position, reversed on the west and south.
         let g = graph(
             "node a { layout [size: 10, 10] portConstraints: FIXED_ORDER\n\
              port w1 { layout [position: 0, 2] side: WEST }\n\
@@ -903,14 +903,14 @@ mod tests {
         );
         let ids: Vec<&str> = g.nodes[0].ports.iter().map(|p| p.id.as_str()).collect();
         assert_eq!(ids, ["s2", "s1", "w2", "w1"]);
-        // Des index sur une partie des ports seulement : ignorés, ordre du fichier.
+        // Indexes on only some of the ports: ignored, file order.
         let g = graph(
             "node a { layout [size: 10, 10] portConstraints: FIXED_ORDER\n\
              port b { side: WEST index: 1 } port a { side: WEST } }",
         );
         let ids: Vec<&str> = g.nodes[0].ports.iter().map(|p| p.id.as_str()).collect();
         assert_eq!(ids, ["b", "a"]);
-        // FIXED_SIDE ne réordonne pas et ne fixe pas l'ordre.
+        // FIXED_SIDE does not reorder and does not fix the order.
         let g = graph(
             "node a { layout [size: 10, 10] portConstraints: FIXED_SIDE\n\
              port w { side: WEST } port n { side: NORTH } }",
@@ -939,17 +939,17 @@ mod tests {
                 (Some(Side::West), Some(Point { x: 0, y: 400 })),
                 (Some(Side::East), Some(Point { x: 1000, y: 200 })),
                 (Some(Side::North), Some(Point { x: 500, y: 0 })),
-                // Hors du bord : ramené au coin.
+                // Outside the edge: brought back to the corner.
                 (Some(Side::South), Some(Point { x: 1000, y: 1000 })),
             ]
         );
         assert!(!g.nodes[0].ports_ordered);
-        // Sans position, (0, 0) comme dans ELK : le coin, sur le côté qu'on lui donne.
+        // Without a position, (0, 0) as in ELK: the corner, on the side it is given.
         let g = graph(
             "node a { layout [size: 10, 10] portConstraints: FIXED_POS\n port p { side: NORTH } }",
         );
         assert_eq!(g.nodes[0].ports[0].position, Some(Point { x: 0, y: 0 }));
-        // Sur un conteneur, le côté passe, la position non, et c'est compté.
+        // On a container, the side carries over, the position does not, and it is counted.
         let imported = import(
             "g",
             b"node a { portConstraints: FIXED_POS port p { layout [position: 5, 0] side: NORTH } node c { layout [size: 1, 1] } }",
@@ -966,7 +966,7 @@ mod tests {
         assert_eq!(g.direction, Some(Direction::Left));
         let g = graph("direction: LEFT\nelk.direction: \"UP\"\nnode a { layout [size: 1, 1] }");
         assert_eq!(g.direction, Some(Direction::Up));
-        // Une autre option au nom voisin n'est pas la bonne.
+        // Another option with a similar name is not the right one.
         let g = graph("priority.direction: UP\nnode a { layout [size: 1, 1] }");
         assert_eq!(g.direction, None);
         let g = graph(
@@ -987,7 +987,7 @@ mod tests {
                 "4:47: error[E010]: `edgeLabels.placement` is `true`: UNDEFINED, CENTER, HEAD, TAIL expected",
             ]
         );
-        // Le côté n'est lu que sous une contrainte qui le fixe.
+        // The side is only read under a constraint that fixes it.
         assert_eq!(
             refusals(
                 "node a { layout [size: 1, 1] portConstraints: FIXED_SIDE port p { side: 3 } }"
@@ -1040,12 +1040,12 @@ mod tests {
     #[test]
     fn syntax_and_validation_refusals_point_into_the_file() {
         assert_eq!(refusals("node a {"), [("E004", 1, 9)]);
-        // Deux nœuds `a` au même niveau : ELK les distingue, le format non.
+        // Two `a` nodes at the same level: ELK tells them apart, the format does not.
         assert_eq!(
             refusals("node a { layout [size: 1, 1] }\nnode a { layout [size: 1, 1] }"),
             [("G001", 2, 1)]
         );
-        // Une taille nulle est refusée par le validateur, à la ligne du nœud.
+        // A zero size is refused by the validator, at the node's line.
         assert_eq!(refusals("node a { layout [size: 0, 1] }"), [("S008", 1, 1)]);
     }
 

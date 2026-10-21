@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# ForegramPM — téléchargement et vérification de ce que le banc utilise :
-# corpus publics et moteurs de référence.
+# ForegramPM — download and verification of what the bench uses:
+# public corpora and reference engines.
 # Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Usage : corpus/fetch.sh [section...]   (toutes celles du manifeste par défaut)
+# Usage: corpus/fetch.sh [section...]   (all those of the manifest by default)
 #
-# Le cache `corpus/cache/` appartient à ce script : il le remet à l'état
-# du manifeste à chaque passage. Une archive déjà présente et conforme
-# n'est pas retéléchargée ; son contenu est toujours réextrait.
+# The cache `corpus/cache/` belongs to this script: it puts it back in the
+# state of the manifest on every run. An archive that is already present and
+# conforming is not downloaded again; its content is always re-extracted.
 #
-# Codes de sortie : 0 conforme, 1 écart avec le manifeste, 2 appel,
-# outil ou réseau.
+# Exit codes: 0 conforming, 1 deviation from the manifest, 2 call,
+# tool or network.
 
 set -euo pipefail
 
@@ -26,12 +26,12 @@ for tool in curl sha256sum tar git find awk; do
 done
 [ -r "$manifest" ] || fail "cannot read $manifest"
 
-# Noms des sections, dans l'ordre du manifeste.
+# Names of the sections, in manifest order.
 sections() {
   awk '/^\[[^]]+\]$/ { print substr($0, 2, length($0) - 2) }' "$manifest"
 }
 
-# Toutes les valeurs d'une clé dans une section, une par ligne.
+# All the values of a key in a section, one per line.
 fields() {
   awk -v s="[$1]" -v k="$2" '
     /^\[/ { in_s = ($0 == s); next }
@@ -39,7 +39,7 @@ fields() {
   ' "$manifest"
 }
 
-# Valeur d'une clé dans une section ; refuse si elle manque.
+# Value of a key in a section; refuses if it is missing.
 field() {
   local value
   value=$(awk -v s="[$1]" -v k="$2" '
@@ -50,7 +50,7 @@ field() {
   printf '%s\n' "$value"
 }
 
-# Compte les fichiers de graphe et compare au manifeste.
+# Counts the graph files and compares with the manifest.
 check_count() {
   local name=$1 dir=$2 pattern count found
   pattern=$(field "$name" pattern)
@@ -61,7 +61,7 @@ check_count() {
   echo "$name: $found files match '$pattern'"
 }
 
-# Télécharge un fichier à moins qu'il soit déjà là avec la bonne empreinte.
+# Downloads a file unless it is already there with the right digest.
 download() {
   local name=$1 url=$2 sha=$3 file=$4 actual
   if [ -f "$file" ] && [ "$(sha256sum <"$file" | cut -d' ' -f1)" = "$sha" ]; then
@@ -89,7 +89,7 @@ fetch_archive() {
   download "$name" "$url" "$sha" "$file"
   echo "$name: SHA-256 matches"
 
-  # L'archive a un seul répertoire racine, retiré à l'extraction.
+  # The archive has a single root directory, removed on extraction.
   rm -rf "$dir"
   mkdir -p "$dir"
   tar -xzf "$file" -C "$dir" --strip-components=1 \
@@ -115,7 +115,7 @@ fetch_git() {
   else
     echo "$name: commit already present"
   fi
-  # Toute retouche locale est effacée : le cache suit le manifeste.
+  # Any local change is erased: the cache follows the manifest.
   if git -C "$dir" rev-parse --verify --quiet HEAD >/dev/null \
     && [ -n "$(git -C "$dir" status --porcelain --untracked-files=all)" ]; then
     echo "$name: local changes discarded"
@@ -131,9 +131,9 @@ fetch_git() {
   check_count "$name" "$dir"
 }
 
-# Un paquet Debian dépaqueté dans le cache, sans rien installer : Graphviz.
-# Les greffons dont une bibliothèque manque sur le poste sont retirés, puis
-# `dot -c` écrit la table des greffons à côté de l'exécutable.
+# A Debian package unpacked into the cache, installing nothing: Graphviz.
+# Plugins with a missing library on this machine are removed, then
+# `dot -c` writes the plugin table next to the executable.
 fetch_deb() {
   local name=$1 url sha version dir file plugin found
   url=$(field "$name" url)
@@ -161,8 +161,8 @@ fetch_deb() {
   echo "$name: dot $found ready"
 }
 
-# Des jars de Maven Central, et le pilote Java du banc compilé contre eux : ELK.
-# Tout jar que le manifeste ne cite pas est retiré du cache.
+# Jars from Maven Central, and the bench's Java driver compiled against them: ELK.
+# Any jar the manifest does not cite is removed from the cache.
 fetch_maven() {
   local name=$1 version dir url sha file keep k found
   version=$(field "$name" version)
