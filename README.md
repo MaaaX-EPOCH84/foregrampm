@@ -91,6 +91,19 @@ rustup target add wasm32-unknown-unknown
 scripts/wasm.sh
 ```
 
+## Checking the project
+
+`scripts/check.sh` runs every check and prints one line per check: rustfmt,
+Clippy (default and all features, warnings denied), the tests (default and all
+features), ShellCheck on the tracked shell scripts, the WebAssembly build, and
+the copyright and SPDX header of every tracked `.rs`, `.sh` and `.java` file.
+It exits 0 when all pass and 1 otherwise; a missing tool or target counts as a
+failure.
+
+```
+scripts/check.sh
+```
+
 ## Licence
 
 GPL v3 or later — see [LICENSE](LICENSE).
