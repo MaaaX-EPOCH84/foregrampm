@@ -16,7 +16,7 @@ version = "0.1.0"
 edition = "2024"
 authors = ["Maxime MARCONATO (MaaaX / EPOCH84)"]
 license = "GPL-3.0-or-later"
-repository = "https://gitlab.com/MaaaX-EPOCH84/foregrampm"
+repository = "https://github.com/MaaaX-EPOCH84/foregrampm"
 publish = false
 
 [workspace.lints.rust]

@@ -7,8 +7,8 @@ The name: *foreman* + *diagram*, and *PM* for *project management*.
 
 The project is being scoped — see `docs/genese.md` (in French).
 
-The project lives on GitLab: https://gitlab.com/MaaaX-EPOCH84/foregrampm.
-Issues and merge requests go there; any other copy is only a mirror.
+The project lives on GitHub: https://github.com/MaaaX-EPOCH84/foregrampm.
+Issues and pull requests go there; any other copy is only a mirror.
 
 ## Layout benchmark
 
