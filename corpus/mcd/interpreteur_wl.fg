@@ -1,0 +1,91 @@
+// ForegramPM — corpus maison : MCD de l'analyse d'interpreteur_wl, au format source.
+// Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// Même modèle que `interpreteur_wl.mcd`, tiré de l'analyse WinDev
+// `interpreteur_wl.xdd` : une entité par fichier de données, dans l'ordre
+// de l'analyse, les clés uniques et automatiques marquées comme
+// identifiants ; les quatre associations et leurs cardinalités sont celles
+// que `HListeLiaison` a relevées. Six fichiers restent sans lien.
+
+@notation merise
+@direction right
+
+entity HFClassicTable3 {
+  #UIDTable3
+  #IDTable3
+}
+
+entity HFClassicTable1 {
+  #UIDTable1
+  #UnEntierCleUnique
+  UnReel
+  UnDecimal
+  UnTexte
+  UnTexteUnicode
+  UnMemoTexte
+  UnMemoTexteUnicode
+  #IDTable2
+  #IDTable3
+  #IDTable4
+  #IDTable5
+}
+
+entity HFClassicTable2 {
+  #UIDTable2
+  #IDTable2
+}
+
+entity SQLServerTable1 {
+  #UIDSQLServerTable1
+}
+
+entity HFClassicTable4 {
+  #UIDTable4
+  #IDTable4
+}
+
+entity HFClassicTable5 {
+  #UIDTable5
+  #IDTable5
+}
+
+entity MySQLTable1 {
+  #UIDMySQLTable1
+}
+
+entity MariaDBTable1 {
+  #UIDMariaDBTable1
+}
+
+entity OracleTable1 {
+  #UIDOracleTable1
+}
+
+entity PostgreSQLTable1 {
+  #UIDPostgreSQLTable1
+}
+
+entity HFCSTable1 {
+  #UIDHFCSTable1
+}
+
+association Contrainte_T1_T2 {
+  HFClassicTable1 0,1
+  HFClassicTable2 1,1
+}
+
+association Contrainte_T1_T3 {
+  HFClassicTable1 0,1
+  HFClassicTable3 1,1
+}
+
+association Contrainte_T1_T4 {
+  HFClassicTable1 0,1
+  HFClassicTable4 1,1
+}
+
+association Contrainte_T1_T5 {
+  HFClassicTable1 0,1
+  HFClassicTable5 1,1
+}

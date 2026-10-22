@@ -1,0 +1,113 @@
+// ForegramPM — corpus maison : cas dur, une entité centrale à huit associations, au format source.
+// Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// Même modèle que `commande.mcd` : une entité au centre de huit
+// associations, qu'un placement en couches étale mal. COMMANDE participe à
+// huit associations ; ACHEMINER, à l'écart du centre, donne un chemin de
+// longueur deux.
+
+@notation merise
+@direction right
+
+entity CLIENT {
+  #id_client
+  nom
+  courriel
+}
+
+entity COMMANDE {
+  #id_commande
+  date_commande
+  statut
+}
+
+entity ARTICLE {
+  #reference
+  designation
+  prix
+}
+
+entity VENDEUR {
+  #matricule
+  nom
+}
+
+entity MAGASIN {
+  #id_magasin
+  ville
+}
+
+entity LIVRAISON {
+  #id_livraison
+  date_expedition
+}
+
+entity FACTURE {
+  #numero
+  date_facture
+  montant
+}
+
+entity PAIEMENT {
+  #id_paiement
+  moyen
+  montant
+}
+
+entity PROMOTION {
+  #code_promotion
+  taux
+}
+
+entity TRANSPORTEUR {
+  #id_transporteur
+  raison_sociale
+}
+
+association PASSER {
+  CLIENT 0,n
+  COMMANDE 1,1
+}
+
+association CONTENIR {
+  quantite
+  prix_unitaire
+  COMMANDE 1,n
+  ARTICLE 0,n
+}
+
+association PRENDRE {
+  VENDEUR 0,n
+  COMMANDE 0,1
+}
+
+association RETIRER {
+  MAGASIN 0,n
+  COMMANDE 0,1
+}
+
+association EXPEDIER {
+  COMMANDE 0,n
+  LIVRAISON 1,1
+}
+
+association FACTURER {
+  COMMANDE 0,1
+  FACTURE 1,1
+}
+
+association REGLER {
+  COMMANDE 0,n
+  PAIEMENT 1,1
+}
+
+association BENEFICIER {
+  COMMANDE 0,n
+  PROMOTION 0,n
+}
+
+association ACHEMINER {
+  LIVRAISON 1,1
+  TRANSPORTEUR 0,n
+}

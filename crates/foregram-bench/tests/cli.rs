@@ -327,6 +327,7 @@ fn every_in_house_model_converts_to_a_valid_graph() {
     let mut found: Vec<String> = std::fs::read_dir(&corpus)
         .unwrap()
         .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+        .filter(|name| name.ends_with(".mcd"))
         .collect();
     found.sort();
     let listed: Vec<&str> = IN_HOUSE.iter().map(|(name, _, _)| *name).collect();

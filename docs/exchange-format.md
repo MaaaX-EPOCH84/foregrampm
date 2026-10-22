@@ -17,7 +17,8 @@ By convention a graph is named `<name>.graph.json` and its layouts
 `<name>.<engine>.layout.json`.
 
 This format serves the benchmark and the layout engine. It is not the
-format diagrams will be written in: that one comes with the compiler.
+format diagrams are written in: that one is `docs/source-format.md`, and
+the compiler turns it into a graph.
 
 The product crates, `foregram-graph` and `foregram-render`, take bytes or
 strings and return values: they open no file, read no clock or

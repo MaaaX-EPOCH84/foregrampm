@@ -1,0 +1,36 @@
+// ForegramPM — corpus maison : MCD de GestPret, au format source.
+// Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// Même modèle que `gestpret.mcd`, le MCD de l'application de démonstration
+// GestPret repris du germe. Son analyse WinDev confirme les deux liens par
+// ses clés (`Pret.IdMembre`, `Pret.IdMateriel`).
+
+@notation merise
+@direction right
+
+entity MEMBRE {
+  #id_membre
+  nom
+  prenom
+  courriel
+  date_adhesion
+  actif
+}
+
+entity MATERIEL {
+  #id_materiel
+  #reference
+  designation
+  date_achat
+  valeur_achat
+  en_service
+}
+
+association PRET {
+  date_pret
+  date_retour_prevue
+  date_retour_reelle
+  MEMBRE 0,n
+  MATERIEL 0,n
+}

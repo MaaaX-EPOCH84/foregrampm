@@ -1,0 +1,45 @@
+// ForegramPM — corpus maison : cas dur, l'association réflexive, au format source.
+// Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// Même modèle que `employe.mcd` : une association qui relie une entité à
+// elle-même, soit deux liens parallèles entre les deux mêmes nœuds. EMPLOYE
+// en porte deux, dont une avec des propriétés, et deux associations
+// ordinaires vers SERVICE.
+
+@notation merise
+@direction right
+
+entity EMPLOYE {
+  #matricule
+  nom
+  prenom
+  date_embauche
+}
+
+entity SERVICE {
+  #code_service
+  libelle
+}
+
+association ENCADRER {
+  EMPLOYE 0,n
+  EMPLOYE 0,1
+}
+
+association REMPLACER {
+  date_debut
+  date_fin
+  EMPLOYE 0,n
+  EMPLOYE 0,n
+}
+
+association AFFECTER {
+  EMPLOYE 1,1
+  SERVICE 0,n
+}
+
+association DIRIGER {
+  EMPLOYE 0,1
+  SERVICE 1,1
+}
