@@ -108,6 +108,25 @@ V001 = échelle {scale} hors de l'intervalle de 1 à {max}
 V002 = une image de {width} x {height} pixels dépasse {max} pixels
 V003 = échec de l'encodage PNG : {error}
 
+# Lecteur du format source (.fg)
+T001 = octets invalides : le texte doit être en UTF-8
+T002 = caractère de contrôle {char} refusé : seuls la tabulation et les fins de ligne sont admis
+T003 = chaîne non fermée avant la fin de sa ligne
+T004 = échappement inconnu `{escape}`
+T005 = l'échappement `{escape}` n'est pas une valeur scalaire Unicode
+T006 = `}` sans bloc ouvert
+T007 = bloc non fermé avant la fin du fichier
+T008.top = hors de tout élément, une ligne est une tête d'élément ou, avant le premier élément, une directive
+T008.kind = une tête d'élément commence par un mot de sorte, qui ne commence pas par `@`
+T008.id = une tête d'élément donne un identifiant après sa sorte, sous forme de mot
+T008.label = seule une étiquette, entre guillemets, peut se placer entre l'identifiant et `{`
+T009 = identifiant `{id}` : lettres ASCII, chiffres et `_` seulement, sans chiffre en tête
+T010 = directive `@{key}` après le premier élément : l'en-tête précède tous les éléments
+T011 = `@` sans clé
+T012 = identifiant `{id}` déjà défini en {line}:{col}
+T013 = clé `@{key}` déjà donnée en {line}:{col}
+T014 = plus de {max} blocs imbriqués
+
 # Ce qu'attendait le lecteur du texte d'ELK
 expect.literal = `{text}`
 expect.ident = un identifiant

@@ -354,8 +354,9 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
     }
 
     // The entries of the product's command line, of the bench — command
-    // line, GraphML, ELK and MCD imports, reference engines, board — and
-    // of the rendering, which their own tests exercise.
+    // line, GraphML, ELK and MCD imports, reference engines, board —, of
+    // the rendering and of the source reader, which their own tests
+    // exercise.
     let mut bench_keys = BTreeSet::new();
     for name in [
         "foregram/src/main.rs",
@@ -373,6 +374,8 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
         "foregram-render/src/scene.rs",
         "foregram-render/src/svg.rs",
         "foregram-render/src/raster.rs",
+        "foregram-source/src/lex.rs",
+        "foregram-source/src/parse.rs",
     ] {
         let path = format!("{}/../{name}", env!("CARGO_MANIFEST_DIR"));
         let text = std::fs::read_to_string(&path).unwrap();
@@ -580,7 +583,7 @@ fn key_literals(source: &str) -> BTreeSet<String> {
         let parts: Vec<&str> = literal.split('.').collect();
         let head = parts[0].as_bytes();
         let code = head.len() == 4
-            && b"JSGLXEMRV".contains(&head[0])
+            && b"JSGLXEMRVT".contains(&head[0])
             && head[1..].iter().all(u8::is_ascii_digit)
             && parts[1..].iter().all(|p| word(p));
         let fragment =

@@ -155,6 +155,25 @@ V001 = scale {scale} outside the range 1 to {max}
 V002 = image of {width} × {height} pixels exceeds {max} pixels
 V003 = PNG encoding failed: {error}
 
+# Source format (.fg) reader
+T001 = invalid bytes: the text must be UTF-8
+T002 = control character {char} refused: only tab and line ends are allowed
+T003 = string not closed before the end of its line
+T004 = unknown escape `{escape}`
+T005 = escape `{escape}` is not a Unicode scalar value
+T006 = `}` with no open block
+T007 = block not closed before the end of the file
+T008.top = outside every element, a line is an element head or, before the first element, a directive
+T008.kind = an element head starts with a kind word, which does not start with `@`
+T008.id = an element head gives an identifier after its kind, as a word
+T008.label = only a label, as a string, may stand between the identifier and `{`
+T009 = identifier `{id}`: only ASCII letters, digits and `_`, not starting with a digit
+T010 = directive `@{key}` after the first element: the header comes before every element
+T011 = `@` with no key
+T012 = identifier `{id}` already defined at {line}:{col}
+T013 = key `@{key}` already given at {line}:{col}
+T014 = more than {max} nested blocks
+
 # What the ELK text reader expected
 expect.literal = `{text}`
 expect.ident = an identifier

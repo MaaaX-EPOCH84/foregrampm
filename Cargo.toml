@@ -7,6 +7,7 @@ resolver = "3"
 members = [
     "crates/foregram-graph",
     "crates/foregram-render",
+    "crates/foregram-source",
     "crates/foregram",
     "crates/foregram-bench",
 ]

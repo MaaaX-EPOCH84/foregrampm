@@ -2,10 +2,10 @@
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! `foregram-graph` and `foregram-render` touch no file, no clock,
-//! no environment, no standard output: everything comes in as bytes or
-//! `&str`, everything goes out as a returned value. The executable does the
-//! input and output. This property is read in the sources, line by
+//! `foregram-graph`, `foregram-render` and `foregram-source` touch no file,
+//! no clock, no environment, no standard output: everything comes in as
+//! bytes or `&str`, everything goes out as a returned value. The executable
+//! does the input and output. This property is read in the sources, line by
 //! line, outside comments and outside unit tests.
 
 // A failing test must stop dead: the product's rules do not apply here.
@@ -97,7 +97,7 @@ fn product_crates_do_no_input_output() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("..");
     let mut seen = 0;
     let mut found = Vec::new();
-    for krate in ["foregram-graph", "foregram-render"] {
+    for krate in ["foregram-graph", "foregram-render", "foregram-source"] {
         let dir = root.join(krate).join("src");
         let files = sources(&dir);
         assert!(
@@ -120,7 +120,7 @@ fn product_crates_do_no_input_output() {
             }
         }
     }
-    assert!(seen >= 12, "trop peu de sources lues : {seen}");
+    assert!(seen >= 16, "trop peu de sources lues : {seen}");
     assert!(
         found.is_empty(),
         "entrées-sorties dans le produit :\n{}",

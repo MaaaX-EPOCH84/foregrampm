@@ -40,7 +40,8 @@ positions had to be retrofitted token by token.
 - **Whitespace** is the space and the tab, between tokens. Indentation
   carries no meaning: blocks are delimited by braces, and the canonical
   form indents by two spaces per level.
-- **Control characters** other than tab, `LF` and `CR` are refused.
+- **Control characters** other than tab and the line ends are refused;
+  a `CR` that is not followed by `LF` is one.
 
 ## Tokens
 
@@ -63,9 +64,9 @@ to start with it.
 ## Structure
 
 ```
-file       = header { element }
-header     = { directive }
-directive  = '@' word { value } eol
+file       = header { element | ';' | eol }
+header     = { directive | ';' | eol }
+directive  = '@' word { value } end
 element    = kind id [ label ] '{' body '}'
 body       = { item }
 item       = element | attribute | content | ';' | eol
@@ -75,13 +76,17 @@ value      = word | string
 end        = eol | ';'
 ```
 
-where `kind` and `id` are words, `label` is a string, and blank lines and
-comments may appear anywhere a token may.
+where `kind` and `id` are words, `label` is a string, `@` followed by a
+word is one word starting with `@`, and blank lines and comments may
+appear anywhere a token may.
 
-**A line that contains `{` is an element head; a line that starts with
-`@` is a directive or an attribute; any other line is content.** Nothing
-else tells them apart, and in particular the format does not know the
-kinds of the notation: `entity`, `association`, `group`, or any other
+**Values followed by `{` are an element head; values that start with a
+word starting with `@` are a directive or an attribute; any other values
+are content.** An item ends at the end of its line, at a `;`, or before
+a `}`. A line usually holds one item, so the rule reads line by line: a
+line with `{` is an element head, a line starting with `@` a directive or
+an attribute, any other line content. Nothing else tells them apart, and
+in particular the format does not know the kinds of the notation: `entity`, `association`, `group`, or any other
 word, parses the same way. The notation decides which kinds exist and
 what their content means.
 
@@ -184,9 +189,11 @@ returns:
 
 Every node carries the position of its first character, so that any
 later refusal — by the notation, by the layout — points into the file
-the author wrote. Comments and the layout of whitespace are kept aside,
-for the canonical form; they are not part of the model the notation
-reads.
+the author wrote; an element also carries the position of its
+identifier and of its closing `}`. Comments are kept aside, in a list
+beside the document, each with its text after `//` and its position,
+for the canonical form to attach and write back; they are not part of
+the model the notation reads. The layout of whitespace is not kept.
 
 ## Canonical form
 
@@ -205,18 +212,39 @@ sentence from the catalogue, in English or in French, as text or as
 JSON, exactly like the refusals of the exchange format. The reader
 collects every refusal it can find in the file and reports them sorted
 by position; a file with one refusal is not read further by the
-notation.
+notation, and the reader returns no partial document.
+
+After a refusal the reader goes on, so that one pass reports what it
+can:
+
+- bytes that are not UTF-8 stop the reading: `T001` is then the only
+  refusal;
+- a control character is skipped as a blank, and refused once per line
+  at most;
+- a faulty escape is skipped; a string not closed ends with its line;
+- a faulty item — a directive, an attribute, an element head — is
+  dropped up to its end, the end of its line, a `;` or a `}`; a faulty
+  element head still opens its block, so that the braces stay paired
+  and the block is read for its own refusals;
+- outside every element, a run of lines that are not element heads is
+  refused once, at its first line;
+- a block deeper than 32 levels is refused at its `{` and skipped
+  without being read, its braces only counted;
+- each block still open at the end of the file is refused at its `{`.
+
+A duplicate identifier or key is refused at its second occurrence; the
+sentence gives the position of the first.
 
 | Code | Refuses |
 |---|---|
 | T001 | text that is not UTF-8 |
-| T002 | a control character outside tab, `LF` and `CR` |
+| T002 | a control character other than tab and the line ends, a lone `CR` included |
 | T003 | a string not closed before the end of its line |
 | T004 | an escape that is not `\"`, `\\`, `\n`, `\t` or `\u{H…}` |
 | T005 | a `\u{…}` that is not a Unicode scalar value |
 | T006 | a `}` with no open block |
-| T007 | the end of the file inside a block |
-| T008 | an element head that is not kind, identifier, optional label |
+| T007 | the end of the file inside a block, at the block's `{` |
+| T008 | an element head that is not kind, identifier, optional label; outside every element, a line that is neither an element head nor, before the first element, a directive |
 | T009 | an identifier with a character outside ASCII letters, digits and `_`, or starting with a digit |
 | T010 | a directive after the first element |
 | T011 | a `@` with no key |
