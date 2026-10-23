@@ -14,16 +14,20 @@
 //! recursion is bounded by [`NESTING_MAX`].
 //!
 //! The format knows no notation: any kind word parses, and the content
-//! lines are kept as values for the notation to read.
+//! lines are kept as values for the notation to read. What the format does
+//! own is the identifier: unique in the file, found again through an
+//! [`Index`], which resolves a reference or refuses an unknown one.
 //!
 //! Like the rest of the product library, this crate takes bytes and returns
 //! values: no file, clock or environment.
 
 #![deny(missing_docs)]
 
+mod index;
 mod lex;
 mod model;
 mod parse;
 
+pub use index::Index;
 pub use model::{Comment, Content, Directive, Document, Element, Item, Value};
 pub use parse::NESTING_MAX;

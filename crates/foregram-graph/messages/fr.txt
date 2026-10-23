@@ -126,6 +126,7 @@ T011 = `@` sans clé
 T012 = identifiant `{id}` déjà défini en {line}:{col}
 T013 = clé `@{key}` déjà donnée en {line}:{col}
 T014 = plus de {max} blocs imbriqués
+T015 = référence `{id}` : aucun élément ne porte cet identifiant
 
 # Ce qu'attendait le lecteur du texte d'ELK
 expect.literal = `{text}`

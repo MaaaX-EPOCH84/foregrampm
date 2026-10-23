@@ -170,7 +170,16 @@ version.
 Which content words name other elements is the notation's business —
 in Merise, the first word of `MEMBRE 0,n` does. The format provides the
 lookup, by identifier, that a notation uses to resolve them and to
-refuse a reference to an element that does not exist.
+refuse a reference to an element that does not exist: an **index** of
+every element of the document, nesting included, built once the whole
+file is read. Hence a reference may stand before the definition it
+points to. The index answers for any text, a word or a string alike,
+with case mattering; it refuses an unknown identifier with `T015`, at
+the position of the value given; and it knows nothing of the element a
+value comes from, so an element may name itself and the notation judges
+whether that makes sense. Nothing in the format itself produces `T015`:
+`foregram check` accepts a well-formed file whatever its content words
+say, until a notation reads them.
 
 ## Document model
 
@@ -251,8 +260,10 @@ sentence gives the position of the first.
 | T012 | an identifier already defined, with the position of the first definition |
 | T013 | a directive or attribute key given twice in the same header or block |
 | T014 | more than 32 nested blocks |
+| T015 | a reference to an identifier no element has — produced by the lookup, when a notation resolves a content word |
 
-The codes are reserved here and produced by the reader; the
+The codes are reserved here and produced by the reader, `T015` by its
+lookup; the
 documentation of the reader lists exactly the codes it produces, and a
 test holds the two together.
 

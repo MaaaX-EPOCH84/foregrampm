@@ -374,6 +374,7 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
         "foregram-render/src/scene.rs",
         "foregram-render/src/svg.rs",
         "foregram-render/src/raster.rs",
+        "foregram-source/src/index.rs",
         "foregram-source/src/lex.rs",
         "foregram-source/src/parse.rs",
     ] {

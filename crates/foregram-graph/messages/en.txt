@@ -173,6 +173,7 @@ T011 = `@` with no key
 T012 = identifier `{id}` already defined at {line}:{col}
 T013 = key `@{key}` already given at {line}:{col}
 T014 = more than {max} nested blocks
+T015 = reference `{id}`: no element has this identifier
 
 # What the ELK text reader expected
 expect.literal = `{text}`
