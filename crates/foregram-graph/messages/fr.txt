@@ -179,10 +179,11 @@ diag.file-bare = {file}: {diag}
 diag.refused = {file}: refusé ({count})
 
 # La ligne de commande du produit, `foregram`
-cli.usage = usage : foregram [--lang <code>] [--json] <commande> ...\n       foregram validate <graphe.json> [<placement.json>...]\n       foregram canon <fichier.json|fichier.fg>\n       foregram metrics <graphe.json> <placement.json>...\n       foregram render <graphe.json> <placement.json> <sortie.svg|sortie.png> [--scale <n>]\n       foregram --help | --version\n\n  validate  Valide un graphe, puis chaque placement par rapport à ce graphe.\n  canon     Lit un graphe ou un placement, reconnu à sa clé `format`, ou un\n            fichier source, et l'écrit sous sa forme canonique sur la sortie.\n  metrics   Confronte chaque placement au graphe et écrit ses mesures, une\n            ligne par mesure.\n  render    Confronte le placement au graphe et le dessine, d'aspect neutre,\n            dans un fichier SVG ou PNG choisi par son extension ; --scale\n            donne au PNG ses pixels par pixel du dessin, de 1 à 8.\n\n  Un fichier nommé - est l'entrée standard, une fois par appel.\n  --lang    Langue des messages : `en` (par défaut) ou `fr`.\n  --json    Résultats et refus en JSON, un objet par ligne, tous sur la\n            sortie standard ; voir docs/exchange-format.md.\n\ncodes de sortie : 0 tout est valide, 1 un fichier est refusé, 2 appel\n                 incorrect ou fichier illisible
+cli.usage = usage : foregram [--lang <code>] [--json] <commande> ...\n       foregram validate <graphe.json> [<placement.json>...]\n       foregram check <fichier.fg>...\n       foregram canon <fichier.json|fichier.fg>\n       foregram metrics <graphe.json> <placement.json>...\n       foregram render <graphe.json> <placement.json> <sortie.svg|sortie.png> [--scale <n>]\n       foregram --help | --version\n\n  validate  Valide un graphe, puis chaque placement par rapport à ce graphe.\n  check     Vérifie que chaque fichier source est bien formé : sa grammaire\n            et ses identifiants ; ce que dit son contenu revient à la notation.\n  canon     Lit un graphe ou un placement, reconnu à sa clé `format`, ou un\n            fichier source, et l'écrit sous sa forme canonique sur la sortie.\n  metrics   Confronte chaque placement au graphe et écrit ses mesures, une\n            ligne par mesure.\n  render    Confronte le placement au graphe et le dessine, d'aspect neutre,\n            dans un fichier SVG ou PNG choisi par son extension ; --scale\n            donne au PNG ses pixels par pixel du dessin, de 1 à 8.\n\n  Un fichier nommé - est l'entrée standard, une fois par appel.\n  --lang    Langue des messages : `en` (par défaut) ou `fr`.\n  --json    Résultats et refus en JSON, un objet par ligne, tous sur la\n            sortie standard ; voir docs/exchange-format.md.\n\ncodes de sortie : 0 tout est valide, 1 un fichier est refusé, 2 appel\n                 incorrect ou fichier illisible
 cli.stdin = <stdin>
 cli.lang-unknown = langue inconnue `{lang}` : les catalogues sont `en` et `fr`
 cli.valid-graph = {path}: graphe valide ({nodes}, {edges})
+cli.valid-source = {path}: source bien formée ({elements}, {directives})
 cli.valid-layout = {path}: placement valide du graphe « {graph} » (moteur {engine} {version})
 cli.not-checked = {path}: non confronté au graphe, qui n'est pas valide
 cli.unreadable = {path}: lecture impossible : {error}
@@ -222,3 +223,7 @@ count.end.one = {n} bout de tracé
 count.end.other = {n} bouts de tracé
 count.failure.one = {n} échec
 count.failure.other = {n} échecs
+count.element.one = {n} élément
+count.element.other = {n} éléments
+count.directive.one = {n} directive
+count.directive.other = {n} directives

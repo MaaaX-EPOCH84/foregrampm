@@ -307,6 +307,56 @@ Under `--json`, the result of `canon` is one object on one line, `kind`
 A refused file is not rewritten: its refusals come out instead, with
 exit code 1, as for the exchange format.
 
+## Checking
+
+```
+foregram check <file.fg>...
+```
+
+`check` reads each file, even after a refusal, and says whether it is
+well formed: its text, its grammar, its identifiers, as the rest of this
+document describes them. A file named `-` is the standard input. A
+well-formed file gets one line, which counts its elements, at every
+depth, and the directives of its header:
+
+```
+gestpret.fg: well-formed source (3 elements, 2 directives)
+```
+
+A refused file gets its refusals on the error output, sorted by
+position, then one line that counts them, as for the exchange format.
+For the file `g.fg`:
+
+```
+entity A {
+  #a
+}
+entity 1b {
+```
+
+```
+g.fg:4:8: error[T009]: identifier `1b`: only ASCII letters, digits and `_`, not starting with a digit
+g.fg:4:11: error[T007]: block not closed before the end of the file
+g.fg: refused (2 errors)
+```
+
+The exit code is 0 when every file is well formed, 1 when a file is
+refused, 2 on a wrong call or a file that cannot be read. `check` does
+not build the index: no notation reads the content words yet, so
+nothing resolves a reference and `T015` never comes out of it.
+
+`--lang fr` says the same in French, with the same codes and positions;
+`--json` writes the stream described in
+[the exchange format](exchange-format.md#diagnostics-as-json): one
+`valid` object per well-formed file, one `diagnostic` object per
+refusal, one `error` object per file that cannot be read. The same file,
+read from the standard input:
+
+```json
+{"kind": "diagnostic", "file": "<stdin>", "code": "T009", "line": 4, "col": 8, "key": "T009", "args": {"id": "1b"}, "text": "identifier `1b`: only ASCII letters, digits and `_`, not starting with a digit"}
+{"kind": "diagnostic", "file": "<stdin>", "code": "T007", "line": 4, "col": 11, "key": "T007", "args": {}, "text": "block not closed before the end of the file"}
+```
+
 ## Refusals
 
 A refusal carries a code of the family **`T`**, a position, and a

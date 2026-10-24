@@ -414,7 +414,7 @@ The other objects have the same `kind`, `file`, `key`, `args` and
 
 | `kind` | Written by | Adds |
 |---|---|---|
-| `valid` | `validate`, for a valid graph or a valid layout | — |
+| `valid` | `validate`, for a valid graph or a valid layout; `check`, for a well-formed [source file](source-format.md#checking) | — |
 | `metrics` | `metrics`, for each layout | `metrics`: one integer per measure, as in [`metrics.json`](#board-and-report) |
 | `rendered` | `render`, once the image is written | — |
 | `error` | Any command, for a file that cannot be read or written, or a layout not checked because its graph is refused | — |

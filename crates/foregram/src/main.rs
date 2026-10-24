@@ -2,8 +2,8 @@
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! `foregram` reads the interchange format and, for `canon`, the source
-//! format of a diagram. Imports of third-party formats (GraphML, ELK, MCD)
+//! `foregram` reads the interchange format and, for `check` and `canon`,
+//! the source format of a diagram. Imports of third-party formats (GraphML, ELK, MCD)
 //! and the reference engines stay in the bench, whose output arrives here
 //! on standard input (`-`).
 //!
@@ -26,7 +26,7 @@ use foregram_graph::json::{self, Kind, quote};
 use foregram_graph::{
     Catalog, Diagnostic, Graph, LAYOUT_FORMAT, Layout, Message, Metrics, file_report,
 };
-use foregram_source::Document;
+use foregram_source::{Document, Element, Item};
 
 /// Everything is valid.
 const VALID: u8 = 0;
@@ -88,6 +88,7 @@ fn run(args: &[OsString]) -> u8 {
             VALID
         }
         (Some("validate"), [graph, layouts @ ..]) => validate(out, graph, layouts),
+        (Some("check"), files) if !files.is_empty() => check(out, files),
         (Some("canon"), [file]) => canon(out, file),
         (Some("metrics"), [graph, layouts @ ..]) if !layouts.is_empty() => {
             metrics(out, graph, layouts)
@@ -247,6 +248,49 @@ fn validate(out: Out, graph_arg: &OsStr, layout_args: &[OsString]) -> u8 {
         }
     }
     status
+}
+
+/// Checks that each source file is well formed: its grammar, its
+/// identifiers. What its content words mean is left to the notation.
+/// Every file is read, even after a refusal.
+fn check(out: Out, args: &[OsString]) -> u8 {
+    let mut status = VALID;
+    for arg in args {
+        let Some(input) = load(out, arg, &mut status) else {
+            continue;
+        };
+        match Document::parse(&input.bytes) {
+            Ok(document) => {
+                let message = Message::new("cli.valid-source")
+                    .text("path", &input.name)
+                    .msg(
+                        "elements",
+                        Message::count(count_elements(&document.elements), "count.element"),
+                    )
+                    .msg(
+                        "directives",
+                        Message::count(document.directives.len(), "count.directive"),
+                    );
+                out.said("valid", &input.name, message);
+            }
+            Err(diags) => out.refuse(&input.name, &diags, &mut status),
+        }
+    }
+    status
+}
+
+/// The elements, at every depth.
+fn count_elements(elements: &[Element]) -> usize {
+    elements.iter().map(count_element).sum()
+}
+
+/// An element and those it contains.
+fn count_element(element: &Element) -> usize {
+    let children = element.items.iter().map(|item| match item {
+        Item::Element(child) => count_element(child),
+        Item::Attribute(_) | Item::Content(_) => 0,
+    });
+    1 + children.sum::<usize>()
 }
 
 /// Reads back a graph, a placement or a source file and writes it in its

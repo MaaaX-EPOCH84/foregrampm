@@ -261,6 +261,174 @@ fn a_refused_file_is_not_rewritten() {
     assert!(err.starts_with("<stdin>:1:1: error["), "{err}");
 }
 
+// ------------------------------------------------------------------- check
+
+fn corpus(name: &str) -> String {
+    format!("{}/../../corpus/mcd/{name}", env!("CARGO_MANIFEST_DIR"))
+}
+
+/// The refused file of the documentation of `check`.
+const REFUSED_SOURCE: &[u8] = b"entity A {\n  #a\n}\nentity 1b {\n";
+
+#[test]
+fn a_well_formed_source_file_exits_zero_with_its_counts() {
+    let names = [
+        "commande.fg",
+        "employe.fg",
+        "gestpret.fg",
+        "interpreteur_wl.fg",
+    ];
+    let paths: Vec<String> = names.iter().map(|n| corpus(n)).collect();
+    let args: Vec<&str> = ["check"]
+        .into_iter()
+        .chain(paths.iter().map(String::as_str))
+        .collect();
+    let (code, out, err) = run(&args);
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(err, "");
+    let counts = [(19, 2), (6, 2), (3, 2), (15, 2)];
+    let expected: String = paths
+        .iter()
+        .zip(counts)
+        .map(|(p, (e, d))| format!("{p}: well-formed source ({e} elements, {d} directives)\n"))
+        .collect();
+    assert_eq!(out, expected);
+
+    // Elements are counted at every depth, directives in the header only;
+    // the singular holds for one.
+    let nested = b"@notation merise\ngroup G {\n  @layer 1\n  entity A {}\n}\n";
+    let (code, out, _) = run_with(&["check", "-"], nested);
+    assert_eq!(code, 0);
+    assert_eq!(
+        out,
+        "<stdin>: well-formed source (2 elements, 1 directive)\n"
+    );
+    // The empty file is well formed.
+    let (code, out, _) = run_with(&["check", "-"], b"");
+    assert_eq!(code, 0);
+    assert_eq!(
+        out,
+        "<stdin>: well-formed source (0 elements, 0 directives)\n"
+    );
+}
+
+#[test]
+fn a_refused_source_file_exits_one_and_says_where() {
+    let (code, out, err) = run_with(&["check", "-"], REFUSED_SOURCE);
+    assert_eq!(code, 1);
+    assert_eq!(out, "");
+    assert_eq!(
+        err,
+        "<stdin>:4:8: error[T009]: identifier `1b`: only ASCII letters, digits and `_`, \
+         not starting with a digit\n\
+         <stdin>:4:11: error[T007]: block not closed before the end of the file\n\
+         <stdin>: refused (2 errors)\n"
+    );
+
+    // A file of the exchange format is not a source file: no guessing.
+    let graph = data("gestpret.graph.json");
+    let (code, out, err) = run(&["check", &graph]);
+    assert_eq!(code, 1);
+    assert_eq!(out, "");
+    assert!(err.starts_with(&format!("{graph}:1:1: error[T")), "{err}");
+}
+
+#[test]
+fn every_source_file_is_checked_even_after_a_refusal() {
+    let dir = scratch("check-many");
+    let bad = dir.join("g.fg").display().to_string();
+    std::fs::write(&bad, REFUSED_SOURCE).unwrap();
+    let good = corpus("gestpret.fg");
+    let (code, out, err) = run(&["check", &bad, &good]);
+    assert_eq!(code, 1);
+    assert_eq!(
+        out,
+        format!("{good}: well-formed source (3 elements, 2 directives)\n")
+    );
+    assert!(
+        err.ends_with(&format!("{bad}: refused (2 errors)\n")),
+        "{err}"
+    );
+
+    // An unreadable file weighs more than a refusal, and stops nothing.
+    let (code, out, err) = run(&["check", &bad, "absent.fg", &good]);
+    assert_eq!(code, 2);
+    assert!(out.ends_with("(3 elements, 2 directives)\n"), "{out}");
+    assert!(err.contains("absent.fg: cannot read: "), "{err}");
+}
+
+#[test]
+fn check_speaks_french_and_json_with_the_same_codes() {
+    let (code, _, err) = run_with(&["--lang", "fr", "check", "-"], REFUSED_SOURCE);
+    assert_eq!(code, 1);
+    let nb = '\u{a0}';
+    assert_eq!(
+        err,
+        format!(
+            "<stdin>:4:8: erreur[T009]{nb}: identifiant `1b`{nb}: lettres ASCII, chiffres et `_` \
+             seulement, sans chiffre en tête\n\
+             <stdin>:4:11: erreur[T007]{nb}: bloc non fermé avant la fin du fichier\n\
+             <stdin>: refusé (2 erreurs)\n"
+        )
+    );
+    let (_, out, _) = run_with(&["--lang", "fr", "check", "-"], b"entity A {}\n");
+    assert_eq!(
+        out,
+        "<stdin>: source bien formée (1 élément, 0 directive)\n"
+    );
+
+    // Under --json: one `valid` object per well-formed file, one `diagnostic`
+    // per refusal, one `error` per unreadable file, the same in every
+    // language but `text`.
+    let dir = scratch("check-json");
+    let bad = dir.join("g.fg").display().to_string();
+    std::fs::write(&bad, REFUSED_SOURCE).unwrap();
+    let call = ["check", &corpus("gestpret.fg"), &bad, "absent.fg"];
+    let (en_code, en, en_err) = run(&[&["--json"][..], &call].concat());
+    let (fr_code, fr, _) = run(&[&["--json", "--lang", "fr"][..], &call].concat());
+    assert_eq!((en_code, fr_code), (2, 2));
+    assert_eq!(en_err, "");
+    let all = objects(&en);
+    let kinds: Vec<String> = all.iter().map(|o| string(o, "kind")).collect();
+    assert_eq!(kinds, ["valid", "diagnostic", "diagnostic", "error"]);
+    assert_eq!(string(&all[0], "key"), "cli.valid-source");
+    assert_eq!(string(&all[1], "code"), "T009");
+    let strip = |stream: &str| -> Vec<String> {
+        stream
+            .lines()
+            .map(|line| line.split(", \"text\": ").next().unwrap().to_string())
+            .collect()
+    };
+    assert_eq!(strip(&en), strip(&fr));
+    assert_ne!(en, fr);
+}
+
+#[test]
+fn the_documentation_shows_check_as_it_is() {
+    let doc = std::fs::read_to_string(format!(
+        "{}/../../docs/source-format.md",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .unwrap();
+    let source = std::str::from_utf8(REFUSED_SOURCE).unwrap();
+    assert!(doc.contains(&format!("```\n{source}```")), "{source}");
+
+    let good = corpus("gestpret.fg");
+    let (_, out, _) = run(&["check", &good]);
+    let out = out.replace(&good, "gestpret.fg");
+    assert!(doc.contains(&format!("```\n{out}```")), "{out}");
+
+    let dir = scratch("check-doc");
+    let bad = dir.join("g.fg").display().to_string();
+    std::fs::write(&bad, REFUSED_SOURCE).unwrap();
+    let (_, _, err) = run(&["check", &bad]);
+    let err = err.replace(&bad, "g.fg");
+    assert!(doc.contains(&format!("```\n{err}```")), "{err}");
+
+    let (_, out, _) = run_with(&["--json", "check", "-"], REFUSED_SOURCE);
+    assert!(doc.contains(&format!("```json\n{out}```")), "{out}");
+}
+
 // ----------------------------------------------------------------- metrics
 
 #[test]
@@ -519,6 +687,8 @@ fn a_wrong_call_exits_two_with_the_usage() {
     for args in [
         &[][..],
         &["validate"],
+        &["check"],
+        &["check", "-", "-"],
         &["canon"],
         &["canon", "a", "b"],
         &["metrics", "g"],

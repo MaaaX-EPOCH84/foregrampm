@@ -523,15 +523,32 @@ fn negative_coordinates_are_valid() {
 // --------------------------------------------------------- documentation
 
 fn doc() -> String {
-    let path = format!(
-        "{}/../../docs/exchange-format.md",
-        env!("CARGO_MANIFEST_DIR")
-    );
+    doc_named("exchange-format.md")
+}
+
+fn doc_named(name: &str) -> String {
+    let path = format!("{}/../../docs/{name}", env!("CARGO_MANIFEST_DIR"));
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path} : {e}"))
 }
 
-/// The codes cited in a text: a letter among J, S, G, L, X, E, M, R, V, then three digits.
-fn codes_in(text: &str, quoted: bool) -> std::collections::BTreeSet<String> {
+/// The code families of the exchange format, its imports, its engines and
+/// its rendering, documented in `exchange-format.md`.
+const EXCHANGE: &str = "JSGLXEMRV";
+/// The code family of the source format, documented in `source-format.md`.
+const SOURCE: &str = "T";
+/// Every family.
+const ALL: &str = "JSGLXEMRVT";
+
+/// The rows of the tables of a documentation file.
+fn table_rows(doc: &str) -> String {
+    doc.lines()
+        .filter(|line| line.starts_with("| "))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// The codes cited in a text: a letter among `letters`, then three digits.
+fn codes_in(text: &str, quoted: bool, letters: &str) -> std::collections::BTreeSet<String> {
     let chars: Vec<char> = text.chars().collect();
     let mut found = std::collections::BTreeSet::new();
     for window in chars.windows(if quoted { 6 } else { 4 }) {
@@ -544,7 +561,7 @@ fn codes_in(text: &str, quoted: bool) -> std::collections::BTreeSet<String> {
         } else {
             window
         };
-        if "JSGLXEMRV".contains(code[0]) && code[1..].iter().all(char::is_ascii_digit) {
+        if letters.contains(code[0]) && code[1..].iter().all(char::is_ascii_digit) {
             found.insert(code.iter().collect());
         }
     }
@@ -575,13 +592,10 @@ const MARK: &str = concat!("#[cfg", "(test)]");
 fn the_documentation_lists_every_code_and_no_other() {
     // The codes the product can utter are those of the catalogue.
     let keys: Vec<&str> = foregram_graph::Catalog::english().keys().collect();
-    let produced = codes_in(&keys.join("\n"), false);
-    let table: String = doc()
-        .lines()
-        .filter(|line| line.starts_with("| "))
-        .collect::<Vec<_>>()
-        .join("\n");
-    let documented = codes_in(&table, false);
+    let produced = codes_in(&keys.join("\n"), false, EXCHANGE);
+    // Every code a table of the document cites, whatever its family: a
+    // code of the source format listed here would be one too many.
+    let documented = codes_in(&table_rows(&doc()), false, ALL);
     assert_eq!(produced, documented);
     assert_eq!(produced.len(), 84);
 
@@ -610,7 +624,29 @@ fn the_documentation_lists_every_code_and_no_other() {
         let here = format!("{}/tests/{name}", env!("CARGO_MANIFEST_DIR"));
         tests.push_str(&std::fs::read_to_string(&here).unwrap_or_else(|e| panic!("{here} : {e}")));
     }
-    let tested = codes_in(&tests, true);
+    let tested = codes_in(&tests, true, EXCHANGE);
+    let untested: Vec<&String> = produced.difference(&tested).collect();
+    assert!(untested.is_empty(), "codes sans test : {untested:?}");
+}
+
+#[test]
+fn the_source_format_documentation_lists_every_code_and_no_other() {
+    let keys: Vec<&str> = foregram_graph::Catalog::english().keys().collect();
+    let produced = codes_in(&keys.join("\n"), false, SOURCE);
+    let documented = codes_in(&table_rows(&doc_named("source-format.md")), false, ALL);
+    assert_eq!(produced, documented);
+    assert_eq!(produced.len(), 15);
+
+    // Each one is provoked by at least one test of the source crate.
+    let mut tests = String::new();
+    for name in ["read.rs", "index.rs", "canon.rs"] {
+        let path = format!(
+            "{}/../foregram-source/tests/{name}",
+            env!("CARGO_MANIFEST_DIR")
+        );
+        tests.push_str(&std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path} : {e}")));
+    }
+    let tested = codes_in(&tests, true, SOURCE);
     let untested: Vec<&String> = produced.difference(&tested).collect();
     assert!(untested.is_empty(), "codes sans test : {untested:?}");
 }
