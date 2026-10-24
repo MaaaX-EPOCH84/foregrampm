@@ -7,7 +7,7 @@ use std::collections::BTreeMap;
 use foregram_graph::{Diagnostic, Message, Pos};
 
 use crate::lex::{self, Tok, Token};
-use crate::model::{Content, Directive, Document, Element, Item, Value};
+use crate::model::{Comment, Content, Directive, Document, Element, Item, Value};
 
 /// The deepest nesting of blocks the format accepts.
 pub const NESTING_MAX: usize = 32;
@@ -28,9 +28,8 @@ impl Document {
             diags: lexed.diags,
             ids: BTreeMap::new(),
         };
-        let mut document = parser.document();
+        let document = parser.document();
         if parser.diags.is_empty() {
-            document.comments = lexed.comments;
             Ok(document)
         } else {
             let mut diags = parser.diags;
@@ -44,7 +43,8 @@ impl Document {
 enum Stop {
     /// A `{`, not consumed: the values are an element head.
     Open(Pos),
-    /// A `}`, a `;`, a line end or the end of the file, not consumed.
+    /// A `}`, a `;`, a comment, a line end or the end of the file, not
+    /// consumed.
     End,
 }
 
@@ -100,7 +100,7 @@ impl<'a> Parser<'a> {
                 Tok::Word(text) => (text, false),
                 Tok::Str(text) => (text, true),
                 Tok::Open => return (values, Stop::Open(token.pos)),
-                Tok::Close | Tok::Semi | Tok::Eol => break,
+                Tok::Close | Tok::Semi | Tok::Eol | Tok::Comment(_) => break,
             };
             values.push(Value {
                 text: text.clone(),
@@ -112,16 +112,58 @@ impl<'a> Parser<'a> {
         (values, Stop::End)
     }
 
+    /// The comment that ends the line of the item just read, after at most
+    /// one `;`: consumed and returned. Any other comment stands on its own
+    /// and goes to the item that follows it.
+    fn trailing(&mut self) -> Option<Comment> {
+        let mut j = self.i;
+        if matches!(self.toks.get(j), Some(t) if t.tok == Tok::Semi) {
+            j += 1;
+        }
+        let token = self.toks.get(j)?;
+        let Tok::Comment(text) = &token.tok else {
+            return None;
+        };
+        self.i = j + 1;
+        Some(Comment {
+            text: text.clone(),
+            pos: token.pos,
+        })
+    }
+
+    /// A comment on its own line, consumed and kept for the item that
+    /// follows.
+    fn standalone(&mut self, pending: &mut Vec<Comment>) {
+        if let Some(token) = self.peek()
+            && let Tok::Comment(text) = &token.tok
+        {
+            pending.push(Comment {
+                text: text.clone(),
+                pos: token.pos,
+            });
+            self.i += 1;
+        }
+    }
+
     fn document(&mut self) -> Document {
         let mut document = Document::default();
         let mut keys = BTreeMap::new();
         let mut started = false;
+        // The comments on their own line not yet attached to an item.
+        let mut pending: Vec<Comment> = Vec::new();
+        // Whether no item has been kept yet: comments before the first one are
+        // the preamble.
+        let mut no_item_yet = true;
         // A run of lines that are not element heads is refused once.
         let mut stray = false;
         while let Some(token) = self.peek() {
             match token.tok {
                 Tok::Eol | Tok::Semi => {
                     self.i += 1;
+                    continue;
+                }
+                Tok::Comment(_) => {
+                    self.standalone(&mut pending);
                     continue;
                 }
                 Tok::Close => {
@@ -136,13 +178,24 @@ impl<'a> Parser<'a> {
             if let Stop::Open(open) = stop {
                 stray = false;
                 started = true;
-                if let Some(element) = self.element(&values, open, 1) {
+                if let Some(mut element) = self.element(&values, open, 1) {
+                    if no_item_yet {
+                        document.preamble = std::mem::take(&mut pending);
+                        no_item_yet = false;
+                    }
+                    element.before = std::mem::take(&mut pending);
                     document.elements.push(element);
                 }
             } else if is_directive(&values) {
                 stray = false;
                 if !started {
-                    if let Some(directive) = self.directive(values, &mut keys) {
+                    if let Some(mut directive) = self.directive(values, &mut keys) {
+                        if no_item_yet {
+                            document.preamble = std::mem::take(&mut pending);
+                            no_item_yet = false;
+                        }
+                        directive.before = std::mem::take(&mut pending);
+                        directive.after = self.trailing();
                         document.directives.push(directive);
                     }
                 } else if let Some(first) = values.first() {
@@ -161,11 +214,17 @@ impl<'a> Parser<'a> {
                 self.refuse(first.pos, Message::new("T008.top"));
             }
         }
+        if no_item_yet {
+            document.preamble = pending;
+        } else {
+            document.end = pending;
+        }
         document
     }
 
     /// A directive or an attribute, refused when its key is missing or was
-    /// already given in the same header or block.
+    /// already given in the same header or block. Its comments are attached
+    /// by the caller.
     fn directive(
         &mut self,
         values: Vec<Value>,
@@ -191,6 +250,8 @@ impl<'a> Parser<'a> {
             key,
             values: values.collect(),
             pos: at.pos,
+            before: Vec::new(),
+            after: None,
         })
     }
 
@@ -250,7 +311,7 @@ impl<'a> Parser<'a> {
     /// An element, from its head to its `}`; `depth` is the level of the
     /// block it opens, 1 at the top. A faulty head still opens its block, so
     /// that the braces stay paired and the block is read for its own
-    /// refusals.
+    /// refusals. The comments before the head are attached by the caller.
     fn element(&mut self, head: &[Value], open: Pos, depth: usize) -> Option<Element> {
         let header = self.head(head, open);
         self.i += 1;
@@ -259,8 +320,10 @@ impl<'a> Parser<'a> {
             self.skip_block(open);
             return None;
         }
+        let after_open = self.trailing();
         let mut items = Vec::new();
         let mut keys = BTreeMap::new();
+        let mut pending: Vec<Comment> = Vec::new();
         let close = loop {
             let Some(token) = self.peek() else {
                 self.refuse(open, Message::new("T007"));
@@ -269,6 +332,10 @@ impl<'a> Parser<'a> {
             match token.tok {
                 Tok::Eol | Tok::Semi => {
                     self.i += 1;
+                    continue;
+                }
+                Tok::Comment(_) => {
+                    self.standalone(&mut pending);
                     continue;
                 }
                 Tok::Close => {
@@ -280,18 +347,29 @@ impl<'a> Parser<'a> {
             }
             let (values, stop) = self.values();
             if let Stop::Open(inner) = stop {
-                if let Some(child) = self.element(&values, inner, depth + 1) {
+                if let Some(mut child) = self.element(&values, inner, depth + 1) {
+                    child.before = std::mem::take(&mut pending);
                     items.push(Item::Element(child));
                 }
             } else if is_directive(&values) {
-                if let Some(attribute) = self.directive(values, &mut keys) {
+                if let Some(mut attribute) = self.directive(values, &mut keys) {
+                    attribute.before = std::mem::take(&mut pending);
+                    attribute.after = self.trailing();
                     items.push(Item::Attribute(attribute));
                 }
             } else if let Some(first) = values.first() {
                 let pos = first.pos;
-                items.push(Item::Content(Content { values, pos }));
+                let before = std::mem::take(&mut pending);
+                let after = self.trailing();
+                items.push(Item::Content(Content {
+                    values,
+                    pos,
+                    before,
+                    after,
+                }));
             }
         };
+        let after_close = self.trailing();
         let head = header?;
         Some(Element {
             kind: head.kind,
@@ -301,6 +379,10 @@ impl<'a> Parser<'a> {
             pos: head.pos,
             id_pos: head.id_pos,
             close,
+            before: Vec::new(),
+            after_open,
+            after_close,
+            end: pending,
         })
     }
 

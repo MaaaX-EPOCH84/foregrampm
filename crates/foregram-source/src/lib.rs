@@ -18,11 +18,17 @@
 //! own is the identifier: unique in the file, found again through an
 //! [`Index`], which resolves a reference or refuses an unknown one.
 //!
+//! [`Document::to_text`] writes a document back in its canonical form, the
+//! one fixed form of a file: reading it again gives the same document, and
+//! writing it again gives the same bytes. Comments are attached to the item
+//! they stand with, so that nothing of the file is lost.
+//!
 //! Like the rest of the product library, this crate takes bytes and returns
 //! values: no file, clock or environment.
 
 #![deny(missing_docs)]
 
+mod canon;
 mod index;
 mod lex;
 mod model;

@@ -15,6 +15,7 @@ publish.workspace = true
 [dependencies]
 foregram-graph = { path = "../foregram-graph" }
 foregram-render = { path = "../foregram-render", features = ["png"] }
+foregram-source = { path = "../foregram-source" }
 
 [lints]
 workspace = true

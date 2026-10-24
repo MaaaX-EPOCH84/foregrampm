@@ -4,19 +4,23 @@
 
 use foregram_graph::Pos;
 
-/// A well-formed source file: its header, its elements, and its comments
-/// kept aside.
+/// A well-formed source file: its header, its elements, and its comments,
+/// each attached to the item it stands with.
 ///
 /// The notation reads the directives and the elements; the comments are
-/// there for the canonical form, which writes them back.
+/// there for the canonical form, which writes them back where they were.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Document {
+    /// The comments that open the file, before its first directive or
+    /// element — which therefore has none before it of its own.
+    pub preamble: Vec<Comment>,
     /// The directives of the header, before the first element, in file order.
     pub directives: Vec<Directive>,
     /// The top-level elements, in file order.
     pub elements: Vec<Element>,
-    /// Every comment of the file, in file order, wherever it stands.
-    pub comments: Vec<Comment>,
+    /// The comments on their own line after the last directive or element
+    /// of the file.
+    pub end: Vec<Comment>,
 }
 
 /// A directive of the header or an attribute of an element: `@`, a key,
@@ -29,6 +33,10 @@ pub struct Directive {
     pub values: Vec<Value>,
     /// Position of the `@`.
     pub pos: Pos,
+    /// The comments on their own line just before.
+    pub before: Vec<Comment>,
+    /// The comment at the end of the same line.
+    pub after: Option<Comment>,
 }
 
 /// An element: a kind, an identifier, an optional label, and the items of
@@ -49,6 +57,14 @@ pub struct Element {
     pub id_pos: Pos,
     /// Position of the `}` that closes the block.
     pub close: Pos,
+    /// The comments on their own line just before the head.
+    pub before: Vec<Comment>,
+    /// The comment at the end of the head line, after the `{`.
+    pub after_open: Option<Comment>,
+    /// The comment at the end of the line of the `}`.
+    pub after_close: Option<Comment>,
+    /// The comments on their own line after the last item of the block.
+    pub end: Vec<Comment>,
 }
 
 /// What a block holds.
@@ -69,6 +85,10 @@ pub struct Content {
     pub values: Vec<Value>,
     /// Position of the first value.
     pub pos: Pos,
+    /// The comments on their own line just before.
+    pub before: Vec<Comment>,
+    /// The comment at the end of the same line.
+    pub after: Option<Comment>,
 }
 
 /// A word or a string, kept as text.
@@ -85,7 +105,7 @@ pub struct Value {
 /// A comment, `//` to the end of its line.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Comment {
-    /// The text after `//`, line end excluded.
+    /// The text after `//`, line end and trailing blanks excluded.
     pub text: String,
     /// Position of the first `/`.
     pub pos: Pos,

@@ -199,20 +199,113 @@ returns:
 Every node carries the position of its first character, so that any
 later refusal — by the notation, by the layout — points into the file
 the author wrote; an element also carries the position of its
-identifier and of its closing `}`. Comments are kept aside, in a list
-beside the document, each with its text after `//` and its position,
-for the canonical form to attach and write back; they are not part of
-the model the notation reads. The layout of whitespace is not kept.
+identifier and of its closing `}`.
+
+**Comments** are kept, each with its text after `//` (trailing blanks
+dropped) and its position, attached to the item they stand with, for the
+canonical form to write them back there; the notation does not read
+them. A comment at the end of a line belongs to the item on that line:
+the directive, attribute or content line it ends, the element whose `{`
+or whose `}` it follows. A comment on its own line belongs to the item
+that follows it, or, when none follows in the block, to the end of that
+block. The comments before the first directive or element of the file
+are its **preamble**, and the comments on their own line after the last
+item of the file are its end. The layout of whitespace — blank lines,
+indentation, items on one line — is not kept.
 
 ## Canonical form
 
-`foregram canon` rewrites a source file in a fixed form: one item per
-line, two spaces per level, one space between tokens, `LF`, comments
-kept and attached to the item that follows them (or to the end of the
-block), the author's order untouched, labels written only when they
-differ from the identifier, strings escaped with the shortest escape.
-Rewriting a canonical file yields the same bytes. The exact rules and
-their evidence come with the canonical form itself.
+```
+foregram canon <file.fg>
+```
+
+rewrites a source file in its one fixed form, and `Document::to_text`
+is the function behind it. Reading the canonical form gives the same
+document, positions apart, and writing it again gives the same bytes:
+two files with the same content are the same bytes, whatever their
+layout. This is the form the editor rewrites after every gesture. The
+rules:
+
+- **one item per line**: a directive, an attribute, a content line, an
+  element head, a `}`; `;` is never written; an empty block is `{}` on
+  the head line, unless a comment follows its `{`;
+- **two spaces per level** of block, one space between tokens, no
+  trailing blank, `LF`, a final line break — and no line at all for the
+  empty document;
+- **the author's order** of directives, elements and items, untouched;
+- **the label** written only when it differs from the identifier;
+- **a word as written, a string as a string**, with the shortest escape
+  for each character: `\"`, `\\`, `\n`, `\t`, `\u{…}` for the other
+  control characters, every other character as itself; a value that
+  cannot stand as a word — one with a blank, say — is written as a
+  string;
+- **every comment where it stood**: the preamble first, then a blank
+  line; a comment on its own line just above its item, at the item's
+  indentation, or at the end of its block; a comment at the end of a
+  line after one space;
+- **blank lines by rule**, never the author's: one after the preamble,
+  one between two entries of a file or of a block when at least one of
+  them is an element — between the header and the first element,
+  between two elements, between a content line and a child element —
+  and none anywhere else: none between content lines and attributes,
+  none inside the header, none before the `}`.
+
+One file, as written and as rewritten:
+
+```
+// GestPret, folded.
+
+// (the drawing)
+@notation merise ; @direction right
+entity MEMBRE "MEMBRE" { #id_membre; nom }   // members
+   entity   MATERIEL   {
+  #id_materiel // key
+
+  designation
+  @layer 1 }
+// the association
+association PRET { date_pret;
+  MEMBRE 0,n; MATERIEL 0,n
+  // that is all
+}
+```
+
+```
+// GestPret, folded.
+// (the drawing)
+
+@notation merise
+@direction right
+
+entity MEMBRE {
+  #id_membre
+  nom
+} // members
+
+entity MATERIEL {
+  #id_materiel // key
+  designation
+  @layer 1
+}
+
+// the association
+association PRET {
+  date_pret
+  MEMBRE 0,n
+  MATERIEL 0,n
+  // that is all
+}
+```
+
+Under `--json`, the result of `canon` is one object on one line, `kind`
+`canonical`, with the canonical text as a string under `document`:
+
+```
+{"kind": "canonical", "file": "g.fg", "document": "@notation merise\n\nentity A {}\n"}
+```
+
+A refused file is not rewritten: its refusals come out instead, with
+exit code 1, as for the exchange format.
 
 ## Refusals
 
@@ -273,6 +366,7 @@ GestPret, the seed's example model, in the source format:
 
 ```
 // GestPret: members borrow equipment.
+
 @notation merise
 @direction right
 
@@ -314,6 +408,29 @@ group PERSONNES "Personnes" {
 }
 entity MATERIEL { #id_materiel; designation }
 association PRET { date_pret; MEMBRE 0,n; MATERIEL 0,n }
+```
+
+```
+@notation merise
+
+group PERSONNES "Personnes" {
+  entity MEMBRE {
+    #id_membre
+    nom
+    prenom
+  }
+}
+
+entity MATERIEL {
+  #id_materiel
+  designation
+}
+
+association PRET {
+  date_pret
+  MEMBRE 0,n
+  MATERIEL 0,n
+}
 ```
 
 The four conceptual data models of the in-house corpus are written in

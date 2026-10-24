@@ -2,9 +2,10 @@
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-//! `foregram` reads only the interchange format. Imports of third-party formats
-//! (GraphML, ELK, MCD) and the reference engines stay in the bench, whose
-//! output arrives here on standard input (`-`).
+//! `foregram` reads the interchange format and, for `canon`, the source
+//! format of a diagram. Imports of third-party formats (GraphML, ELK, MCD)
+//! and the reference engines stay in the bench, whose output arrives here
+//! on standard input (`-`).
 //!
 //! All input/output lives here: the library receives bytes and returns
 //! values.
@@ -25,6 +26,7 @@ use foregram_graph::json::{self, Kind, quote};
 use foregram_graph::{
     Catalog, Diagnostic, Graph, LAYOUT_FORMAT, Layout, Message, Metrics, file_report,
 };
+use foregram_source::Document;
 
 /// Everything is valid.
 const VALID: u8 = 0;
@@ -247,36 +249,69 @@ fn validate(out: Out, graph_arg: &OsStr, layout_args: &[OsString]) -> u8 {
     status
 }
 
-/// Reads back a graph or a placement and writes it in its canonical form, in
-/// version 2. The two are told apart by their `format` key; failing one
-/// that says placement, the file is read as a graph, whose
-/// refusals will say what is missing.
+/// Reads back a graph, a placement or a source file and writes it in its
+/// canonical form. A file that opens with `{` or `[` is in the exchange
+/// format — a graph or a placement, told apart by their `format` key;
+/// failing one that says placement, the file is read as a graph, whose
+/// refusals will say what is missing. Any other file is a source file.
 fn canon(out: Out, arg: &OsStr) -> u8 {
     let mut status = VALID;
     let Some(input) = load(out, arg, &mut status) else {
         return status;
     };
-    let written = if is_layout(&input.bytes) {
-        Layout::parse(&input.bytes).map(|layout| layout.to_json())
+    if is_json(&input.bytes) {
+        let written = if is_layout(&input.bytes) {
+            Layout::parse(&input.bytes).map(|layout| layout.to_json())
+        } else {
+            Graph::parse(&input.bytes).map(|graph| graph.to_json())
+        };
+        match written {
+            Ok(text) if out.json => write_out(&canonical_json(&input.name, &text)),
+            Ok(text) => write_out(&text),
+            Err(diags) => out.refuse(&input.name, &diags, &mut status),
+        }
     } else {
-        Graph::parse(&input.bytes).map(|graph| graph.to_json())
-    };
-    match written {
-        Ok(text) if out.json => write_out(&canonical(&input.name, &text)),
-        Ok(text) => write_out(&text),
-        Err(diags) => out.refuse(&input.name, &diags, &mut status),
+        match Document::parse(&input.bytes) {
+            Ok(document) if out.json => {
+                write_out(&canonical_text(&input.name, &document.to_text()))
+            }
+            Ok(document) => write_out(&document.to_text()),
+            Err(diags) => out.refuse(&input.name, &diags, &mut status),
+        }
     }
     status
 }
 
-/// The canonical form inside its object of the JSON stream: the only one on several
-/// lines, the document as is under `document`, indented one step.
-fn canonical(file: &str, text: &str) -> String {
+/// The canonical form of a graph or a placement inside its object of the
+/// JSON stream: the only one on several lines, the document as is under
+/// `document`, indented one step.
+fn canonical_json(file: &str, text: &str) -> String {
     let document = text.trim_end_matches('\n').replace('\n', "\n  ");
     format!(
         "{{\n  \"kind\": \"canonical\",\n  \"file\": {},\n  \"document\": {document}\n}}\n",
         quote(file)
     )
+}
+
+/// The canonical form of a source file inside its object of the JSON
+/// stream: one line, the text as a string under `document`.
+fn canonical_text(file: &str, text: &str) -> String {
+    format!(
+        "{{\"kind\": \"canonical\", \"file\": {}, \"document\": {}}}\n",
+        quote(file),
+        quote(text)
+    )
+}
+
+/// Whether the file is in the exchange format: its first character after
+/// the blanks, and a byte order mark, opens a JSON object or array. A
+/// source file cannot start so.
+fn is_json(bytes: &[u8]) -> bool {
+    let bytes = bytes.strip_prefix(b"\xef\xbb\xbf").unwrap_or(bytes);
+    bytes
+        .iter()
+        .find(|b| !matches!(b, b' ' | b'\t' | b'\n' | b'\r'))
+        .is_some_and(|b| matches!(b, b'{' | b'['))
 }
 
 /// The text is a JSON object whose `format` key names the placement.

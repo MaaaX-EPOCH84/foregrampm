@@ -17,14 +17,16 @@ graph an engine receives, the layout it returns — is described in
 [`docs/exchange-format.md`](docs/exchange-format.md).
 
 `foregram` is the product command line: it validates, rewrites in
-canonical form, measures and draws files of that format, and with
+canonical form, measures and draws files of that format — and rewrites
+the source file of a diagram, `.fg`, described in
+[`docs/source-format.md`](docs/source-format.md) — and with
 `--json` writes its results and refusals as JSON, one object per line;
 `--lang fr` says them in French, English being the default.
 
 ```
 cargo test
 cargo run -p foregram -- validate <graph.json> [<layout.json>...]
-cargo run -p foregram -- canon <file.json>
+cargo run -p foregram -- canon <file.json|file.fg>
 cargo run -p foregram -- metrics <graph.json> <layout.json>...
 cargo run -p foregram -- render <graph.json> <layout.json> <out.svg|out.png> [--scale <n>]
 ```

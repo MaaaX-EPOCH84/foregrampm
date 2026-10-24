@@ -4,8 +4,6 @@
 
 use foregram_graph::{Diagnostic, Message, Pos};
 
-use crate::model::Comment;
-
 /// What the lexer cuts the text into.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Tok {
@@ -21,6 +19,8 @@ pub(crate) enum Tok {
     Semi,
     /// The end of a line, `LF` or `CRLF`.
     Eol,
+    /// A comment: its text after `//`, trailing blanks removed.
+    Comment(String),
 }
 
 /// A token and the position of its first character.
@@ -30,11 +30,10 @@ pub(crate) struct Token {
     pub(crate) pos: Pos,
 }
 
-/// The tokens of a text, its comments, and the refusals met on the way.
+/// The tokens of a text and the refusals met on the way.
 #[derive(Debug, Default)]
 pub(crate) struct Lexed {
     pub(crate) tokens: Vec<Token>,
-    pub(crate) comments: Vec<Comment>,
     pub(crate) diags: Vec<Diagnostic>,
 }
 
@@ -208,6 +207,8 @@ impl Lexer<'_> {
         self.push(Tok::Word(text), pos);
     }
 
+    /// A comment is a token like any other, so that the parser attaches it
+    /// to the item it stands with.
     fn comment(&mut self, pos: Pos) {
         self.bump();
         self.bump();
@@ -224,7 +225,9 @@ impl Lexer<'_> {
                 text.push(c);
             }
         }
-        self.out.comments.push(Comment { text, pos });
+        let trimmed = text.trim_end_matches([' ', '\t']).len();
+        text.truncate(trimmed);
+        self.push(Tok::Comment(text), pos);
     }
 
     fn string(&mut self, pos: Pos) {

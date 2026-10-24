@@ -176,6 +176,68 @@ fn a_version_one_graph_comes_out_in_version_two_with_keys_in_order() {
 }
 
 #[test]
+fn a_source_file_is_rewritten_in_its_canonical_form() {
+    // A canonical source file comes out unchanged; the file is told from
+    // the exchange format by its first character.
+    let path = format!(
+        "{}/../../corpus/mcd/gestpret.fg",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let (code, out, err) = run(&["canon", &path]);
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(out.as_bytes(), std::fs::read(&path).unwrap());
+    assert_eq!(err, "");
+
+    // Folded on the standard input, unfolded on the output.
+    let folded = b"// g\n@notation merise\nentity A \"A\" { #a; b } // c\n";
+    let (code, out, err) = run_with(&["canon", "-"], folded);
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(
+        out,
+        "// g\n\n@notation merise\n\nentity A {\n  #a\n  b\n} // c\n"
+    );
+    let (code, again, _) = run_with(&["canon", "-"], out.as_bytes());
+    assert_eq!((code, again), (0, out));
+
+    // Under --json, one object on one line, the text as a string.
+    let (code, out, err) = run_with(&["--json", "canon", "-"], folded);
+    assert_eq!(code, 0, "{err}");
+    assert_eq!(
+        out,
+        "{\"kind\": \"canonical\", \"file\": \"<stdin>\", \"document\": \
+         \"// g\\n\\n@notation merise\\n\\nentity A {\\n  #a\\n  b\\n} // c\\n\"}\n"
+    );
+    assert_eq!(out.lines().count(), 1);
+    let parsed = objects(&out);
+    assert_eq!(string(&parsed[0], "kind"), "canonical");
+
+    // A refused source file is not rewritten; its refusals carry a `T` code.
+    let (code, out, err) = run_with(&["canon", "-"], b"// g\nentity 1a {\n");
+    assert_eq!(code, 1);
+    assert_eq!(out, "");
+    assert!(err.starts_with("<stdin>:2:8: error[T009]"), "{err}");
+    assert!(err.ends_with("<stdin>: refused (2 errors)\n"), "{err}");
+    let (code, out, _) = run_with(&["--json", "--lang", "fr", "canon", "-"], b"entity 1a {\n");
+    assert_eq!(code, 1);
+    let parsed = objects(&out);
+    assert_eq!(parsed.len(), 2);
+    assert_eq!(string(&parsed[0], "kind"), "diagnostic");
+    assert_eq!(string(&parsed[0], "code"), "T009");
+
+    // Blanks and a byte order mark before `{` still mean the exchange format.
+    let (code, _, err) = run_with(&["canon", "-"], b"\xef\xbb\xbf \n {\"format\": 1}");
+    assert_eq!(code, 1);
+    assert!(err.starts_with("<stdin>:"), "{err}");
+    assert!(!err.contains("error[T"), "{err}");
+    let (code, _, err) = run_with(&["canon", "-"], b"[1]");
+    assert_eq!(code, 1);
+    assert!(!err.contains("error[T"), "{err}");
+    // The empty file is a source file, and its canonical form is empty.
+    let (code, out, err) = run_with(&["canon", "-"], b"");
+    assert_eq!((code, out.as_str(), err.as_str()), (0, "", ""));
+}
+
+#[test]
 fn a_refused_file_is_not_rewritten() {
     let graph = data("refuse-lien-orphelin.graph.json");
     let (code, out, err) = run(&["canon", &graph]);

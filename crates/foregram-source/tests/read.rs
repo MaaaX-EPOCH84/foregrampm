@@ -110,7 +110,8 @@ fn the_four_models_of_the_corpus_are_read_as_their_seed_twins() {
     ] {
         let document = read(&corpus(&format!("{name}.fg")));
         assert_eq!(document.elements.len(), count, "{name}");
-        assert_eq!(document.comments.len(), comments, "{name}");
+        assert_eq!(document.preamble.len(), comments, "{name}");
+        assert!(document.end.is_empty(), "{name}");
         let header: Vec<(&str, Vec<&str>)> = document
             .directives
             .iter()
@@ -148,15 +149,17 @@ fn the_examples_of_the_documentation_are_read() {
     let doc = std::fs::read_to_string(&path).unwrap();
     let example = doc.split("\n## Example\n").nth(1).unwrap();
     let blocks: Vec<&str> = example.split("```\n").skip(1).step_by(2).collect();
-    assert_eq!(blocks.len(), 2);
+    assert_eq!(blocks.len(), 3);
     let gestpret = read(blocks[0]);
     assert_eq!(gestpret.elements.len(), 3);
     assert_eq!(
         gestpret.elements[1].label.as_ref().unwrap().text,
         "Matériel"
     );
-    // The second example nests an entity in a group and writes items on one line.
+    // The second example nests an entity in a group and writes items on one
+    // line; the third is its canonical form, the same document.
     let grouped = read(blocks[1]);
+    assert_eq!(shape(&grouped), shape(&read(blocks[2])));
     assert_eq!(
         shape(&grouped),
         "@notation [\"merise\"]\n\
@@ -205,7 +208,10 @@ fn an_element_carries_its_parts_and_their_positions() {
         }
         other => panic!("{other:?}"),
     }
-    let comment = &document.comments[0];
+    let Item::Content(c) = &e.items[0] else {
+        panic!()
+    };
+    let comment = c.after.as_ref().unwrap();
     assert_eq!(
         (comment.text.as_str(), comment.pos.line, comment.pos.col),
         (" the key", 4, 18)
@@ -264,20 +270,82 @@ fn strings_are_decoded() {
     assert_eq!(tab.elements[0].label.as_ref().unwrap().text, "a\tb");
 }
 
+fn place(comment: Option<&foregram_source::Comment>) -> (&str, u32, u32) {
+    let c = comment.unwrap();
+    (c.text.as_str(), c.pos.line, c.pos.col)
+}
+
 #[test]
-fn comments_are_kept_aside_and_a_word_may_hold_slashes() {
-    let document = read("// head\nentity A { url http://x/y // tail\n} //\n");
-    let comments: Vec<(&str, u32, u32)> = document
-        .comments
-        .iter()
-        .map(|c| (c.text.as_str(), c.pos.line, c.pos.col))
-        .collect();
-    assert_eq!(comments, [(" head", 1, 1), (" tail", 2, 27), ("", 3, 3)]);
-    assert_eq!(contents(&document.elements[0]), [["url", "http://x/y"]]);
+fn comments_are_attached_and_a_word_may_hold_slashes() {
+    let document = read("// head\nentity A { url http://x/y // tail  \n} //\n");
+    assert_eq!(place(document.preamble.first()), (" head", 1, 1));
+    let e = &document.elements[0];
+    let Item::Content(c) = &e.items[0] else {
+        panic!()
+    };
+    // Trailing blanks of a comment are dropped.
+    assert_eq!(place(c.after.as_ref()), (" tail", 2, 27));
+    assert_eq!(place(e.after_close.as_ref()), ("", 3, 3));
+    assert_eq!(contents(e), [["url", "http://x/y"]]);
     // A comment is not part of a string, nor a string of a comment.
     let quoted = read("e A \"// no\" { // \"no\"\n}\n");
     assert_eq!(quoted.elements[0].label.as_ref().unwrap().text, "// no");
-    assert_eq!(quoted.comments[0].text, " \"no\"");
+    assert_eq!(
+        quoted.elements[0].after_open.as_ref().unwrap().text,
+        " \"no\""
+    );
+}
+
+#[test]
+fn every_comment_goes_to_the_item_it_stands_with() {
+    let document = read(
+        "// p1\n\n// p2\n@a 1 // da\n// before b\n@b\n// before E\nentity E { // open\n  // before x\n  x; // x\n  @k 1 // k\n  // before F\n  group F {} // F\n  y;; // own line\n  // end of E\n} // close\n// end 1\n// end 2\n",
+    );
+    let texts = |comments: &[foregram_source::Comment]| -> Vec<String> {
+        comments.iter().map(|c| c.text.clone()).collect()
+    };
+    assert_eq!(texts(&document.preamble), [" p1", " p2"]);
+    let [a, b] = &document.directives[..] else {
+        panic!()
+    };
+    assert!(a.before.is_empty());
+    assert_eq!(a.after.as_ref().unwrap().text, " da");
+    assert_eq!(texts(&b.before), [" before b"]);
+    assert!(b.after.is_none());
+    let e = &document.elements[0];
+    assert_eq!(texts(&e.before), [" before E"]);
+    assert_eq!(e.after_open.as_ref().unwrap().text, " open");
+    assert_eq!(e.after_close.as_ref().unwrap().text, " close");
+    let [
+        Item::Content(x),
+        Item::Attribute(k),
+        Item::Element(f),
+        Item::Content(y),
+    ] = &e.items[..]
+    else {
+        panic!("{:?}", e.items)
+    };
+    assert_eq!(
+        (texts(&x.before), x.after.as_ref().unwrap().text.as_str()),
+        (vec![" before x".to_string()], " x")
+    );
+    assert_eq!(
+        (texts(&k.before), k.after.as_ref().unwrap().text.as_str()),
+        (vec![], " k")
+    );
+    assert_eq!(
+        (
+            texts(&f.before),
+            f.after_close.as_ref().unwrap().text.as_str()
+        ),
+        (vec![" before F".to_string()], " F")
+    );
+    assert!(f.after_open.is_none() && f.end.is_empty());
+    // After a second `;` the comment no longer ends the item's line: it
+    // stands on its own and goes to what follows, here the end of the block.
+    assert!(y.after.is_none());
+    assert_eq!(texts(&e.end), [" own line", " end of E"]);
+    assert_eq!(texts(&document.end), [" end 1", " end 2"]);
 }
 
 #[test]
@@ -299,7 +367,8 @@ fn an_empty_file_or_comments_only_is_an_empty_document() {
     assert_eq!(read(""), Document::default());
     let only = read("// nothing\n\n   \n// more");
     assert!(only.directives.is_empty() && only.elements.is_empty());
-    assert_eq!(only.comments.len(), 2);
+    assert_eq!(only.preamble.len(), 2);
+    assert!(only.end.is_empty());
 }
 
 #[test]

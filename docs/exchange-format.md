@@ -230,13 +230,15 @@ Two equal contents therefore give the same bytes, and reading a canonical
 form then writing it back changes nothing.
 
 ```
-foregram canon <file.json>
+foregram canon <file.json|file.fg>
 ```
 
 reads a graph or a layout, told apart by its `format` key, and writes it in
 canonical form, version 2, on the standard output. A file whose `format`
 does not name a layout is read as a graph, and its refusals say what is
-wrong. A refused file is not written.
+wrong. A refused file is not written. A file that does not open with `{`
+or `[` is a source file of a diagram, rewritten by the rules of
+[`source-format.md`](source-format.md).
 
 ## Validating
 
@@ -432,7 +434,9 @@ shifted by one level:
 }
 ```
 
-A refused file gives its `diagnostic` objects instead, one per line.
+A source file rewritten by `canon` keeps to one object on one line, its
+canonical text as a string under `document`. A refused file gives its
+`diagnostic` objects instead, one per line.
 
 ## Importing GraphML
 
