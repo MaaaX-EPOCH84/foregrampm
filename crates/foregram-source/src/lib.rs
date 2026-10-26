@@ -25,6 +25,24 @@
 //!
 //! Like the rest of the product library, this crate takes bytes and returns
 //! values: no file, clock or environment.
+//!
+//! # Public surface
+//!
+//! This is the contract frozen for the callers of the library, from version
+//! 0.1.0 on. It is held by `tests/api.rs`, which lists every exported name:
+//! adding one means adding it there.
+//!
+//! - **Model**: [`Document`], [`Directive`], [`Element`], [`Item`],
+//!   [`Content`], [`Value`], [`Comment`]. Their fields are public, so that a
+//!   caller — an editor, a test — can build or rewrite a document by hand;
+//!   adding a field is therefore a change of the contract.
+//! - **Reading and writing**: `Document::parse`, which returns the document
+//!   or every refusal of the file, never a partial document;
+//!   `Document::to_text`, the canonical form; the limit [`NESTING_MAX`].
+//! - **Identifiers**: [`Index`], built over a document, which finds an
+//!   element by identifier or resolves a value into one.
+//! - **Refusals**: the `Diagnostic`, `Pos` and catalogues of
+//!   `foregram-graph`, family `T`.
 
 #![deny(missing_docs)]
 

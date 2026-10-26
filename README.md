@@ -68,26 +68,29 @@ are under [`corpus/bar/`](corpus/bar/README.md).
 
 ## Library
 
-Two product crates, with no I/O and no dependency outside the `png`
+Three product crates, with no I/O and no dependency outside the `png`
 feature: `foregram-graph` (graph, layout, strict JSON reader, validation,
-canonical form, metrics) and `foregram-render` (SVG, and PNG behind the
-`png` feature). Their public surface is frozen from **version 0.1.0** on:
-each crate documents it at the top of its `src/lib.rs`, `cargo doc` renders
-it, and a test (`tests/api.rs`) lists every exported name, so that a new
-`pub` is a decision. One example per crate shows the whole path, bytes in,
-values out:
+canonical form, metrics), `foregram-render` (SVG, and PNG behind the `png`
+feature) and `foregram-source` (reader of the source format, lookup by
+identifier, canonical form). Their public surface is frozen from
+**version 0.1.0** on: each crate documents it at the top of its
+`src/lib.rs`, `cargo doc` renders it, and a test (`tests/api.rs`) lists
+every exported name, so that a new `pub` is a decision. One example per
+crate shows the whole path, bytes in, values out:
 
 ```
 cargo run -p foregram-graph --example measure
 cargo run -p foregram-render --example draw > components.svg
+cargo run -p foregram-source --example read
 ```
 
 ## WebAssembly
 
-`scripts/wasm.sh` checks that `foregram-graph` and `foregram-render` (without
-the `png` feature) build for `wasm32-unknown-unknown` with no special flag.
-Only the build is held: nothing is run and no web API is exposed. The target
-is not installed by the script; if it is missing the script says so (exit 2):
+`scripts/wasm.sh` checks that `foregram-graph`, `foregram-render` (without
+the `png` feature) and `foregram-source` build for `wasm32-unknown-unknown`
+with no special flag. Only the build is held: nothing is run and no web API
+is exposed. The target is not installed by the script; if it is missing the
+script says so (exit 2):
 
 ```
 rustup target add wasm32-unknown-unknown

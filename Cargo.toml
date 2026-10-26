@@ -1,4 +1,4 @@
-# ForegramPM — espace de travail
+# ForegramPM — workspace
 # Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 # SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -23,7 +23,7 @@ publish = false
 [workspace.lints.rust]
 unsafe_code = "forbid"
 
-# Aucun arrêt brutal : tout échec est une valeur rendue à l'appelant.
+# No abrupt stop: every failure is a value returned to the caller.
 [workspace.lints.clippy]
 unwrap_used = "deny"
 expect_used = "deny"

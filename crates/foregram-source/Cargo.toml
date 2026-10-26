@@ -1,10 +1,10 @@
-# ForegramPM — reader of the source format of diagrams
+# ForegramPM — source format of diagrams
 # Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 [package]
 name = "foregram-source"
-description = "Reader of the ForegramPM source format: hand-written lexer and parser, every node positioned, every refusal collected."
+description = "Source format of ForegramPM diagrams: hand-written reader, every node positioned, every refusal collected; lookup by identifier; canonical form."
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

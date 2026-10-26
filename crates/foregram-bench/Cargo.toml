@@ -1,10 +1,10 @@
-# ForegramPM — banc de mesure du placement
+# ForegramPM — layout benchmark
 # Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 [package]
 name = "foregram-bench"
-description = "Banc de mesure du placement de ForegramPM."
+description = "Layout benchmark of ForegramPM."
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -15,7 +15,7 @@ publish.workspace = true
 [dependencies]
 foregram-graph = { path = "../foregram-graph" }
 foregram-render = { path = "../foregram-render", features = ["png"] }
-# GraphML de Rome et North : arbre en lecture seule, position de chaque élément.
+# GraphML of Rome and North: read-only tree, position of every element.
 roxmltree = "0.21.1"
 
 [lints]

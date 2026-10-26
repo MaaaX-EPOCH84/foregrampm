@@ -1,10 +1,10 @@
-# ForegramPM — ligne de commande du produit
+# ForegramPM — command line of the product
 # Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 [package]
 name = "foregram"
-description = "Ligne de commande de ForegramPM : valider, réécrire, mesurer et dessiner un graphe."
+description = "Command line of ForegramPM: validate, rewrite, measure and draw a graph; check a source file."
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

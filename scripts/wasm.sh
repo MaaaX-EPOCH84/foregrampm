@@ -5,9 +5,9 @@
 #
 # Usage: scripts/wasm.sh
 #
-# Compiles `foregram-graph` and `foregram-render` (without the `png` feature) for
-# `wasm32-unknown-unknown`, with no particular flag. Only compilation
-# is held: nothing is run, no web API is exposed.
+# Compiles `foregram-graph`, `foregram-render` (without the `png` feature) and
+# `foregram-source` for `wasm32-unknown-unknown`, with no particular flag. Only
+# compilation is held: nothing is run, no web API is exposed.
 # The target is never installed here; if it is missing, the script says so.
 #
 # Exit codes: 0 compiles, 1 compilation fails, 2 tool or target missing.
@@ -27,8 +27,8 @@ fi
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
-if cargo build --target "$target" -p foregram-graph -p foregram-render; then
-  echo "wasm: foregram-graph and foregram-render build for $target"
+if cargo build --target "$target" -p foregram-graph -p foregram-render -p foregram-source; then
+  echo "wasm: foregram-graph, foregram-render and foregram-source build for $target"
 else
   echo "wasm: build for $target failed" >&2
   exit 1
