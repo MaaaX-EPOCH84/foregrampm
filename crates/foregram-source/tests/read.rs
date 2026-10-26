@@ -148,6 +148,7 @@ fn the_examples_of_the_documentation_are_read() {
     let path = format!("{}/../../docs/source-format.md", env!("CARGO_MANIFEST_DIR"));
     let doc = std::fs::read_to_string(&path).unwrap();
     let example = doc.split("\n## Example\n").nth(1).unwrap();
+    let example = example.split("\n## ").next().unwrap();
     let blocks: Vec<&str> = example.split("```\n").skip(1).step_by(2).collect();
     assert_eq!(blocks.len(), 3);
     let gestpret = read(blocks[0]);

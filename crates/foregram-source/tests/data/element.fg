@@ -1,0 +1,7 @@
+entity MEMBRE {
+  nom
+}
+
+association PRET {
+  date_pret
+}

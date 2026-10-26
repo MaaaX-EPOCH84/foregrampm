@@ -103,6 +103,7 @@ fn the_corpus_files_are_canonical() {
 fn the_documentation_shows_the_canonical_form_as_it_is() {
     let doc = root("docs/source-format.md");
     let example = doc.split("\n## Example\n").nth(1).unwrap();
+    let example = example.split("\n## ").next().unwrap();
     let blocks: Vec<&str> = example.split("```\n").skip(1).step_by(2).collect();
     assert_eq!(blocks.len(), 3);
     // The first example is canonical; the second is folded, and the third

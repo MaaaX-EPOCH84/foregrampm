@@ -1,0 +1,5 @@
+@notation merise
+@direction right
+@title "Members and loans"
+
+entity MEMBRE {}

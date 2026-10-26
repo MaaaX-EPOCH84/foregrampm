@@ -1,0 +1,6 @@
+entity MEMBRE {
+  @layer 1
+  @order 2
+  #id_membre
+  nom
+}

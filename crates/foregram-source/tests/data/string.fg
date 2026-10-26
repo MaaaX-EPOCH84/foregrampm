@@ -1,0 +1,6 @@
+entity MEMBRE "Membre \"actif\"" {
+  note "deux mots"
+  chemin "C:\\prets"
+  lignes "un\ndeux" "a\tb" "bip\u{7}"
+  vide ""
+}

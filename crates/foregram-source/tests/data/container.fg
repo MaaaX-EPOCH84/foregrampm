@@ -1,0 +1,13 @@
+group PERSONNES "Personnes" {
+  @layer 0
+
+  entity MEMBRE {
+    nom
+  }
+
+  group BUREAU "Bureau" {
+    entity PRESIDENT {}
+  }
+}
+
+entity MATERIEL {}

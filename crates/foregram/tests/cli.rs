@@ -268,7 +268,15 @@ fn corpus(name: &str) -> String {
 }
 
 /// The refused file of the documentation of `check`.
-const REFUSED_SOURCE: &[u8] = b"entity A {\n  #a\n}\nentity 1b {\n";
+const REFUSED_SOURCE: &[u8] = include_bytes!("../../foregram-source/tests/data/check.fg");
+
+/// An example file of the source format, by name.
+fn source_example(name: &str) -> String {
+    format!(
+        "{}/../foregram-source/tests/data/{name}",
+        env!("CARGO_MANIFEST_DIR")
+    )
+}
 
 #[test]
 fn a_well_formed_source_file_exits_zero_with_its_counts() {
@@ -418,15 +426,36 @@ fn the_documentation_shows_check_as_it_is() {
     let out = out.replace(&good, "gestpret.fg");
     assert!(doc.contains(&format!("```\n{out}```")), "{out}");
 
-    let dir = scratch("check-doc");
-    let bad = dir.join("g.fg").display().to_string();
-    std::fs::write(&bad, REFUSED_SOURCE).unwrap();
+    let bad = source_example("check.fg");
     let (_, _, err) = run(&["check", &bad]);
-    let err = err.replace(&bad, "g.fg");
+    let err = err.replace(&bad, "check.fg");
     assert!(doc.contains(&format!("```\n{err}```")), "{err}");
 
     let (_, out, _) = run_with(&["--json", "check", "-"], REFUSED_SOURCE);
     assert!(doc.contains(&format!("```json\n{out}```")), "{out}");
+
+    // Each refused example file, with what `check` says of it, under the
+    // file itself; the tests of the reader hold the list of these files.
+    let section = doc.split("\n## Example files\n").nth(1).unwrap();
+    let dir = format!(
+        "{}/../foregram-source/tests/data",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    let mut names: Vec<String> = std::fs::read_dir(&dir)
+        .unwrap()
+        .map(|entry| entry.unwrap().file_name().into_string().unwrap())
+        .filter(|name| name.starts_with("refuse-"))
+        .collect();
+    names.sort();
+    assert_eq!(names.len(), 14);
+    for name in names {
+        let path = source_example(&name);
+        let (code, out, err) = run(&["check", &path]);
+        assert_eq!((code, out.as_str()), (1, ""), "{name}");
+        let err = err.replace(&path, &name);
+        let after = section.split(&format!("`{name}`")).nth(1).unwrap();
+        assert_eq!(after.split("```\n").nth(3), Some(err.as_str()), "{name}");
+    }
 }
 
 // ----------------------------------------------------------------- metrics

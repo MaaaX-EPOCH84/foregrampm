@@ -1,0 +1,7 @@
+entity MATERIEL "Matériel" {
+  designation
+}
+
+entity LIEU "Lieu de prêt" {
+  adresse
+}

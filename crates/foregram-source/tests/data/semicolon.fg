@@ -1,0 +1,2 @@
+entity MEMBRE { #id_membre; nom; prenom }
+association PRET { date_pret; MEMBRE 0,n; MATERIEL 0,n }

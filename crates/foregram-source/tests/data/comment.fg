@@ -1,0 +1,10 @@
+// Members and loans: the preamble, set apart by a blank line.
+
+@notation merise
+
+// Comes with the element below.
+entity MEMBRE {
+  #id_membre // the key
+  nom
+  // Ends the block.
+} // after the closing brace
