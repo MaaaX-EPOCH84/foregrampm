@@ -1,2 +1,2 @@
-elk-models/e1.elkt: error[L016]: edge "e2": the route starts at (5544, 3020), off port "p"
-elk-models/e2.elkt: error[R003]: engine dot failed: exit status: 1: written by hand for this test
+elk-models/e1.elkt: error[LYT016]: edge "e2": the route starts at (5544, 3020), off port "p"
+elk-models/e2.elkt: error[REF003]: engine dot failed: exit status: 1: written by hand for this test

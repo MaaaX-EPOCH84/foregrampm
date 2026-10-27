@@ -165,7 +165,7 @@ fn the_scale_and_the_image_size_are_bounded() {
     let style = Style::default();
     for scale in [0, -1, SCALE_MAX + 1] {
         let diag = png(&graph, &layout, &style, scale).unwrap_err();
-        assert_eq!(diag.code, "V001", "{scale}");
+        assert_eq!(diag.code, "DRW001", "{scale}");
     }
     let (graph, layout) = empty();
     let (width, height, _) = decode(&png(&graph, &layout, &style, SCALE_MAX).unwrap());
@@ -183,7 +183,7 @@ fn the_scale_and_the_image_size_are_bounded() {
     )
     .unwrap();
     let diag = png(&graph, &layout, &style, 1).unwrap_err();
-    assert_eq!(diag.code, "V002");
+    assert_eq!(diag.code, "DRW002");
     assert!(diag.text().contains(&PIXELS_MAX.to_string()));
 }
 

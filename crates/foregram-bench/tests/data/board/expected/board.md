@@ -19,8 +19,8 @@ Each row is one graph laid out by dot and by elk, drawn with the same neutral lo
 
 | graph | dot | elk |
 |---|---|---|
-| `elk-models/e1.elkt`<br>regular sample | refused: L016 | ![elk](svg/elk/elk-models/e1.svg)<br>crossings 0 · bends 2 |
-| `elk-models/e2.elkt`<br>regular sample | refused: R003 | ![elk](svg/elk/elk-models/e2.svg)<br>crossings 0 · bends 0 |
+| `elk-models/e1.elkt`<br>regular sample | refused: LYT016 | ![elk](svg/elk/elk-models/e1.svg)<br>crossings 0 · bends 2 |
+| `elk-models/e2.elkt`<br>regular sample | refused: REF003 | ![elk](svg/elk/elk-models/e2.svg)<br>crossings 0 · bends 0 |
 
 ## mcd
 

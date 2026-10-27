@@ -49,8 +49,8 @@ pub fn svg(graph: &Graph, layout: &Layout, style: &Style) -> String {
 }
 
 /// The PNG of a layout, in greyscale, at `scale` pixels per pixel of the
-/// drawing. Refuses a scale outside 1 to [`SCALE_MAX`] (V001), an image of
-/// more than [`PIXELS_MAX`] pixels (V002).
+/// drawing. Refuses a scale outside 1 to [`SCALE_MAX`] (DRW001), an image of
+/// more than [`PIXELS_MAX`] pixels (DRW002).
 #[cfg(feature = "png")]
 pub fn png(
     graph: &Graph,

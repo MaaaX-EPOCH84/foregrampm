@@ -88,9 +88,9 @@ fn a_refused_graph_exits_one_and_says_where() {
     assert_eq!(
         err,
         format!(
-            "{graph}:7:5: error[G001]: node identifier \"A\" already used (line 6)\n\
-             {graph}:7:5: error[S008]: node \"A\": `height`: 0 outside the range 1 to 1000000000\n\
-             {graph}:10:5: error[G003]: edge \"e1\": `target` refers to node \"B\", which does not exist\n\
+            "{graph}:7:5: error[GPH001]: node identifier \"A\" already used (line 6)\n\
+             {graph}:7:5: error[SCH008]: node \"A\": `height`: 0 outside the range 1 to 1000000000\n\
+             {graph}:10:5: error[GPH003]: edge \"e1\": `target` refers to node \"B\", which does not exist\n\
              {graph}: refused (3 errors)\n"
         )
     );
@@ -104,7 +104,7 @@ fn a_refused_layout_exits_one_while_its_graph_passes() {
     assert_eq!(code, 1);
     assert_eq!(out, format!("{graph}: valid graph (3 nodes, 2 edges)\n"));
     assert!(
-        err.contains(&format!("{layout}:12:5: error[L009]:")),
+        err.contains(&format!("{layout}:12:5: error[LYT009]:")),
         "{err}"
     );
     assert!(
@@ -211,27 +211,27 @@ fn a_source_file_is_rewritten_in_its_canonical_form() {
     let parsed = objects(&out);
     assert_eq!(string(&parsed[0], "kind"), "canonical");
 
-    // A refused source file is not rewritten; its refusals carry a `T` code.
+    // A refused source file is not rewritten; its refusals carry an `SRC` code.
     let (code, out, err) = run_with(&["canon", "-"], b"// g\nentity 1a {\n");
     assert_eq!(code, 1);
     assert_eq!(out, "");
-    assert!(err.starts_with("<stdin>:2:8: error[T009]"), "{err}");
+    assert!(err.starts_with("<stdin>:2:8: error[SRC009]"), "{err}");
     assert!(err.ends_with("<stdin>: refused (2 errors)\n"), "{err}");
     let (code, out, _) = run_with(&["--json", "--lang", "fr", "canon", "-"], b"entity 1a {\n");
     assert_eq!(code, 1);
     let parsed = objects(&out);
     assert_eq!(parsed.len(), 2);
     assert_eq!(string(&parsed[0], "kind"), "diagnostic");
-    assert_eq!(string(&parsed[0], "code"), "T009");
+    assert_eq!(string(&parsed[0], "code"), "SRC009");
 
     // Blanks and a byte order mark before `{` still mean the exchange format.
     let (code, _, err) = run_with(&["canon", "-"], b"\xef\xbb\xbf \n {\"format\": 1}");
     assert_eq!(code, 1);
     assert!(err.starts_with("<stdin>:"), "{err}");
-    assert!(!err.contains("error[T"), "{err}");
+    assert!(!err.contains("error[SRC"), "{err}");
     let (code, _, err) = run_with(&["canon", "-"], b"[1]");
     assert_eq!(code, 1);
-    assert!(!err.contains("error[T"), "{err}");
+    assert!(!err.contains("error[SRC"), "{err}");
     // The empty file is a source file, and its canonical form is empty.
     let (code, out, err) = run_with(&["canon", "-"], b"");
     assert_eq!((code, out.as_str(), err.as_str()), (0, "", ""));
@@ -327,9 +327,9 @@ fn a_refused_source_file_exits_one_and_says_where() {
     assert_eq!(out, "");
     assert_eq!(
         err,
-        "<stdin>:4:8: error[T009]: identifier `1b`: only ASCII letters, digits and `_`, \
+        "<stdin>:4:8: error[SRC009]: identifier `1b`: only ASCII letters, digits and `_`, \
          not starting with a digit\n\
-         <stdin>:4:11: error[T007]: block not closed before the end of the file\n\
+         <stdin>:4:11: error[SRC007]: block not closed before the end of the file\n\
          <stdin>: refused (2 errors)\n"
     );
 
@@ -338,7 +338,7 @@ fn a_refused_source_file_exits_one_and_says_where() {
     let (code, out, err) = run(&["check", &graph]);
     assert_eq!(code, 1);
     assert_eq!(out, "");
-    assert!(err.starts_with(&format!("{graph}:1:1: error[T")), "{err}");
+    assert!(err.starts_with(&format!("{graph}:1:1: error[SRC")), "{err}");
 }
 
 #[test]
@@ -373,9 +373,9 @@ fn check_speaks_french_and_json_with_the_same_codes() {
     assert_eq!(
         err,
         format!(
-            "<stdin>:4:8: erreur[T009]{nb}: identifiant `1b`{nb}: lettres ASCII, chiffres et `_` \
+            "<stdin>:4:8: erreur[SRC009]{nb}: identifiant `1b`{nb}: lettres ASCII, chiffres et `_` \
              seulement, sans chiffre en tête\n\
-             <stdin>:4:11: erreur[T007]{nb}: bloc non fermé avant la fin du fichier\n\
+             <stdin>:4:11: erreur[SRC007]{nb}: bloc non fermé avant la fin du fichier\n\
              <stdin>: refusé (2 erreurs)\n"
         )
     );
@@ -400,7 +400,7 @@ fn check_speaks_french_and_json_with_the_same_codes() {
     let kinds: Vec<String> = all.iter().map(|o| string(o, "kind")).collect();
     assert_eq!(kinds, ["valid", "diagnostic", "diagnostic", "error"]);
     assert_eq!(string(&all[0], "key"), "cli.valid-source");
-    assert_eq!(string(&all[1], "code"), "T009");
+    assert_eq!(string(&all[1], "code"), "SRC009");
     let strip = |stream: &str| -> Vec<String> {
         stream
             .lines()
@@ -532,7 +532,7 @@ fn a_png_is_written_at_the_scale_asked() {
     let out_file = out_path.display().to_string();
     let (code, _, err) = run(&["render", &graph, &layout, &out_file, "--scale", "9"]);
     assert_eq!(code, 1);
-    assert!(err.contains("error[V001]"), "{err}");
+    assert!(err.contains("error[DRW001]"), "{err}");
     assert!(!out_path.exists());
 }
 
@@ -655,9 +655,9 @@ fn a_refusal_reads_in_french_with_the_same_code_and_position() {
     assert_eq!(
         err,
         format!(
-            "{graph}:7:5: erreur[G001]{nb}: identifiant de nœud «{nb}A{nb}» déjà employé (ligne 6)\n\
-             {graph}:7:5: erreur[S008]{nb}: nœud «{nb}A{nb}»{nb}: `height`{nb}: 0 hors de l'intervalle de 1 à 1000000000\n\
-             {graph}:10:5: erreur[G003]{nb}: lien «{nb}e1{nb}»{nb}: `target` désigne le nœud «{nb}B{nb}», qui n'existe pas\n\
+            "{graph}:7:5: erreur[GPH001]{nb}: identifiant de nœud «{nb}A{nb}» déjà employé (ligne 6)\n\
+             {graph}:7:5: erreur[SCH008]{nb}: nœud «{nb}A{nb}»{nb}: `height`{nb}: 0 hors de l'intervalle de 1 à 1000000000\n\
+             {graph}:10:5: erreur[GPH003]{nb}: lien «{nb}e1{nb}»{nb}: `target` désigne le nœud «{nb}B{nb}», qui n'existe pas\n\
              {graph}: refusé (3 erreurs)\n"
         )
     );
@@ -667,7 +667,7 @@ fn a_refusal_reads_in_french_with_the_same_code_and_position() {
 fn the_documentation_shows_a_french_refusal_as_it_is() {
     let graph = data("refuse-lien-orphelin.graph.json");
     let (_, _, err) = run(&["--lang", "fr", "validate", &graph]);
-    let line = err.lines().find(|l| l.contains("[G003]")).unwrap();
+    let line = err.lines().find(|l| l.contains("[GPH003]")).unwrap();
     let line = line.replace(&graph, "example.graph.json");
     let doc = std::fs::read_to_string(format!(
         "{}/../../docs/exchange-format.md",
@@ -823,10 +823,10 @@ fn json_refusals_carry_code_place_key_arguments_and_sentence() {
     );
     assert_eq!(string(first, "kind"), "diagnostic");
     assert_eq!(string(first, "file"), graph);
-    assert_eq!(string(first, "code"), "G001");
+    assert_eq!(string(first, "code"), "GPH001");
     assert_eq!(field(first, "line"), &Kind::Int(7));
     assert_eq!(field(first, "col"), &Kind::Int(5));
-    assert_eq!(string(first, "key"), "G001.again");
+    assert_eq!(string(first, "key"), "GPH001.again");
     assert_eq!(
         string(first, "text"),
         "node identifier \"A\" already used (line 6)"
@@ -860,7 +860,7 @@ fn a_json_refusal_without_a_place_has_null_line_and_column() {
     assert_eq!(err, "");
     let all = objects(&out);
     assert_eq!(all.len(), 1, "{out}");
-    assert_eq!(string(&all[0], "code"), "V001");
+    assert_eq!(string(&all[0], "code"), "DRW001");
     assert_eq!(string(&all[0], "file"), out_file);
     assert_eq!(field(&all[0], "line"), &Kind::Null);
     assert_eq!(field(&all[0], "col"), &Kind::Null);

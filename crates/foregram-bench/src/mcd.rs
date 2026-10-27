@@ -59,7 +59,7 @@ pub fn import(name: &str, bytes: &[u8]) -> Result<Graph, Vec<Diagnostic>> {
                 line: u32::try_from(line).unwrap_or(u32::MAX),
                 col: u32::try_from(col).unwrap_or(u32::MAX),
             };
-            return Err(vec![Diagnostic::new(pos, Message::new("M001"))]);
+            return Err(vec![Diagnostic::new(pos, Message::new("MCD001"))]);
         }
     };
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
@@ -121,13 +121,13 @@ fn parse<'t>(text: &'t str, diags: &mut Vec<Diagnostic>) -> Vec<Block<'t>> {
                 "entite" => Kind::Entity,
                 "association" => Kind::Association,
                 _ => {
-                    let message = Message::new("M002").text("word", word);
+                    let message = Message::new("MCD002").text("word", word);
                     diags.push(Diagnostic::new(pos(line, 1), message));
                     continue;
                 }
             };
             if name.is_empty() {
-                let message = Message::new("M002.name").text("word", word);
+                let message = Message::new("MCD002.name").text("word", word);
                 diags.push(Diagnostic::new(pos(line, 1), message));
                 continue;
             }
@@ -147,14 +147,14 @@ fn parse<'t>(text: &'t str, diags: &mut Vec<Diagnostic>) -> Vec<Block<'t>> {
             raw.chars().take_while(|c| c.is_whitespace()).count() + 1,
         );
         let Some(block) = blocks.last_mut() else {
-            diags.push(Diagnostic::new(at, Message::new("M003")));
+            diags.push(Diagnostic::new(at, Message::new("MCD003")));
             continue;
         };
         let parts: Vec<&str> = item.split_whitespace().collect();
         match parts[..] {
             [target, cardinality] if CARDINALITIES.contains(&cardinality) => {
                 if block.kind == Kind::Entity {
-                    let message = Message::new("M004").text("name", block.name);
+                    let message = Message::new("MCD004").text("name", block.name);
                     diags.push(Diagnostic::new(at, message));
                 } else {
                     block.links.push(Link {
@@ -166,7 +166,7 @@ fn parse<'t>(text: &'t str, diags: &mut Vec<Diagnostic>) -> Vec<Block<'t>> {
             }
             [prop] => block.props.push(prop),
             _ => {
-                let message = Message::new("M005").text("text", item);
+                let message = Message::new("MCD005").text("text", item);
                 diags.push(Diagnostic::new(at, message));
             }
         }
@@ -178,7 +178,7 @@ fn parse<'t>(text: &'t str, diags: &mut Vec<Diagnostic>) -> Vec<Block<'t>> {
 fn check(blocks: &[Block], diags: &mut Vec<Diagnostic>) {
     for (index, block) in blocks.iter().enumerate() {
         if let Some(first) = blocks[..index].iter().find(|b| b.name == block.name) {
-            let message = Message::new("M006")
+            let message = Message::new("MCD006")
                 .text("name", block.name)
                 .text("line", first.pos.line);
             diags.push(Diagnostic::new(block.pos, message));
@@ -188,12 +188,12 @@ fn check(blocks: &[Block], diags: &mut Vec<Diagnostic>) {
                 .iter()
                 .any(|b| b.kind == Kind::Entity && b.name == link.target);
             if !entity {
-                let message = Message::new("M007").text("name", link.target);
+                let message = Message::new("MCD007").text("name", link.target);
                 diags.push(Diagnostic::new(link.pos, message));
             }
         }
         if block.kind == Kind::Association && block.links.len() < 2 {
-            let message = Message::new("M008")
+            let message = Message::new("MCD008")
                 .text("name", block.name)
                 .text("count", block.links.len());
             diags.push(Diagnostic::new(block.pos, message));
@@ -404,7 +404,7 @@ mod tests {
         let diags = import("m", b"entite A\n  n\xffom\n").unwrap_err();
         assert_eq!(
             (diags[0].code, diags[0].pos),
-            ("M001", Pos { line: 2, col: 4 })
+            ("MCD001", Pos { line: 2, col: 4 })
         );
     }
 
@@ -412,38 +412,41 @@ mod tests {
     fn a_block_starts_with_entite_or_association_and_a_name() {
         assert_eq!(
             refusals("entity A\nentite\nentite B\n"),
-            [("M002", 1, 1), ("M002", 2, 1)]
+            [("MCD002", 1, 1), ("MCD002", 2, 1)]
         );
         assert_eq!(
             texts("entity A\nentite\n"),
             [
-                "1:1: error[M002]: `entity` starts no block: `entite NAME` or `association NAME` expected",
-                "2:1: error[M002]: `entite` without a name",
+                "1:1: error[MCD002]: `entity` starts no block: `entite NAME` or `association NAME` expected",
+                "2:1: error[MCD002]: `entite` without a name",
             ]
         );
     }
 
     #[test]
     fn an_indented_line_needs_a_block() {
-        assert_eq!(refusals("  nom\nentite A\n"), [("M003", 1, 3)]);
+        assert_eq!(refusals("  nom\nentite A\n"), [("MCD003", 1, 3)]);
     }
 
     #[test]
     fn only_an_association_carries_links() {
-        assert_eq!(refusals("entite A\nentite B\n  A 0,n\n"), [("M004", 3, 3)]);
+        assert_eq!(
+            refusals("entite A\nentite B\n  A 0,n\n"),
+            [("MCD004", 3, 3)]
+        );
         assert_eq!(
             texts("entite A\nentite B\n  A 0,n\n"),
-            ["3:3: error[M004]: only an association carries links; `B` is an entity"]
+            ["3:3: error[MCD004]: only an association carries links; `B` is an entity"]
         );
     }
 
     #[test]
     fn a_line_is_a_property_or_a_link() {
         let text = "entite A\nassociation R\n  A 0,n\n  A 2,n\n  A 0,n x\n  A 0,1\n";
-        assert_eq!(refusals(text), [("M005", 4, 3), ("M005", 5, 3)]);
+        assert_eq!(refusals(text), [("MCD005", 4, 3), ("MCD005", 5, 3)]);
         assert_eq!(
             texts(text)[0],
-            "4:3: error[M005]: `A 2,n`: a property, or an entity followed by a cardinality \
+            "4:3: error[MCD005]: `A 2,n`: a property, or an entity followed by a cardinality \
              (`0,1`, `0,n`, `1,1` or `1,n`) expected"
         );
     }
@@ -451,20 +454,20 @@ mod tests {
     #[test]
     fn a_block_is_declared_once() {
         let text = "entite A\nentite B\nassociation A\n  A 0,n\n  B 0,n\n";
-        assert_eq!(refusals(text), [("M006", 3, 1)]);
+        assert_eq!(refusals(text), [("MCD006", 3, 1)]);
         assert_eq!(
             texts(text),
-            ["3:1: error[M006]: `A` already declared (line 1)"]
+            ["3:1: error[MCD006]: `A` already declared (line 1)"]
         );
     }
 
     #[test]
     fn a_link_goes_to_a_declared_entity() {
         let text = "entite A\nassociation R\n  A 0,n\n  Z 1,1\nassociation S\n  R 0,n\n  A 0,n\n";
-        assert_eq!(refusals(text), [("M007", 4, 3), ("M007", 6, 3)]);
+        assert_eq!(refusals(text), [("MCD007", 4, 3), ("MCD007", 6, 3)]);
         assert_eq!(
             texts(text)[0],
-            "4:3: error[M007]: `Z` is not a declared entity"
+            "4:3: error[MCD007]: `Z` is not a declared entity"
         );
     }
 
@@ -473,11 +476,11 @@ mod tests {
         // With no link at all, or with only one.
         assert_eq!(
             refusals("entite A\nassociation R\nassociation S\n  A 0,n\n"),
-            [("M008", 2, 1), ("M008", 3, 1)]
+            [("MCD008", 2, 1), ("MCD008", 3, 1)]
         );
         assert_eq!(
             texts("entite A\nassociation R\n  date\n  A 0,n\n"),
-            ["2:1: error[M008]: association `R` needs two links at least, it has 1"]
+            ["2:1: error[MCD008]: association `R` needs two links at least, it has 1"]
         );
     }
 
@@ -486,7 +489,7 @@ mod tests {
         let long = "x".repeat(300);
         let text = format!("entite {long}\nentite B\nassociation R\n  {long} 0,n\n  B 0,n\n");
         let diags = import("m", text.as_bytes()).unwrap_err();
-        assert!(diags.iter().all(|d| d.code.starts_with('S')), "{diags:?}");
+        assert!(diags.iter().all(|d| d.code.starts_with("SCH")), "{diags:?}");
         assert_eq!(diags[0].pos, Pos { line: 1, col: 1 });
     }
 }

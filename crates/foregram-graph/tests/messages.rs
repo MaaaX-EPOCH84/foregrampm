@@ -302,12 +302,12 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
     let positioned = Graph::parse(b"?").unwrap_err();
     assert_eq!(
         positioned[0].render(catalog),
-        "1:1: error[J002]: unexpected character `?`: a value is expected"
+        "1:1: error[JSN002]: unexpected character `?`: a value is expected"
     );
     reached.insert("diag.at".into());
     let mut bare = positioned[0].clone();
     bare.pos = Pos::NONE;
-    assert!(bare.render(catalog).starts_with("error[J002]: "));
+    assert!(bare.render(catalog).starts_with("error[JSN002]: "));
     reached.insert("diag.bare".into());
 
     // The refusals of a file as a command line writes them.
@@ -315,8 +315,8 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
     assert_eq!(
         report,
         [
-            "g.json:1:1: error[J002]: unexpected character `?`: a value is expected",
-            "g.json: error[J002]: unexpected character `?`: a value is expected",
+            "g.json:1:1: error[JSN002]: unexpected character `?`: a value is expected",
+            "g.json: error[JSN002]: unexpected character `?`: a value is expected",
             "g.json: refused (2 errors)",
         ]
     );
@@ -336,8 +336,8 @@ fn every_catalogue_entry_is_reached_and_none_is_dead() {
     let file = "a \"b\".json";
     assert_eq!(
         positioned[0].to_json(file, catalog),
-        "{\"kind\": \"diagnostic\", \"file\": \"a \\\"b\\\".json\", \"code\": \"J002\", \
-         \"line\": 1, \"col\": 1, \"key\": \"J002.value-char\", \"args\": {\"char\": \"?\"}, \
+        "{\"kind\": \"diagnostic\", \"file\": \"a \\\"b\\\".json\", \"code\": \"JSN002\", \
+         \"line\": 1, \"col\": 1, \"key\": \"JSN002.value-char\", \"args\": {\"char\": \"?\"}, \
          \"text\": \"unexpected character `?`: a value is expected\"}"
     );
     let bare_json = report_bare(&positioned[0]).to_json(file, catalog);
@@ -431,8 +431,42 @@ fn every_key_written_in_the_library_exists_in_the_catalogue() {
 /// French catalogue does not carry them.
 fn bench_only(key: &str) -> bool {
     let head = key.split('.').next().unwrap_or("");
-    let code = head.len() == 4 && head[1..].bytes().all(|b| b.is_ascii_digit());
-    matches!(head, "bench" | "board") || (code && b"XEMR".contains(&head.as_bytes()[0]))
+    matches!(head, "bench" | "board")
+        || code_of(head).is_some_and(|(family, _)| BENCH.contains(&family))
+}
+
+/// Every code family, three capital letters each.
+const FAMILIES: &[&str] = &[
+    "JSN", "SCH", "GPH", "LYT", "GML", "ELK", "MCD", "REF", "DRW", "SRC",
+];
+/// The families of the bench's imports and reference engines.
+const BENCH: &[&str] = &["GML", "ELK", "MCD", "REF"];
+
+/// A refusal code split into its family and its number: three capital
+/// letters, then three digits.
+fn code_of(head: &str) -> Option<(&str, &str)> {
+    let b = head.as_bytes();
+    (b.len() == 6
+        && b[..3].iter().all(u8::is_ascii_uppercase)
+        && b[3..].iter().all(u8::is_ascii_digit))
+    .then(|| head.split_at(3))
+}
+
+#[test]
+fn every_code_has_a_known_family_and_a_number_other_than_000() {
+    let mut codes = 0;
+    for key in Catalog::english().keys().chain(Catalog::french().keys()) {
+        let head = key.split('.').next().unwrap_or("");
+        if head.bytes().next().is_some_and(|b| b.is_ascii_uppercase()) {
+            let Some((family, number)) = code_of(head) else {
+                panic!("code malformé : {key}")
+            };
+            assert!(FAMILIES.contains(&family), "famille inconnue : {key}");
+            assert_ne!(number, "000", "000 est réservé : {key}");
+            codes += 1;
+        }
+    }
+    assert!(codes > 100, "{codes}");
 }
 
 #[test]
@@ -485,7 +519,7 @@ fn every_plural_key_has_both_variants_in_each_language() {
                 );
             }
             if let Some(base) = key.strip_suffix(".other") {
-                // `G007.other` is a refusal variant, not a plural.
+                // `GPH007.other` is a refusal variant, not a plural.
                 if base.starts_with("count.") {
                     assert!(
                         catalog.get(&format!("{base}.one")).is_some(),
@@ -566,7 +600,7 @@ fn slots(template: &str) -> BTreeSet<String> {
 }
 
 /// The string literals shaped like a catalogue key:
-/// a code (`G003`, `J005.zero`) or a dotted fragment (`subject.node`) whose
+/// a code (`GPH003`, `JSN005.zero`) or a dotted fragment (`subject.node`) whose
 /// family, the first segment, is one of the catalogue's — which
 /// rules out ELK's option identifiers, dotted too.
 fn key_literals(source: &str) -> BTreeSet<String> {
@@ -583,10 +617,7 @@ fn key_literals(source: &str) -> BTreeSet<String> {
                     .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
         };
         let parts: Vec<&str> = literal.split('.').collect();
-        let head = parts[0].as_bytes();
-        let code = head.len() == 4
-            && b"JSGLXEMRVT".contains(&head[0])
-            && head[1..].iter().all(u8::is_ascii_digit)
+        let code = code_of(parts[0]).is_some_and(|(family, _)| FAMILIES.contains(&family))
             && parts[1..].iter().all(|p| word(p));
         let fragment =
             parts.len() >= 2 && parts.iter().all(|p| word(p)) && families.contains(parts[0]);

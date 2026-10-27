@@ -42,7 +42,7 @@
 //! without its quotes or escapes, Java-style, as ELK does for a label's
 //! text.
 //!
-//! A syntax error stops the reading at the first one, family `E`, with its
+//! A syntax error stops the reading at the first one, family `ELK`, with its
 //! position in the `.elkt`.
 
 use foregram_graph::{Diagnostic, Message, Pos};
@@ -162,7 +162,7 @@ pub fn parse(bytes: &[u8]) -> Result<ElkNode, Diagnostic> {
             let valid = bytes.get(..error.valid_up_to()).unwrap_or_default();
             let prefix = std::str::from_utf8(valid).unwrap_or_default();
             let pos = Lines::new(prefix).pos(prefix.len());
-            return Err(Diagnostic::new(pos, Message::new("E001")));
+            return Err(Diagnostic::new(pos, Message::new("ELK001")));
         }
     };
     let text = text.strip_prefix('\u{feff}').unwrap_or(text);
@@ -235,7 +235,7 @@ fn lex(text: &str) -> Result<Vec<Token>, Fail> {
             }
             b'/' if bytes.get(i + 1) == Some(&b'*') => {
                 let Some(close) = text.get(i + 2..).and_then(|rest| rest.find("*/")) else {
-                    return Err((start, Message::new("E002.comment")));
+                    return Err((start, Message::new("ELK002.comment")));
                 };
                 i += 2 + close + 2;
                 continue;
@@ -244,7 +244,7 @@ fn lex(text: &str) -> Result<Vec<Token>, Fail> {
                 i += 1;
                 loop {
                     match bytes.get(i) {
-                        None => return Err((start, Message::new("E002.string"))),
+                        None => return Err((start, Message::new("ELK002.string"))),
                         Some(&c) if c == b => break,
                         Some(b'\\') => i += 2,
                         Some(_) => i += 1,
@@ -261,7 +261,7 @@ fn lex(text: &str) -> Result<Vec<Token>, Fail> {
                         .get(i)
                         .is_some_and(|c| c.is_ascii_alphabetic() || *c == b'_')
                     {
-                        return Err((start, Message::new("E003").text("char", '^')));
+                        return Err((start, Message::new("ELK003").text("char", '^')));
                     }
                 }
                 while bytes
@@ -285,7 +285,7 @@ fn lex(text: &str) -> Result<Vec<Token>, Fail> {
                         .get(start..)
                         .and_then(|s| s.chars().next())
                         .unwrap_or('?');
-                    return Err((start, Message::new("E003").text("char", c)));
+                    return Err((start, Message::new("ELK003").text("char", c)));
                 }
                 i = digits(bytes, i);
                 if bytes.get(i) == Some(&b'.') && bytes.get(i + 1).is_some_and(u8::is_ascii_digit) {
@@ -311,7 +311,7 @@ fn lex(text: &str) -> Result<Vec<Token>, Fail> {
                     .get(start..)
                     .and_then(|s| s.chars().next())
                     .unwrap_or('?');
-                return Err((start, Message::new("E003").text("char", c)));
+                return Err((start, Message::new("ELK003").text("char", c)));
             }
         };
         tokens.push(Token { tok, start, end: i });
@@ -416,9 +416,9 @@ impl<'t> Parser<'t> {
     fn unexpected(&self, expected: Message) -> Fail {
         let token = self.peek();
         let message = if token.tok == Tok::End {
-            Message::new("E004.end").msg("expected", expected)
+            Message::new("ELK004.end").msg("expected", expected)
         } else {
-            Message::new("E004")
+            Message::new("ELK004")
                 .text("found", self.lexeme(token))
                 .msg("expected", expected)
         };
@@ -526,10 +526,10 @@ impl<'t> Parser<'t> {
                         .and_then(char::from_u32);
                     match code {
                         Some(c) => c,
-                        None => return Err((at, Message::new("E005"))),
+                        None => return Err((at, Message::new("ELK005"))),
                     }
                 }
-                _ => return Err((at, Message::new("E005"))),
+                _ => return Err((at, Message::new("ELK005"))),
             };
             out.push(decoded);
         }
@@ -714,7 +714,7 @@ impl<'t> Parser<'t> {
             };
             let token = self.bump();
             if seen.contains(&slot) {
-                let message = Message::new("E006").text("key", slot.keyword());
+                let message = Message::new("ELK006").text("key", slot.keyword());
                 return Err((token.start, message));
             }
             seen.push(slot);
@@ -975,14 +975,14 @@ mod tests {
         assert_eq!(
             refusal("node node"),
             (
-                "E004",
+                "ELK004",
                 1,
                 6,
                 "unexpected `node`: an identifier expected".into()
             )
         );
         // A keyword as a property value is refused too.
-        assert_eq!(refusal("k: size").0, "E004");
+        assert_eq!(refusal("k: size").0, "ELK004");
     }
 
     #[test]
@@ -998,38 +998,38 @@ mod tests {
             })
         );
         // `1.` is not a float: the dot starts something else.
-        assert_eq!(refusal("layout [size: 1., 2]").0, "E004");
+        assert_eq!(refusal("layout [size: 1., 2]").0, "ELK004");
     }
 
     #[test]
     fn text_that_is_not_utf8_is_refused_where_it_breaks() {
         let d = parse(b"node a\n n\xff").unwrap_err();
-        assert_eq!((d.code, d.pos), ("E001", Pos { line: 2, col: 3 }));
+        assert_eq!((d.code, d.pos), ("ELK001", Pos { line: 2, col: 3 }));
     }
 
     #[test]
     fn unterminated_strings_and_comments_are_refused_at_their_start() {
         assert_eq!(
             refusal("node a\n label \"x"),
-            ("E002", 2, 8, "unterminated string".into())
+            ("ELK002", 2, 8, "unterminated string".into())
         );
         assert_eq!(
             refusal("node a /* x"),
-            ("E002", 1, 8, "unterminated comment".into())
+            ("ELK002", 1, 8, "unterminated comment".into())
         );
-        assert_eq!(refusal("label 'x\\'").0, "E002");
+        assert_eq!(refusal("label 'x\\'").0, "ELK002");
     }
 
     #[test]
     fn a_stray_character_is_refused() {
         assert_eq!(
             refusal("node a\n  é"),
-            ("E003", 2, 3, "unexpected character `é`".into())
+            ("ELK003", 2, 3, "unexpected character `é`".into())
         );
-        assert_eq!(refusal("node a ^1").0, "E003");
-        assert_eq!(refusal("k: -").0, "E003");
-        assert_eq!(refusal("k: +x").0, "E003");
-        assert_eq!(refusal("k: ;").0, "E003");
+        assert_eq!(refusal("node a ^1").0, "ELK003");
+        assert_eq!(refusal("k: -").0, "ELK003");
+        assert_eq!(refusal("k: +x").0, "ELK003");
+        assert_eq!(refusal("k: ;").0, "ELK003");
     }
 
     #[test]
@@ -1069,7 +1069,7 @@ mod tests {
         ];
         for (text, expected) in cases {
             let (code, _, _, message) = refusal(text);
-            assert_eq!((code, message.as_str()), ("E004", expected), "{text}");
+            assert_eq!((code, message.as_str()), ("ELK004", expected), "{text}");
         }
         let (_, line, col, _) = refusal("node a\n  }");
         assert_eq!((line, col), (2, 3));
@@ -1079,10 +1079,10 @@ mod tests {
     fn an_unknown_escape_is_refused_where_it_is() {
         assert_eq!(
             refusal("label \"a\\qb\""),
-            ("E005", 1, 9, "unknown escape sequence in a string".into())
+            ("ELK005", 1, 9, "unknown escape sequence in a string".into())
         );
-        assert_eq!(refusal("label \"\\u12\"").0, "E005");
-        assert_eq!(refusal("label \"\\uzzzz\"").0, "E005");
+        assert_eq!(refusal("label \"\\u12\"").0, "ELK005");
+        assert_eq!(refusal("label \"\\uzzzz\"").0, "ELK005");
         assert_eq!(
             read("label \"\\\\\\\"\\t\\b\\f\\r\"").labels[0].text,
             "\\\"\t\u{8}\u{c}\r"
@@ -1094,7 +1094,7 @@ mod tests {
         assert_eq!(
             refusal("layout [size: 1, 1 position: 0, 0 size: 2, 2]"),
             (
-                "E006",
+                "ELK006",
                 1,
                 35,
                 "`size` given twice in the same `layout`".into()
@@ -1102,7 +1102,7 @@ mod tests {
         );
         assert_eq!(
             refusal("edge a -> b { layout [ end: 1, 1 end: 2, 2 ] }").0,
-            "E006"
+            "ELK006"
         );
         // In the other order, each once: accepted.
         let root = read("layout [position: 0, 0 size: 2, 2]");

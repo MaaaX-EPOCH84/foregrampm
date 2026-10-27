@@ -650,29 +650,29 @@ mod tests {
     fn a_garbled_output_is_refused_with_its_detail() {
         let graph = components();
         let refusal = |json: &str| read(&graph, engine(), json.as_bytes()).unwrap_err();
-        assert_eq!(refusal("not json").code, "R005");
-        assert_eq!(refusal(r#"{"objects": []}"#).code, "R005");
-        assert_eq!(refusal(r#"{"bb": "0,0,1", "objects": []}"#).code, "R005");
+        assert_eq!(refusal("not json").code, "REF005");
+        assert_eq!(refusal(r#"{"objects": []}"#).code, "REF005");
+        assert_eq!(refusal(r#"{"bb": "0,0,1", "objects": []}"#).code, "REF005");
         assert_eq!(
             refusal(r#"{"bb": "0,0,1,1", "objects": [{"name": "n9", "pos": "1,1"}]}"#).code,
-            "R005"
+            "REF005"
         );
         assert_eq!(
             refusal(r#"{"bb": "0,0,1,1", "objects": [{"name": "n0"}]}"#).code,
-            "R005"
+            "REF005"
         );
-        assert_eq!(refusal(r#"{"bb": "0,0,1,1", "objects": 3}"#).code, "R005");
+        assert_eq!(refusal(r#"{"bb": "0,0,1,1", "objects": 3}"#).code, "REF005");
         assert_eq!(
             refusal(r#"{"bb": "0,0,1,1", "objects": [], "edges": [{"id": "x"}]}"#).code,
-            "R005"
+            "REF005"
         );
         let two = r#"{"bb": "0,0,1,1", "objects": [], "edges": [{"id": "e0", "pos": "1,1 2,2"}]}"#;
-        assert_eq!(refusal(two).code, "R005");
+        assert_eq!(refusal(two).code, "REF005");
         let word = r#"{"bb": "0,0,1,1", "objects": [], "edges": [{"id": "e0", "pos": "1;1"}]}"#;
-        assert_eq!(refusal(word).code, "R005");
+        assert_eq!(refusal(word).code, "REF005");
         let huge = r#"{"bb": "0,0,1,1", "objects": [{"name": "n0", "pos": "1e30,1"}]}"#;
         let huge = refusal(huge);
-        assert_eq!(huge.code, "R006");
+        assert_eq!(huge.code, "REF006");
         assert_eq!(
             huge.text(),
             "dot output: number `1e30` cannot be carried in hundredths of a pixel"

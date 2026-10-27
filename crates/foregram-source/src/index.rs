@@ -43,13 +43,14 @@ impl<'a> Index<'a> {
         self.elements.get(id).copied()
     }
 
-    /// The element a value names, or the refusal `T015` at the value.
+    /// The element a value names, or the refusal `SRC015` at the value.
     ///
     /// A reference may precede the definition it points to: the index is
     /// built once the whole file is read.
     pub fn resolve(&self, value: &Value) -> Result<&'a Element, Diagnostic> {
-        self.get(&value.text)
-            .ok_or_else(|| Diagnostic::new(value.pos, Message::new("T015").text("id", &value.text)))
+        self.get(&value.text).ok_or_else(|| {
+            Diagnostic::new(value.pos, Message::new("SRC015").text("id", &value.text))
+        })
     }
 
     /// The identifiers and their elements, in identifier order.

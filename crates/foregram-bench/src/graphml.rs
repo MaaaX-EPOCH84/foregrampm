@@ -14,7 +14,7 @@
 //! link goes from `source` to `target` as written, directed or not:
 //! Rome's undirected links thus keep the file order.
 //!
-//! Read refusals carry family `X`; those of the produced graph are
+//! Read refusals carry family `GML`; those of the produced graph are
 //! the validator's, with the position of the element in the `.graphml`.
 
 use foregram_graph::{Diagnostic, Edge, Graph, Message, Node, Pos, Size};
@@ -46,7 +46,7 @@ pub fn import(name: &str, bytes: &[u8], size: Size) -> Result<Graph, Vec<Diagnos
             let valid = bytes.get(..error.valid_up_to()).unwrap_or_default();
             let prefix = std::str::from_utf8(valid).unwrap_or_default();
             let pos = Lines::new(prefix).pos(prefix.len());
-            return Err(vec![Diagnostic::new(pos, Message::new("X001"))]);
+            return Err(vec![Diagnostic::new(pos, Message::new("GML001"))]);
         }
     };
     // roxmltree skips the byte order mark but counts its positions
@@ -75,7 +75,7 @@ pub fn import(name: &str, bytes: &[u8], size: Size) -> Result<Graph, Vec<Diagnos
                     col: error.pos().col,
                 },
             };
-            let message = Message::new("X002").text("detail", error);
+            let message = Message::new("GML002").text("detail", error);
             return Err(vec![Diagnostic::new(pos, message)]);
         }
     };
@@ -110,7 +110,7 @@ impl Reader<'_> {
     fn graphml(&mut self, doc: &Document, name: &str, size: Size) -> Option<Graph> {
         let root = doc.root_element();
         if !is_graphml(root, "graphml") {
-            let message = Message::new("X003").text("name", root.tag_name().name());
+            let message = Message::new("GML003").text("name", root.tag_name().name());
             self.refuse(root.range().start, message);
             return None;
         }
@@ -125,7 +125,7 @@ impl Reader<'_> {
         }
         let [graph] = graphs[..] else {
             let at = graphs.get(1).map_or(root, |second| *second);
-            let message = Message::new("X004").text("count", graphs.len());
+            let message = Message::new("GML004").text("count", graphs.len());
             self.refuse(at.range().start, message);
             return None;
         };
@@ -135,7 +135,7 @@ impl Reader<'_> {
             && value != "directed"
             && value != "undirected"
         {
-            self.bad_value(graph, "edgedefault", "X008.edgedefault", value);
+            self.bad_value(graph, "edgedefault", "GML008.edgedefault", value);
         }
         let mut nodes = Vec::new();
         let mut edges = Vec::new();
@@ -163,7 +163,7 @@ impl Reader<'_> {
                     && value != "true"
                     && value != "false"
                 {
-                    self.bad_value(child, "directed", "X008.directed", value);
+                    self.bad_value(child, "directed", "GML008.directed", value);
                 }
                 let id = self.required(child, "id");
                 let source = self.required(child, "source");
@@ -202,7 +202,7 @@ impl Reader<'_> {
             if child.is_element() {
                 out.push(child);
             } else if child.is_text() && !child.text().unwrap_or("").trim().is_empty() {
-                let message = Message::new("X005.text").text("parent", parent.tag_name().name());
+                let message = Message::new("GML005.text").text("parent", parent.tag_name().name());
                 self.refuse(child.range().start, message);
             }
         }
@@ -217,7 +217,7 @@ impl Reader<'_> {
     }
 
     fn unsupported(&mut self, child: XmlNode, parent: XmlNode) {
-        let message = Message::new("X005")
+        let message = Message::new("GML005")
             .text("name", child.tag_name().name())
             .text("parent", parent.tag_name().name());
         self.refuse(child.range().start, message);
@@ -230,7 +230,7 @@ impl Reader<'_> {
             if ours || attribute.namespace() == Some(XSI_NS) {
                 continue;
             }
-            let message = Message::new("X006")
+            let message = Message::new("GML006")
                 .text("name", attribute.name())
                 .text("element", element.tag_name().name());
             self.refuse(attribute.range().start, message);
@@ -240,7 +240,7 @@ impl Reader<'_> {
     fn required<'a>(&mut self, element: XmlNode<'a, '_>, name: &'static str) -> Option<&'a str> {
         let value = element.attribute(name);
         if value.is_none() {
-            let message = Message::new("X007")
+            let message = Message::new("GML007")
                 .text("element", element.tag_name().name())
                 .text("name", name);
             self.refuse(element.range().start, message);
@@ -353,7 +353,7 @@ mod tests {
         assert_eq!(graph.edges[0].source, "a");
         // After the mark, the first column stays the first.
         let bad = "\u{feff}<graph/>";
-        assert_eq!(refusals(bad), [("X003", 1, 1)]);
+        assert_eq!(refusals(bad), [("GML003", 1, 1)]);
     }
 
     #[test]
@@ -372,37 +372,40 @@ mod tests {
         let diags = import("g", &bytes, SIZE).unwrap_err();
         assert_eq!(
             (diags[0].code, diags[0].pos),
-            ("X001", Pos { line: 2, col: 10 })
+            ("GML001", Pos { line: 2, col: 10 })
         );
     }
 
     #[test]
     fn malformed_xml_is_refused_with_the_parser_detail() {
-        assert_eq!(refusals("<graphml>\n <graph></graphml>"), [("X002", 2, 9)]);
+        assert_eq!(
+            refusals("<graphml>\n <graph></graphml>"),
+            [("GML002", 2, 9)]
+        );
         assert_eq!(
             texts("<graphml>\n <graph></graphml>"),
-            ["2:9: error[X002]: malformed XML: expected 'graph' tag, not 'graphml' at 2:9"]
+            ["2:9: error[GML002]: malformed XML: expected 'graph' tag, not 'graphml' at 2:9"]
         );
         // Without a real position, the refusal does not invent one.
         let diags = import("g", b"", SIZE).unwrap_err();
-        assert_eq!((diags[0].code, diags[0].pos), ("X002", Pos::NONE));
+        assert_eq!((diags[0].code, diags[0].pos), ("GML002", Pos::NONE));
     }
 
     #[test]
     fn the_root_must_be_graphml_holding_one_graph() {
-        assert_eq!(refusals("<gml/>"), [("X003", 1, 1)]);
+        assert_eq!(refusals("<gml/>"), [("GML003", 1, 1)]);
         assert_eq!(
             refusals("<graphml xmlns=\"urn:other\"><graph/></graphml>"),
-            [("X003", 1, 1)]
+            [("GML003", 1, 1)]
         );
-        assert_eq!(refusals("<graphml>\n</graphml>"), [("X004", 1, 1)]);
+        assert_eq!(refusals("<graphml>\n</graphml>"), [("GML004", 1, 1)]);
         assert_eq!(
             refusals("<graphml><graph/>\n<graph/></graphml>"),
-            [("X004", 2, 1)]
+            [("GML004", 2, 1)]
         );
         assert_eq!(
             texts("<graphml/>"),
-            ["1:1: error[X004]: `graphml` must contain exactly one `graph`, it contains 0"]
+            ["1:1: error[GML004]: `graphml` must contain exactly one `graph`, it contains 0"]
         );
     }
 
@@ -417,26 +420,26 @@ mod tests {
         assert_eq!(
             refusals(text),
             [
-                ("X005", 1, 10),
-                ("X005", 2, 14),
-                ("X005", 3, 14),
-                ("X005", 3, 30),
-                ("X005", 4, 1),
-                ("X005", 4, 13),
+                ("GML005", 1, 10),
+                ("GML005", 2, 14),
+                ("GML005", 3, 14),
+                ("GML005", 3, 30),
+                ("GML005", 4, 1),
+                ("GML005", 4, 13),
             ]
         );
         let texts = texts(text);
         assert_eq!(
             texts[0],
-            "1:10: error[X005]: element `key` not supported inside `graphml`"
+            "1:10: error[GML005]: element `key` not supported inside `graphml`"
         );
         assert_eq!(
             texts[3],
-            "3:30: error[X005]: element `graph` not supported inside `node`"
+            "3:30: error[GML005]: element `graph` not supported inside `node`"
         );
         assert_eq!(
             texts[5],
-            "4:13: error[X005]: text not expected inside `graph`"
+            "4:13: error[GML005]: text not expected inside `graph`"
         );
     }
 
@@ -449,15 +452,15 @@ mod tests {
         assert_eq!(
             refusals(text),
             [
-                ("X006", 1, 10),
-                ("X006", 1, 29),
-                ("X006", 2, 14),
-                ("X006", 3, 36)
+                ("GML006", 1, 10),
+                ("GML006", 1, 29),
+                ("GML006", 2, 14),
+                ("GML006", 3, 36)
             ]
         );
         assert_eq!(
             texts(text)[3],
-            "3:36: error[X006]: attribute `sourceport` not supported on `edge`"
+            "3:36: error[GML006]: attribute `sourceport` not supported on `edge`"
         );
     }
 
@@ -466,11 +469,11 @@ mod tests {
         let text = "<graphml><graph>\n<node/>\n<edge source=\"a\"/>\n</graph></graphml>";
         assert_eq!(
             refusals(text),
-            [("X007", 2, 1), ("X007", 3, 1), ("X007", 3, 1)]
+            [("GML007", 2, 1), ("GML007", 3, 1), ("GML007", 3, 1)]
         );
         assert_eq!(
             texts(text)[0],
-            "2:1: error[X007]: `node` without its `id` attribute"
+            "2:1: error[GML007]: `node` without its `id` attribute"
         );
     }
 
@@ -479,12 +482,12 @@ mod tests {
         let text = "<graphml><graph edgedefault=\"mixed\">\n\
             <node id=\"a\"/><edge id=\"e\" source=\"a\" target=\"a\" directed=\"yes\"/>\n\
             </graph></graphml>";
-        assert_eq!(refusals(text), [("X008", 1, 17), ("X008", 2, 50)]);
+        assert_eq!(refusals(text), [("GML008", 1, 17), ("GML008", 2, 50)]);
         assert_eq!(
             texts(text),
             [
-                "1:17: error[X008]: `edgedefault` is \"mixed\": `directed` or `undirected` expected",
-                "2:50: error[X008]: `directed` is \"yes\": `true` or `false` expected",
+                "1:17: error[GML008]: `edgedefault` is \"mixed\": `directed` or `undirected` expected",
+                "2:50: error[GML008]: `directed` is \"yes\": `true` or `false` expected",
             ]
         );
     }
@@ -493,10 +496,10 @@ mod tests {
     fn the_validator_refuses_the_rest_with_graphml_positions() {
         let text = "<graphml><graph>\n<node id=\"a\"/>\n<node id=\"a\"/>\n\
             <edge id=\"e\" source=\"a\" target=\"z\"/>\n</graph></graphml>";
-        assert_eq!(refusals(text), [("G001", 3, 1), ("G003", 4, 1)]);
+        assert_eq!(refusals(text), [("GPH001", 3, 1), ("GPH003", 4, 1)]);
         assert_eq!(
             texts(text)[1],
-            "4:1: error[G003]: edge \"e\": `target` refers to node \"z\", which does not exist"
+            "4:1: error[GPH003]: edge \"e\": `target` refers to node \"z\", which does not exist"
         );
     }
 

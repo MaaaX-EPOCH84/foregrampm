@@ -2,7 +2,7 @@
 #
 # Une entrée par ligne : `clé = modèle`, comme dans en.txt, dont ce fichier
 # reprend les clés du produit (le banc, ses familles bench et board et ses
-# refus X, E, M et R, ne parle qu'anglais) avec les mêmes emplacements.
+# refus GML, ELK, MCD et REF, ne parle qu'anglais) avec les mêmes emplacements.
 # Typographie : guillemets « » autour des noms, accents graves autour des
 # clés du format, espace insécable (U+00A0) avant : ; ! ? et dans les « ».
 # Un repère de fichier ou de position (« g.json:1:1: ») garde la forme
@@ -10,27 +10,27 @@
 # Pluriel : la variante `.one` sert pour 0 et 1, `.other` au-delà.
 
 # Syntaxe JSON
-J001.utf8 = octets invalides : le texte doit être en UTF-8
-J001.bom = indicateur d'ordre des octets (BOM) refusé au début du texte
-J002.value-char = caractère inattendu `{char}` : on attend une valeur
-J002.value-word = mot inconnu `{word}` : on attend une valeur
-J002.expected = caractère inattendu `{char}` : on attend {expected}
-J003.value = fin de texte inattendue : on attend une valeur
-J003.expected = fin de texte inattendue : on attend {expected}
-J003.string = chaîne non terminée
-J004 = nombre non entier : seuls les entiers sont admis
-J005.digit = nombre mal formé : un chiffre est attendu après `-`
-J005.zero = nombre mal formé : zéro en tête
-J005.minus-zero = nombre mal formé : `-0` s'écrit `0`
-J006 = entier trop grand pour être représenté
-J007.control = caractère de contrôle {char} non échappé dans une chaîne
-J007.high = surrogate haut sans son surrogate bas
-J007.low = surrogate bas isolé
-J007.escape = séquence d'échappement inconnue
-J007.hex = quatre chiffres hexadécimaux sont attendus après `\u`
-J008 = clé `{key}` en double dans le même objet
-J009 = imbrication trop profonde : {max} niveaux au plus
-J010 = contenu inattendu après la valeur : `{char}`
+JSN001.utf8 = octets invalides : le texte doit être en UTF-8
+JSN001.bom = indicateur d'ordre des octets (BOM) refusé au début du texte
+JSN002.value-char = caractère inattendu `{char}` : on attend une valeur
+JSN002.value-word = mot inconnu `{word}` : on attend une valeur
+JSN002.expected = caractère inattendu `{char}` : on attend {expected}
+JSN003.value = fin de texte inattendue : on attend une valeur
+JSN003.expected = fin de texte inattendue : on attend {expected}
+JSN003.string = chaîne non terminée
+JSN004 = nombre non entier : seuls les entiers sont admis
+JSN005.digit = nombre mal formé : un chiffre est attendu après `-`
+JSN005.zero = nombre mal formé : zéro en tête
+JSN005.minus-zero = nombre mal formé : `-0` s'écrit `0`
+JSN006 = entier trop grand pour être représenté
+JSN007.control = caractère de contrôle {char} non échappé dans une chaîne
+JSN007.high = surrogate haut sans son surrogate bas
+JSN007.low = surrogate bas isolé
+JSN007.escape = séquence d'échappement inconnue
+JSN007.hex = quatre chiffres hexadécimaux sont attendus après `\u`
+JSN008 = clé `{key}` en double dans le même objet
+JSN009 = imbrication trop profonde : {max} niveaux au plus
+JSN010 = contenu inattendu après la valeur : `{char}`
 
 # Ce qu'attendait le lecteur JSON
 expect.comma-bracket = `,` ou `]`
@@ -39,94 +39,94 @@ expect.colon = `:`
 expect.key = une clé entre guillemets
 
 # Structure, pour les deux formats
-S001 = {field} : type {expected} attendu, type {found} reçu
-S001.point = {field} : un point s'écrit [x, y], deux entiers
-S001.segment = {field} : un élément de tracé est un point [x, y] ou une courbe [[x, y], [x, y], [x, y]]
-S002 = clé inconnue `{key}` ({in})
-S003 = clé obligatoire `{key}` absente ({in})
-S004 = format inattendu `{found}` : on attend `{expected}`
-S005 = version {found} non prise en charge : les versions 1 à {supported} sont lues
-S006 = {field} : valeur inconnue `{value}` ; on attend l'une de {words}
-S007.empty = {field} : identifiant vide
-S007.control = {field} : l'identifiant contient un caractère de contrôle
-S007.long = {field} : identifiant trop long ({length} caractères, {max} au plus)
-S008 = {field} : {value} hors de l'intervalle de {min} à {max}
+SCH001 = {field} : type {expected} attendu, type {found} reçu
+SCH001.point = {field} : un point s'écrit [x, y], deux entiers
+SCH001.segment = {field} : un élément de tracé est un point [x, y] ou une courbe [[x, y], [x, y], [x, y]]
+SCH002 = clé inconnue `{key}` ({in})
+SCH003 = clé obligatoire `{key}` absente ({in})
+SCH004 = format inattendu `{found}` : on attend `{expected}`
+SCH005 = version {found} non prise en charge : les versions 1 à {supported} sont lues
+SCH006 = {field} : valeur inconnue `{value}` ; on attend l'une de {words}
+SCH007.empty = {field} : identifiant vide
+SCH007.control = {field} : l'identifiant contient un caractère de contrôle
+SCH007.long = {field} : identifiant trop long ({length} caractères, {max} au plus)
+SCH008 = {field} : {value} hors de l'intervalle de {min} à {max}
 
 # Graphe
-G001 = identifiant de nœud « {id} » déjà employé
-G001.again = identifiant de nœud « {id} » déjà employé (ligne {line})
-G002 = identifiant de lien « {id} » déjà employé
-G002.again = identifiant de lien « {id} » déjà employé (ligne {line})
-G003 = {subject} : `{key}` désigne le nœud « {node} », qui n'existe pas
-G004 = {subject} : `order` sans `layer`
-G005 = {subject} : même `layer` et même `order` que le nœud « {other} »
-G006 = identifiant de port « {id} » déjà employé
-G006.again = identifiant de port « {id} » déjà employé (ligne {line})
-G007.unknown = {subject} : `{key}` désigne le port « {port} », qui n'existe pas
-G007.other = {subject} : `{key}` désigne le port « {port} », qui appartient au nœud « {owner} » et non au nœud « {node} »
-G008 = {subject} : `{side}` ne peut pas accompagner `{port}`
-G009 = {subject} : `ports_ordered` exige un `side` sur chaque port ; le port « {port} » n'en a pas
-G010.side = {subject} : une position exige `side`
-G010.border = {subject} : la position ({x}, {y}) n'est pas sur le côté `{side}` de son nœud
-G010.container = {subject} : un nœud qui a des enfants ne peut pas positionner ses ports
-G011.leaf = {subject} : `width` et `height` sont obligatoires pour un nœud sans enfant
-G011.container = {subject} : un nœud qui a des enfants n'a ni `width` ni `height` ; le placement les donne
-G012 = {subject} : `padding` ne s'applique qu'à un nœud qui a des enfants
+GPH001 = identifiant de nœud « {id} » déjà employé
+GPH001.again = identifiant de nœud « {id} » déjà employé (ligne {line})
+GPH002 = identifiant de lien « {id} » déjà employé
+GPH002.again = identifiant de lien « {id} » déjà employé (ligne {line})
+GPH003 = {subject} : `{key}` désigne le nœud « {node} », qui n'existe pas
+GPH004 = {subject} : `order` sans `layer`
+GPH005 = {subject} : même `layer` et même `order` que le nœud « {other} »
+GPH006 = identifiant de port « {id} » déjà employé
+GPH006.again = identifiant de port « {id} » déjà employé (ligne {line})
+GPH007.unknown = {subject} : `{key}` désigne le port « {port} », qui n'existe pas
+GPH007.other = {subject} : `{key}` désigne le port « {port} », qui appartient au nœud « {owner} » et non au nœud « {node} »
+GPH008 = {subject} : `{side}` ne peut pas accompagner `{port}`
+GPH009 = {subject} : `ports_ordered` exige un `side` sur chaque port ; le port « {port} » n'en a pas
+GPH010.side = {subject} : une position exige `side`
+GPH010.border = {subject} : la position ({x}, {y}) n'est pas sur le côté `{side}` de son nœud
+GPH010.container = {subject} : un nœud qui a des enfants ne peut pas positionner ses ports
+GPH011.leaf = {subject} : `width` et `height` sont obligatoires pour un nœud sans enfant
+GPH011.container = {subject} : un nœud qui a des enfants n'a ni `width` ni `height` ; le placement les donne
+GPH012 = {subject} : `padding` ne s'applique qu'à un nœud qui a des enfants
 
 # Placement
-L001 = ce placement appartient au graphe « {layout} », pas à « {graph} »
-L002 = le nœud « {id} » n'est pas dans le graphe
-L003 = nœud « {id} » placé deux fois
-L003.again = nœud « {id} » placé deux fois (ligne {line})
-L004 = nœud « {id} » non placé
-L005 = le lien « {id} » n'est pas dans le graphe
-L006 = lien « {id} » tracé deux fois
-L006.again = lien « {id} » tracé deux fois (ligne {line})
-L007 = le lien « {id} » n'a pas de tracé
-L008 = {subject} : un tracé a au moins deux points, celui-ci en a {count}
-L009.start = lien « {id} » : le tracé part de ({x}, {y}), hors du bord du nœud « {node} »
-L009.end = lien « {id} » : le tracé arrive en ({x}, {y}), hors du bord du nœud « {node} »
-L010.start = lien « {id} » : le tracé part de ({x}, {y}), hors du côté imposé `{side}` du nœud « {node} »
-L010.end = lien « {id} » : le tracé arrive en ({x}, {y}), hors du côté imposé `{side}` du nœud « {node} »
-L011 = lien « {id} » : {placed} étiquette(s) placée(s), le graphe en a {expected}
-L012 = le nœud « {id} » ne tient pas dans son parent « {parent} »
-L013.container = nœud « {id} » : un nœud qui a des enfants exige `width` et `height` dans le placement
-L013.leaf = nœud « {id} » : `width` et `height` ne se donnent pas pour un nœud sans enfant
-L014.unknown = le port « {id} » n'est pas un port du nœud « {node} »
-L014.missing = port « {id} » du nœud « {node} » non placé
-L014.twice = port « {id} » placé deux fois
-L014.twice-again = port « {id} » placé deux fois (ligne {line})
-L015.border = port « {id} » : ancré en ({x}, {y}), hors du bord du nœud « {node} »
-L015.side = port « {id} » : ancré en ({x}, {y}), hors de son côté `{side}` du nœud « {node} »
-L015.fixed = port « {id} » : ancré en ({x}, {y}), le graphe le fixe en ({fx}, {fy})
-L016.start = lien « {id} » : le tracé part de ({x}, {y}), hors du port « {port} »
-L016.end = lien « {id} » : le tracé arrive en ({x}, {y}), hors du port « {port} »
-L017 = {subject} : un tracé commence par un point [x, y], pas par une courbe
+LYT001 = ce placement appartient au graphe « {layout} », pas à « {graph} »
+LYT002 = le nœud « {id} » n'est pas dans le graphe
+LYT003 = nœud « {id} » placé deux fois
+LYT003.again = nœud « {id} » placé deux fois (ligne {line})
+LYT004 = nœud « {id} » non placé
+LYT005 = le lien « {id} » n'est pas dans le graphe
+LYT006 = lien « {id} » tracé deux fois
+LYT006.again = lien « {id} » tracé deux fois (ligne {line})
+LYT007 = le lien « {id} » n'a pas de tracé
+LYT008 = {subject} : un tracé a au moins deux points, celui-ci en a {count}
+LYT009.start = lien « {id} » : le tracé part de ({x}, {y}), hors du bord du nœud « {node} »
+LYT009.end = lien « {id} » : le tracé arrive en ({x}, {y}), hors du bord du nœud « {node} »
+LYT010.start = lien « {id} » : le tracé part de ({x}, {y}), hors du côté imposé `{side}` du nœud « {node} »
+LYT010.end = lien « {id} » : le tracé arrive en ({x}, {y}), hors du côté imposé `{side}` du nœud « {node} »
+LYT011 = lien « {id} » : {placed} étiquette(s) placée(s), le graphe en a {expected}
+LYT012 = le nœud « {id} » ne tient pas dans son parent « {parent} »
+LYT013.container = nœud « {id} » : un nœud qui a des enfants exige `width` et `height` dans le placement
+LYT013.leaf = nœud « {id} » : `width` et `height` ne se donnent pas pour un nœud sans enfant
+LYT014.unknown = le port « {id} » n'est pas un port du nœud « {node} »
+LYT014.missing = port « {id} » du nœud « {node} » non placé
+LYT014.twice = port « {id} » placé deux fois
+LYT014.twice-again = port « {id} » placé deux fois (ligne {line})
+LYT015.border = port « {id} » : ancré en ({x}, {y}), hors du bord du nœud « {node} »
+LYT015.side = port « {id} » : ancré en ({x}, {y}), hors de son côté `{side}` du nœud « {node} »
+LYT015.fixed = port « {id} » : ancré en ({x}, {y}), le graphe le fixe en ({fx}, {fy})
+LYT016.start = lien « {id} » : le tracé part de ({x}, {y}), hors du port « {port} »
+LYT016.end = lien « {id} » : le tracé arrive en ({x}, {y}), hors du port « {port} »
+LYT017 = {subject} : un tracé commence par un point [x, y], pas par une courbe
 
 # Rendu
-V001 = échelle {scale} hors de l'intervalle de 1 à {max}
-V002 = une image de {width} x {height} pixels dépasse {max} pixels
-V003 = échec de l'encodage PNG : {error}
+DRW001 = échelle {scale} hors de l'intervalle de 1 à {max}
+DRW002 = une image de {width} x {height} pixels dépasse {max} pixels
+DRW003 = échec de l'encodage PNG : {error}
 
 # Lecteur du format source (.fg)
-T001 = octets invalides : le texte doit être en UTF-8
-T002 = caractère de contrôle {char} refusé : seuls la tabulation et les fins de ligne sont admis
-T003 = chaîne non fermée avant la fin de sa ligne
-T004 = échappement inconnu `{escape}`
-T005 = l'échappement `{escape}` n'est pas une valeur scalaire Unicode
-T006 = `}` sans bloc ouvert
-T007 = bloc non fermé avant la fin du fichier
-T008.top = hors de tout élément, une ligne est une tête d'élément ou, avant le premier élément, une directive
-T008.kind = une tête d'élément commence par un mot de sorte, qui ne commence pas par `@`
-T008.id = une tête d'élément donne un identifiant après sa sorte, sous forme de mot
-T008.label = seule une étiquette, entre guillemets, peut se placer entre l'identifiant et `{`
-T009 = identifiant `{id}` : lettres ASCII, chiffres et `_` seulement, sans chiffre en tête
-T010 = directive `@{key}` après le premier élément : l'en-tête précède tous les éléments
-T011 = `@` sans clé
-T012 = identifiant `{id}` déjà défini en {line}:{col}
-T013 = clé `@{key}` déjà donnée en {line}:{col}
-T014 = plus de {max} blocs imbriqués
-T015 = référence `{id}` : aucun élément ne porte cet identifiant
+SRC001 = octets invalides : le texte doit être en UTF-8
+SRC002 = caractère de contrôle {char} refusé : seuls la tabulation et les fins de ligne sont admis
+SRC003 = chaîne non fermée avant la fin de sa ligne
+SRC004 = échappement inconnu `{escape}`
+SRC005 = l'échappement `{escape}` n'est pas une valeur scalaire Unicode
+SRC006 = `}` sans bloc ouvert
+SRC007 = bloc non fermé avant la fin du fichier
+SRC008.top = hors de tout élément, une ligne est une tête d'élément ou, avant le premier élément, une directive
+SRC008.kind = une tête d'élément commence par un mot de sorte, qui ne commence pas par `@`
+SRC008.id = une tête d'élément donne un identifiant après sa sorte, sous forme de mot
+SRC008.label = seule une étiquette, entre guillemets, peut se placer entre l'identifiant et `{`
+SRC009 = identifiant `{id}` : lettres ASCII, chiffres et `_` seulement, sans chiffre en tête
+SRC010 = directive `@{key}` après le premier élément : l'en-tête précède tous les éléments
+SRC011 = `@` sans clé
+SRC012 = identifiant `{id}` déjà défini en {line}:{col}
+SRC013 = clé `@{key}` déjà donnée en {line}:{col}
+SRC014 = plus de {max} blocs imbriqués
+SRC015 = référence `{id}` : aucun élément ne porte cet identifiant
 
 # Ce qu'attendait le lecteur du texte d'ELK
 expect.literal = `{text}`

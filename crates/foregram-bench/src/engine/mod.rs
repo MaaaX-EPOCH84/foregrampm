@@ -83,7 +83,7 @@ impl Tools {
             }
         };
         if found != pinned {
-            let message = Message::new("R002")
+            let message = Message::new("REF002")
                 .text("engine", kind.name())
                 .text("found", &found)
                 .text("pinned", &pinned);
@@ -98,7 +98,7 @@ impl Tools {
 }
 
 fn missing(kind: Kind, path: &Path) -> Diagnostic {
-    let message = Message::new("R001")
+    let message = Message::new("REF001")
         .text("engine", kind.name())
         .text("path", path.display());
     Diagnostic::new(Pos::NONE, message)
@@ -154,7 +154,7 @@ impl Runner {
 }
 
 /// Runs a command, gives it `input`, and returns its standard output. Refuses
-/// if it fails (R003) or exceeds the time limit (R004).
+/// if it fails (REF003) or exceeds the time limit (REF004).
 pub fn run(
     kind: Kind,
     command: &mut Command,
@@ -162,7 +162,7 @@ pub fn run(
     timeout: Duration,
 ) -> Result<Vec<u8>, Diagnostic> {
     let failed = |detail: String| {
-        let message = Message::new("R003")
+        let message = Message::new("REF003")
             .text("engine", kind.name())
             .text("detail", detail);
         Diagnostic::new(Pos::NONE, message)
@@ -197,7 +197,7 @@ pub fn run(
             Ok(None) if started.elapsed() > timeout => {
                 let _ = child.kill();
                 let _ = child.wait();
-                let message = Message::new("R004")
+                let message = Message::new("REF004")
                     .text("engine", kind.name())
                     .text("millis", timeout.as_millis());
                 break Err(Diagnostic::new(Pos::NONE, message));
@@ -293,19 +293,19 @@ pub fn px(hundredths: i64) -> String {
     format!("{sign}{}.{:02}", abs / 100, abs % 100)
 }
 
-/// A refusal for output that cannot be understood (R005).
+/// A refusal for output that cannot be understood (REF005).
 pub fn garbled(kind: Kind, detail: impl ToString) -> Diagnostic {
-    let message = Message::new("R005")
+    let message = Message::new("REF005")
         .text("engine", kind.name())
         .text("detail", detail.to_string());
     Diagnostic::new(Pos::NONE, message)
 }
 
 /// A number read from an engine's output, in hundredths; refuses what does not
-/// fit (R006).
+/// fit (REF006).
 pub fn number(kind: Kind, text: &str) -> Result<i64, Diagnostic> {
     hundredths(text).ok_or_else(|| {
-        let message = Message::new("R006")
+        let message = Message::new("REF006")
             .text("engine", kind.name())
             .text("text", text);
         Diagnostic::new(Pos::NONE, message)
@@ -392,17 +392,17 @@ mod tests {
     #[test]
     fn a_failing_or_slow_engine_is_refused_with_its_code() {
         let failed = run(Kind::Dot, &mut Command::new("false"), b"", TIMEOUT).unwrap_err();
-        assert_eq!(failed.code, "R003");
+        assert_eq!(failed.code, "REF003");
         let absent = run(
             Kind::Dot,
             &mut Command::new("/nonexistent/engine"),
             b"",
             TIMEOUT,
         );
-        assert_eq!(absent.unwrap_err().code, "R003");
+        assert_eq!(absent.unwrap_err().code, "REF003");
         let slow = Duration::from_millis(50);
         let slow = run(Kind::Dot, Command::new("sleep").arg("5"), b"", slow).unwrap_err();
-        assert_eq!(slow.code, "R004");
+        assert_eq!(slow.code, "REF004");
         let out = run(Kind::Dot, &mut Command::new("cat"), b"echo", TIMEOUT).unwrap();
         assert_eq!(out, b"echo");
     }
@@ -421,7 +421,7 @@ mod tests {
         std::fs::write(&bin, script).unwrap();
         std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
         let diag = Tools::locate(Kind::Dot, &cache).unwrap_err();
-        assert_eq!(diag.code, "R002");
+        assert_eq!(diag.code, "REF002");
         assert_eq!(
             diag.text(),
             "dot: version 2.43.0 found, the manifest pins 16.1.0"
@@ -433,8 +433,8 @@ mod tests {
     fn a_missing_engine_is_refused_before_anything_runs() {
         let cache = std::env::temp_dir().join("foregram-bench-no-cache");
         let diag = Tools::locate(Kind::Dot, &cache).unwrap_err();
-        assert_eq!(diag.code, "R001");
+        assert_eq!(diag.code, "REF001");
         let diag = Tools::locate(Kind::Elk, &cache).unwrap_err();
-        assert_eq!(diag.code, "R001");
+        assert_eq!(diag.code, "REF001");
     }
 }

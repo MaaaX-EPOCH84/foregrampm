@@ -30,30 +30,30 @@ const ACCEPTED: [&str; 11] = [
 const UNFOLDED: &str = "semicolon.fg";
 
 /// One refused file per code the reader produces, with the one refusal it
-/// gets: key, line, column. `T015` comes from the lookup, which no notation
+/// gets: key, line, column. `SRC015` comes from the lookup, which no notation
 /// calls before E5: it has no file.
 const REFUSED: [(&str, &str, u32, u32); 14] = [
-    ("refuse-T001.fg", "T001", 2, 5),
-    ("refuse-T002.fg", "T002", 2, 4),
-    ("refuse-T003.fg", "T003", 2, 3),
-    ("refuse-T004.fg", "T004", 2, 4),
-    ("refuse-T005.fg", "T005", 2, 4),
-    ("refuse-T006.fg", "T006", 2, 1),
-    ("refuse-T007.fg", "T007", 1, 10),
-    ("refuse-T008.fg", "T008.top", 4, 1),
-    ("refuse-T009.fg", "T009", 1, 8),
-    ("refuse-T010.fg", "T010", 3, 1),
-    ("refuse-T011.fg", "T011", 1, 1),
-    ("refuse-T012.fg", "T012", 3, 8),
-    ("refuse-T013.fg", "T013", 2, 1),
-    ("refuse-T014.fg", "T014", 33, 75),
+    ("refuse-SRC001.fg", "SRC001", 2, 5),
+    ("refuse-SRC002.fg", "SRC002", 2, 4),
+    ("refuse-SRC003.fg", "SRC003", 2, 3),
+    ("refuse-SRC004.fg", "SRC004", 2, 4),
+    ("refuse-SRC005.fg", "SRC005", 2, 4),
+    ("refuse-SRC006.fg", "SRC006", 2, 1),
+    ("refuse-SRC007.fg", "SRC007", 1, 10),
+    ("refuse-SRC008.fg", "SRC008.top", 4, 1),
+    ("refuse-SRC009.fg", "SRC009", 1, 8),
+    ("refuse-SRC010.fg", "SRC010", 3, 1),
+    ("refuse-SRC011.fg", "SRC011", 1, 1),
+    ("refuse-SRC012.fg", "SRC012", 3, 8),
+    ("refuse-SRC013.fg", "SRC013", 2, 1),
+    ("refuse-SRC014.fg", "SRC014", 33, 75),
 ];
 
 /// The refused file of the section on `check`, where refusals add up.
 const CHECK: &str = "check.fg";
 
 /// The files the documentation shows escaped, their bytes not being text.
-const ESCAPED: [&str; 2] = ["refuse-T001.fg", "refuse-T002.fg"];
+const ESCAPED: [&str; 2] = ["refuse-SRC001.fg", "refuse-SRC002.fg"];
 
 fn data_dir() -> String {
     format!("{}/tests/data", env!("CARGO_MANIFEST_DIR"))
@@ -157,18 +157,18 @@ fn every_refused_file_gets_its_code_alone() {
         panic!("{CHECK} accepted")
     };
     let codes: Vec<&str> = diags.iter().map(|d| d.code).collect();
-    assert_eq!(codes, ["T009", "T007"]);
+    assert_eq!(codes, ["SRC009", "SRC007"]);
 }
 
 #[test]
 fn every_code_of_the_reader_has_its_file() {
     let catalogue: BTreeSet<&str> = Catalog::english()
         .keys()
-        .filter(|k| k.starts_with('T') && k[1..].starts_with(|c: char| c.is_ascii_digit()))
-        .map(|k| &k[..4])
-        .filter(|code| *code != "T015")
+        .filter(|k| k.starts_with("SRC") && k[3..].starts_with(|c: char| c.is_ascii_digit()))
+        .map(|k| &k[..6])
+        .filter(|code| *code != "SRC015")
         .collect();
-    let files: BTreeSet<&str> = REFUSED.iter().map(|r| &r.1[..4]).collect();
+    let files: BTreeSet<&str> = REFUSED.iter().map(|r| &r.1[..6]).collect();
     assert_eq!(files, catalogue);
 }
 

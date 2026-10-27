@@ -267,7 +267,7 @@ command, in either order, and so do they for `canon`, `metrics` and
 A refusal is written on the error output:
 
 ```
-example.graph.json:10:5: error[G003]: edge "e1": `target` refers to node "B", which does not exist
+example.graph.json:10:5: error[GPH003]: edge "e1": `target` refers to node "B", which does not exist
 ```
 
 that is the file, the line, the column, the code, the message. The
@@ -283,7 +283,7 @@ keys and the same arguments for everything `foregram` says; the benchmark
 speaks English only. The same refusal in French:
 
 ```
-example.graph.json:10:5: erreur[G003] : lien « e1 » : `target` désigne le nœud « B », qui n'existe pas
+example.graph.json:10:5: erreur[GPH003] : lien « e1 » : `target` désigne le nœud « B », qui n'existe pas
 ```
 
 with the same file, line, column and code; the spaces before `:` and
@@ -300,72 +300,91 @@ only looked for in a file whose structure is right.
 
 ### Codes
 
+A code is three capital letters naming its family, then three digits.
+The number `000` is reserved and never given, in any family. Each
+family was once a single letter; the numbers did not change:
+
+| Before | Now | Family |
+|---|---|---|
+| `J` | `JSN` | JSON syntax |
+| `S` | `SCH` | structure (schema) |
+| `G` | `GPH` | meaning of a graph |
+| `L` | `LYT` | meaning of a layout |
+| `X` | `GML` | GraphML import |
+| `E` | `ELK` | ELK text reader and import |
+| `M` | `MCD` | conceptual data model import |
+| `R` | `REF` | reference engines |
+| `V` | `DRW` | rendering (drawing) |
+
+The source format has its own family, `SRC`, formerly `T`, documented
+in [`source-format.md`](source-format.md).
+
 JSON syntax:
 
 | Code | Refusal |
 |---|---|
-| J001 | Text that is not UTF-8, or byte order mark |
-| J002 | Unexpected character or word |
-| J003 | Unexpected end of text, unterminated string |
-| J004 | Non-integer number |
-| J005 | Malformed number: leading zero, `-0`, lone `-` |
-| J006 | Integer too large |
-| J007 | String: invalid escape, control character |
-| J008 | Duplicate key in an object |
-| J009 | Nesting too deep |
-| J010 | Content after the value |
+| JSN001 | Text that is not UTF-8, or byte order mark |
+| JSN002 | Unexpected character or word |
+| JSN003 | Unexpected end of text, unterminated string |
+| JSN004 | Non-integer number |
+| JSN005 | Malformed number: leading zero, `-0`, lone `-` |
+| JSN006 | Integer too large |
+| JSN007 | String: invalid escape, control character |
+| JSN008 | Duplicate key in an object |
+| JSN009 | Nesting too deep |
+| JSN010 | Content after the value |
 
 Structure, for both formats:
 
 | Code | Refusal |
 |---|---|
-| S001 | Unexpected type |
-| S002 | Unknown key |
-| S003 | Required key missing |
-| S004 | Unexpected `format` |
-| S005 | Unsupported `version` |
-| S006 | Word outside the allowed list |
-| S007 | Identifier empty, too long or with a control character |
-| S008 | Integer outside its range |
+| SCH001 | Unexpected type |
+| SCH002 | Unknown key |
+| SCH003 | Required key missing |
+| SCH004 | Unexpected `format` |
+| SCH005 | Unsupported `version` |
+| SCH006 | Word outside the allowed list |
+| SCH007 | Identifier empty, too long or with a control character |
+| SCH008 | Integer outside its range |
 
 Graph:
 
 | Code | Refusal |
 |---|---|
-| G001 | Node identifier already used |
-| G002 | Edge identifier already used |
-| G003 | Edge to a node that does not exist |
-| G004 | `order` without `layer` |
-| G005 | Two nodes with the same `layer` and the same `order` |
-| G006 | Port identifier already used |
-| G007 | Edge to a port that does not exist, or that belongs to another node |
-| G008 | A side and a port given on the same end of an edge |
-| G009 | `ports_ordered` on a node whose ports lack a `side` |
-| G010 | Port position without a side, off its side, or on a container |
-| G011 | Size missing on a leaf, or given on a container |
-| G012 | `padding` on a node without children |
+| GPH001 | Node identifier already used |
+| GPH002 | Edge identifier already used |
+| GPH003 | Edge to a node that does not exist |
+| GPH004 | `order` without `layer` |
+| GPH005 | Two nodes with the same `layer` and the same `order` |
+| GPH006 | Port identifier already used |
+| GPH007 | Edge to a port that does not exist, or that belongs to another node |
+| GPH008 | A side and a port given on the same end of an edge |
+| GPH009 | `ports_ordered` on a node whose ports lack a `side` |
+| GPH010 | Port position without a side, off its side, or on a container |
+| GPH011 | Size missing on a leaf, or given on a container |
+| GPH012 | `padding` on a node without children |
 
 Layout:
 
 | Code | Refusal |
 |---|---|
-| L001 | The layout cites another graph |
-| L002 | Node not in the graph |
-| L003 | Node placed twice |
-| L004 | Node not placed |
-| L005 | Edge not in the graph |
-| L006 | Edge routed twice |
-| L007 | Edge without a route |
-| L008 | Route with fewer than two points |
-| L009 | Route end off the border of its node |
-| L010 | Route end off the imposed side |
-| L011 | Number of placed labels differs from the graph |
-| L012 | Child outside its parent |
-| L013 | Size missing on a placed container, or given on a placed leaf |
-| L014 | Port not in the graph, not placed, or placed twice |
-| L015 | Port anchor off the border, off its side, or off its fixed position |
-| L016 | Route end off its port |
-| L017 | Route starting with a curve |
+| LYT001 | The layout cites another graph |
+| LYT002 | Node not in the graph |
+| LYT003 | Node placed twice |
+| LYT004 | Node not placed |
+| LYT005 | Edge not in the graph |
+| LYT006 | Edge routed twice |
+| LYT007 | Edge without a route |
+| LYT008 | Route with fewer than two points |
+| LYT009 | Route end off the border of its node |
+| LYT010 | Route end off the imposed side |
+| LYT011 | Number of placed labels differs from the graph |
+| LYT012 | Child outside its parent |
+| LYT013 | Size missing on a placed container, or given on a placed leaf |
+| LYT014 | Port not in the graph, not placed, or placed twice |
+| LYT015 | Port anchor off the border, off its side, or off its fixed position |
+| LYT016 | Route end off its port |
+| LYT017 | Route starting with a curve |
 
 ## Diagnostics as JSON
 
@@ -384,9 +403,9 @@ A refusal, for example of the graph `refuse-lien-orphelin.graph.json`
 read from the standard input:
 
 ```json
-{"kind": "diagnostic", "file": "<stdin>", "code": "G001", "line": 7, "col": 5, "key": "G001.again", "args": {"line": "6", "id": "A"}, "text": "node identifier \"A\" already used (line 6)"}
-{"kind": "diagnostic", "file": "<stdin>", "code": "S008", "line": 7, "col": 5, "key": "S008", "args": {"field": {"key": "field.at", "args": {"subject": {"key": "subject.node", "args": {"id": "A"}}, "key": "height"}}, "value": "0", "min": "1", "max": "1000000000"}, "text": "node \"A\": `height`: 0 outside the range 1 to 1000000000"}
-{"kind": "diagnostic", "file": "<stdin>", "code": "G003", "line": 10, "col": 5, "key": "G003", "args": {"subject": {"key": "subject.edge", "args": {"id": "e1"}}, "key": "target", "node": "B"}, "text": "edge \"e1\": `target` refers to node \"B\", which does not exist"}
+{"kind": "diagnostic", "file": "<stdin>", "code": "GPH001", "line": 7, "col": 5, "key": "GPH001.again", "args": {"line": "6", "id": "A"}, "text": "node identifier \"A\" already used (line 6)"}
+{"kind": "diagnostic", "file": "<stdin>", "code": "SCH008", "line": 7, "col": 5, "key": "SCH008", "args": {"field": {"key": "field.at", "args": {"subject": {"key": "subject.node", "args": {"id": "A"}}, "key": "height"}}, "value": "0", "min": "1", "max": "1000000000"}, "text": "node \"A\": `height`: 0 outside the range 1 to 1000000000"}
+{"kind": "diagnostic", "file": "<stdin>", "code": "GPH003", "line": 10, "col": 5, "key": "GPH003", "args": {"subject": {"key": "subject.edge", "args": {"id": "e1"}}, "key": "target", "node": "B"}, "text": "edge \"e1\": `target` refers to node \"B\", which does not exist"}
 ```
 
 | Key | Value |
@@ -395,7 +414,7 @@ read from the standard input:
 | `file` | The file, as the text output names it (`<stdin>` for `-`) |
 | `code` | The stable code: **what a program reads** |
 | `line`, `col` | The position, from 1, the column in characters; `null` when the refusal has no place in a text (a rendering refusal) |
-| `key` | The catalogue key of the message: the code, plus a variant where the code has several sentences (`G001.again`) |
+| `key` | The catalogue key of the message: the code, plus a variant where the code has several sentences (`GPH001.again`) |
 | `args` | The arguments of the message, in the order given |
 | `text` | The sentence, composed in the language chosen by `--lang` |
 
@@ -484,14 +503,14 @@ GraphML import:
 
 | Code | Refusal |
 |---|---|
-| X001 | Text that is not UTF-8 |
-| X002 | Malformed XML, with the parser's own detail |
-| X003 | Root element other than `graphml` |
-| X004 | Not exactly one `graph` in `graphml` |
-| X005 | Element not supported, or text where none is expected |
-| X006 | Attribute not supported |
-| X007 | `id` of a node or an edge, `source` or `target` missing |
-| X008 | `edgedefault` or `directed` with an invalid value |
+| GML001 | Text that is not UTF-8 |
+| GML002 | Malformed XML, with the parser's own detail |
+| GML003 | Root element other than `graphml` |
+| GML004 | Not exactly one `graph` in `graphml` |
+| GML005 | Element not supported, or text where none is expected |
+| GML006 | Attribute not supported |
+| GML007 | `id` of a node or an edge, `source` or `target` missing |
+| GML008 | `edgedefault` or `directed` with an invalid value |
 
 ## Importing ELK text
 
@@ -577,22 +596,22 @@ ELK text reader:
 
 | Code | Refusal |
 |---|---|
-| E001 | Text that is not UTF-8 |
-| E002 | Unterminated string or comment |
-| E003 | Unexpected character |
-| E004 | Unexpected token or end of text, with what was expected |
-| E005 | Unknown escape sequence in a string |
-| E006 | A `layout` key given twice |
+| ELK001 | Text that is not UTF-8 |
+| ELK002 | Unterminated string or comment |
+| ELK003 | Unexpected character |
+| ELK004 | Unexpected token or end of text, with what was expected |
+| ELK005 | Unknown escape sequence in a string |
+| ELK006 | A `layout` key given twice |
 
 ELK import:
 
 | Code | Refusal |
 |---|---|
-| E007 | Edge end that refers to no node or port |
-| E008 | Hyperedge: more than one source or one target |
-| E009 | Number that cannot be carried in hundredths of a pixel |
-| E010 | Option value outside the words the import knows |
-| E011 | Edge end on the root graph itself, or ports on the root |
+| ELK007 | Edge end that refers to no node or port |
+| ELK008 | Hyperedge: more than one source or one target |
+| ELK009 | Number that cannot be carried in hundredths of a pixel |
+| ELK010 | Option value outside the words the import knows |
+| ELK011 | Edge end on the root graph itself, or ports on the root |
 
 ## Importing a conceptual data model
 
@@ -644,14 +663,14 @@ character plus 2 on each side, 18 pixels high.
 
 | Code | Refusal |
 |---|---|
-| M001 | Text that is not UTF-8 |
-| M002 | Line in column one other than `entite NAME` or `association NAME` |
-| M003 | Indented line before any block |
-| M004 | Link inside an entity |
-| M005 | Indented line that is neither a property nor a link |
-| M006 | Entity or association declared twice |
-| M007 | Link to something that is not a declared entity |
-| M008 | Association with fewer than two links |
+| MCD001 | Text that is not UTF-8 |
+| MCD002 | Line in column one other than `entite NAME` or `association NAME` |
+| MCD003 | Indented line before any block |
+| MCD004 | Link inside an entity |
+| MCD005 | Indented line that is neither a property nor a link |
+| MCD006 | Entity or association declared twice |
+| MCD007 | Link to something that is not a declared entity |
+| MCD008 | Association with fewer than two links |
 
 ## Reference engines
 
@@ -667,7 +686,7 @@ installed on the machine. The driver is launched with
 every object the same identity hash: without it ELK routes some self-loops
 differently from one launch to the next (section "Determinism"). The
 manifest pins ELK, not the JVM; a runtime that rejects the flag refuses to
-start, which the bench reports as R003.
+start, which the bench reports as REF003.
 
 ```
 foregram-bench layout <engine> <cache> <graph>
@@ -747,13 +766,13 @@ is not square; it also rejects a few compound graphs of its own test corpus.
 
 | Code | Refusal |
 |---|---|
-| R001 | Engine not found in the cache |
-| R002 | Engine version differs from the manifest |
-| R003 | Engine failed on the graph, with its message |
-| R004 | Engine timed out (60 s) |
-| R005 | Engine output not understood |
-| R006 | Number in the output that cannot be carried in hundredths of a pixel |
-| R007 | ELK changed the size of a leaf |
+| REF001 | Engine not found in the cache |
+| REF002 | Engine version differs from the manifest |
+| REF003 | Engine failed on the graph, with its message |
+| REF004 | Engine timed out (60 s) |
+| REF005 | Engine output not understood |
+| REF006 | Number in the output that cannot be carried in hundredths of a pixel |
+| REF007 | ELK changed the size of a leaf |
 
 ## Metrics
 
@@ -847,9 +866,9 @@ every machine.
 
 | Code | Refusal |
 |---|---|
-| V001 | Scale outside 1 to 8 |
-| V002 | Image larger than 50,000,000 pixels |
-| V003 | PNG encoder failure |
+| DRW001 | Scale outside 1 to 8 |
+| DRW002 | Image larger than 50,000,000 pixels |
+| DRW003 | PNG encoder failure |
 
 ## Board and report
 
@@ -893,7 +912,7 @@ versions come first, then one line per graph and engine, in path order:
   ],
   "results": [
     {"corpus": "rome", "graph": "rome/r1.graphml", "engine": "dot", "metrics": {"crossings": 1, …}},
-    {"corpus": "elk-models", "graph": "elk-models/e1.elkt", "engine": "dot", "refused": {"L016": 1}}
+    {"corpus": "elk-models", "graph": "elk-models/e1.elkt", "engine": "dot", "refused": {"LYT016": 1}}
   ]
 }
 ```

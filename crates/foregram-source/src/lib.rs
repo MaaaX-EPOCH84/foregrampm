@@ -9,7 +9,7 @@
 //! The reader is written by hand, a lexer then a recursive descent. Every
 //! node carries the line and column of its first character, the column in
 //! code points. Every refusal of a file is collected and returned sorted by
-//! position, with a stable code of the family `T` and a message composed
+//! position, with a stable code of the family `SRC` and a message composed
 //! from the catalogues of `foregram-graph`. The reader never panics, and its
 //! recursion is bounded by [`NESTING_MAX`].
 //!
@@ -42,7 +42,7 @@
 //! - **Identifiers**: [`Index`], built over a document, which finds an
 //!   element by identifier or resolves a value into one.
 //! - **Refusals**: the `Diagnostic`, `Pos` and catalogues of
-//!   `foregram-graph`, family `T`.
+//!   `foregram-graph`, family `SRC`.
 
 #![deny(missing_docs)]
 

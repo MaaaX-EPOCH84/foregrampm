@@ -12,11 +12,11 @@
 //!
 //! ```text
 //! # comment
-//! G003 = {subject}: `{key}` refers to node "{node}", which does not exist
+//! GPH003 = {subject}: `{key}` refers to node "{node}", which does not exist
 //! ```
 //!
-//! The key of a refusal starts with its stable code (`G003`), followed where
-//! needed by a variant (`J005.zero`). The other keys name fragments
+//! The key of a refusal starts with its stable code (`GPH003`), followed where
+//! needed by a variant (`JSN005.zero`). The other keys name fragments
 //! (`subject.node`, `type.integer`). In a template, `{name}` is replaced by the
 //! argument of that name, a name being made only of lowercase letters, digits
 //! and hyphens; any other brace is rendered as is. The two characters `\n`
@@ -354,12 +354,12 @@ mod tests {
 
     const SAMPLE: &str = "\
 # Un catalogue d'essai, pour montrer qu'une autre langue suffit à changer la phrase.
-G003 = {subject} : « {key} » désigne le nœud « {node} », qui n'existe pas
+GPH003 = {subject} : « {key} » désigne le nœud « {node} », qui n'existe pas
 subject.edge = lien « {id} »
 ";
 
     fn sample() -> Message {
-        Message::new("G003")
+        Message::new("GPH003")
             .msg("subject", Message::new("subject.edge").text("id", "e1"))
             .text("key", "target")
             .text("node", "B")
@@ -384,7 +384,7 @@ subject.edge = lien « {id} »
             "lien « e1 » : « target » désigne le nœud « B », qui n'existe pas"
         );
         assert!(sample().check(&french).is_ok());
-        assert_eq!(sample().keys(), ["G003", "subject.edge"]);
+        assert_eq!(sample().keys(), ["GPH003", "subject.edge"]);
     }
 
     #[test]
@@ -431,7 +431,7 @@ subject.edge = lien « {id} »
         let empty = Catalog::parse("xx", "").unwrap();
         assert_eq!(
             sample().render(&empty),
-            "[G003] subject=[subject.edge] id=e1 key=target node=B"
+            "[GPH003] subject=[subject.edge] id=e1 key=target node=B"
         );
         assert!(sample().check(&empty).is_err());
     }

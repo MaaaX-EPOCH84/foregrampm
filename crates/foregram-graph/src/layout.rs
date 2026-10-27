@@ -184,7 +184,7 @@ impl Layout {
                 read::check_range(size.height, 1, COORD_MAX, at("height"), node.pos, d);
             }
             if let Some(first) = nodes.get(node.id.as_str()) {
-                let message = again("L003", "L003.again", first.pos);
+                let message = again("LYT003", "LYT003.again", first.pos);
                 d.push(Diagnostic::new(node.pos, message.text("id", &node.id)));
             } else {
                 nodes.insert(&node.id, node);
@@ -195,7 +195,7 @@ impl Layout {
                 check_coord(port.x, field_at(who.clone(), "x"), port.pos, d);
                 check_coord(port.y, field_at(who.clone(), "y"), port.pos, d);
                 if let Some(first) = ports.get(port.id.as_str()) {
-                    let message = again("L014.twice", "L014.twice-again", first.pos);
+                    let message = again("LYT014.twice", "LYT014.twice-again", first.pos);
                     d.push(Diagnostic::new(port.pos, message.text("id", &port.id)));
                 } else {
                     ports.insert(&port.id, port);
@@ -208,7 +208,7 @@ impl Layout {
             let who = read::item_name("edge", &edge.id, index);
             read::check_ident(&edge.id, field_at(who.clone(), "id"), edge.pos, d);
             if let Some(first) = edges.get(edge.id.as_str()) {
-                let message = again("L006", "L006.again", first.pos);
+                let message = again("LYT006", "LYT006.again", first.pos);
                 d.push(Diagnostic::new(edge.pos, message.text("id", &edge.id)));
             } else {
                 edges.insert(&edge.id, edge);
@@ -216,7 +216,7 @@ impl Layout {
             if edge.route.len() < 2 {
                 d.push(Diagnostic::new(
                     edge.pos,
-                    Message::new("L008")
+                    Message::new("LYT008")
                         .msg("subject", who.clone())
                         .text("count", edge.route.len()),
                 ));
@@ -224,7 +224,7 @@ impl Layout {
             if let Some(Segment::Cubic { .. }) = edge.route.first() {
                 d.push(Diagnostic::new(
                     edge.pos,
-                    Message::new("L017").msg("subject", who.clone()),
+                    Message::new("LYT017").msg("subject", who.clone()),
                 ));
             }
             let points = edge.route.iter().flat_map(Segment::points);
@@ -283,7 +283,7 @@ impl Layout {
         if self.graph != graph.name {
             d.push(Diagnostic::new(
                 self.pos,
-                Message::new("L001")
+                Message::new("LYT001")
                     .text("layout", &self.graph)
                     .text("graph", &graph.name),
             ));
@@ -308,7 +308,7 @@ impl Layout {
                 }
                 None => d.push(Diagnostic::new(
                     place.pos,
-                    Message::new("L002").text("id", &place.id),
+                    Message::new("LYT002").text("id", &place.id),
                 )),
             }
         }
@@ -316,7 +316,7 @@ impl Layout {
             let Some(mine) = placed.get(node.id.as_str()) else {
                 d.push(Diagnostic::new(
                     self.pos,
-                    Message::new("L004").text("id", &node.id),
+                    Message::new("LYT004").text("id", &node.id),
                 ));
                 continue;
             };
@@ -327,7 +327,7 @@ impl Layout {
                 (true, _, None) => {
                     d.push(Diagnostic::new(
                         place.pos,
-                        Message::new("L013.container").text("id", &node.id),
+                        Message::new("LYT013.container").text("id", &node.id),
                     ));
                     None
                 }
@@ -335,7 +335,7 @@ impl Layout {
                 (false, size, Some(_)) => {
                     d.push(Diagnostic::new(
                         place.pos,
-                        Message::new("L013.leaf").text("id", &node.id),
+                        Message::new("LYT013.leaf").text("id", &node.id),
                     ));
                     size
                 }
@@ -368,7 +368,7 @@ impl Layout {
                 if !fits {
                     d.push(Diagnostic::new(
                         place.pos,
-                        Message::new("L012")
+                        Message::new("LYT012")
                             .text("id", &node.id)
                             .text("parent", &parent.id),
                     ));
@@ -389,7 +389,7 @@ impl Layout {
             if !graph_edges.contains_key(edge.id.as_str()) {
                 d.push(Diagnostic::new(
                     edge.pos,
-                    Message::new("L005").text("id", &edge.id),
+                    Message::new("LYT005").text("id", &edge.id),
                 ));
             }
         }
@@ -397,14 +397,14 @@ impl Layout {
             let Some(place) = routed.get(edge.id.as_str()) else {
                 d.push(Diagnostic::new(
                     self.pos,
-                    Message::new("L007").text("id", &edge.id),
+                    Message::new("LYT007").text("id", &edge.id),
                 ));
                 continue;
             };
             if place.labels.len() != edge.labels.len() {
                 d.push(Diagnostic::new(
                     place.pos,
-                    Message::new("L011")
+                    Message::new("LYT011")
                         .text("id", &edge.id)
                         .text("placed", place.labels.len())
                         .text("expected", edge.labels.len()),
@@ -414,14 +414,14 @@ impl Layout {
             let finish = place.route.last().map(Segment::end);
             let ends = [
                 (
-                    ["L009.start", "L010.start", "L016.start"],
+                    ["LYT009.start", "LYT010.start", "LYT016.start"],
                     start,
                     &edge.source,
                     &edge.source_port,
                     edge.source_side,
                 ),
                 (
-                    ["L009.end", "L010.end", "L016.end"],
+                    ["LYT009.end", "LYT010.end", "LYT016.end"],
                     finish,
                     &edge.target,
                     &edge.target_port,
@@ -536,7 +536,7 @@ fn check_ports(node: &Node, place: &NodePlace, rect: Option<Rect>, d: &mut Vec<D
         let Some(port) = node.port(&placed.id) else {
             d.push(Diagnostic::new(
                 placed.pos,
-                Message::new("L014.unknown")
+                Message::new("LYT014.unknown")
                     .text("id", &placed.id)
                     .text("node", &node.id),
             ));
@@ -548,7 +548,7 @@ fn check_ports(node: &Node, place: &NodePlace, rect: Option<Rect>, d: &mut Vec<D
         if !place.ports.iter().any(|p| p.id == port.id) {
             d.push(Diagnostic::new(
                 place.pos,
-                Message::new("L014.missing")
+                Message::new("LYT014.missing")
                     .text("id", &port.id)
                     .text("node", &node.id),
             ));
@@ -572,7 +572,7 @@ fn check_port(
     {
         d.push(Diagnostic::new(
             placed.pos,
-            Message::new("L015.fixed")
+            Message::new("LYT015.fixed")
                 .text("id", &port.id)
                 .text("x", at.x)
                 .text("y", at.y)
@@ -598,13 +598,13 @@ fn check_port(
             .text("node", &node.id)
     };
     if !local.border_has(at) {
-        d.push(Diagnostic::new(placed.pos, message("L015.border")));
+        d.push(Diagnostic::new(placed.pos, message("LYT015.border")));
     } else if let Some(side) = port.side
         && !local.side_has(side, at)
     {
         d.push(Diagnostic::new(
             placed.pos,
-            message("L015.side").text("side", side.as_str()),
+            message("LYT015.side").text("side", side.as_str()),
         ));
     }
 }
@@ -746,7 +746,7 @@ fn read_node(value: &Value, diags: &mut Vec<Diagnostic>) -> Option<NodePlace> {
             let missing = if present.is_some() { "height" } else { "width" };
             diags.push(Diagnostic::new(
                 obj.pos,
-                Message::new("S003")
+                Message::new("SCH003")
                     .text("key", missing)
                     .msg("in", Message::new("in.placed-node")),
             ));
@@ -820,7 +820,7 @@ fn read_points(value: &Value, label: Message, diags: &mut Vec<Diagnostic>) -> Op
             if point.is_none() {
                 diags.push(Diagnostic::new(
                     item.pos,
-                    Message::new("S001.point").msg("field", label.clone()),
+                    Message::new("SCH001.point").msg("field", label.clone()),
                 ));
             }
             point
@@ -839,7 +839,7 @@ fn read_route(value: &Value, label: Message, diags: &mut Vec<Diagnostic>) -> Opt
             if segment.is_none() {
                 diags.push(Diagnostic::new(
                     item.pos,
-                    Message::new("S001.segment").msg("field", label.clone()),
+                    Message::new("SCH001.segment").msg("field", label.clone()),
                 ));
             }
             segment

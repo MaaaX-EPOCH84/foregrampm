@@ -174,10 +174,10 @@ refuse a reference to an element that does not exist: an **index** of
 every element of the document, nesting included, built once the whole
 file is read. Hence a reference may stand before the definition it
 points to. The index answers for any text, a word or a string alike,
-with case mattering; it refuses an unknown identifier with `T015`, at
+with case mattering; it refuses an unknown identifier with `SRC015`, at
 the position of the value given; and it knows nothing of the element a
 value comes from, so an element may name itself and the notation judges
-whether that makes sense. Nothing in the format itself produces `T015`:
+whether that makes sense. Nothing in the format itself produces `SRC015`:
 `foregram check` accepts a well-formed file whatever its content words
 say, until a notation reads them.
 
@@ -335,15 +335,15 @@ entity 1b {
 ```
 
 ```
-check.fg:4:8: error[T009]: identifier `1b`: only ASCII letters, digits and `_`, not starting with a digit
-check.fg:4:11: error[T007]: block not closed before the end of the file
+check.fg:4:8: error[SRC009]: identifier `1b`: only ASCII letters, digits and `_`, not starting with a digit
+check.fg:4:11: error[SRC007]: block not closed before the end of the file
 check.fg: refused (2 errors)
 ```
 
 The exit code is 0 when every file is well formed, 1 when a file is
 refused, 2 on a wrong call or a file that cannot be read. `check` does
 not build the index: no notation reads the content words yet, so
-nothing resolves a reference and `T015` never comes out of it.
+nothing resolves a reference and `SRC015` never comes out of it.
 
 `--lang fr` says the same in French, with the same codes and positions;
 `--json` writes the stream described in
@@ -353,13 +353,13 @@ refusal, one `error` object per file that cannot be read. The same file,
 read from the standard input:
 
 ```json
-{"kind": "diagnostic", "file": "<stdin>", "code": "T009", "line": 4, "col": 8, "key": "T009", "args": {"id": "1b"}, "text": "identifier `1b`: only ASCII letters, digits and `_`, not starting with a digit"}
-{"kind": "diagnostic", "file": "<stdin>", "code": "T007", "line": 4, "col": 11, "key": "T007", "args": {}, "text": "block not closed before the end of the file"}
+{"kind": "diagnostic", "file": "<stdin>", "code": "SRC009", "line": 4, "col": 8, "key": "SRC009", "args": {"id": "1b"}, "text": "identifier `1b`: only ASCII letters, digits and `_`, not starting with a digit"}
+{"kind": "diagnostic", "file": "<stdin>", "code": "SRC007", "line": 4, "col": 11, "key": "SRC007", "args": {}, "text": "block not closed before the end of the file"}
 ```
 
 ## Refusals
 
-A refusal carries a code of the family **`T`**, a position, and a
+A refusal carries a code of the family **`SRC`**, a position, and a
 sentence from the catalogue, in English or in French, as text or as
 JSON, exactly like the refusals of the exchange format. The reader
 collects every refusal it can find in the file and reports them sorted
@@ -369,7 +369,7 @@ notation, and the reader returns no partial document.
 After a refusal the reader goes on, so that one pass reports what it
 can:
 
-- bytes that are not UTF-8 stop the reading: `T001` is then the only
+- bytes that are not UTF-8 stop the reading: `SRC001` is then the only
   refusal;
 - a control character is skipped as a blank, and refused once per line
   at most;
@@ -387,25 +387,33 @@ can:
 A duplicate identifier or key is refused at its second occurrence; the
 sentence gives the position of the first.
 
+A code is three capital letters, then three digits; `000` is never
+given. The family of the source format was once `T`, with the same
+numbers:
+
+| Before | Now | Family |
+|---|---|---|
+| `T` | `SRC` | source format |
+
 | Code | Refuses |
 |---|---|
-| T001 | text that is not UTF-8 |
-| T002 | a control character other than tab and the line ends, a lone `CR` included |
-| T003 | a string not closed before the end of its line |
-| T004 | an escape that is not `\"`, `\\`, `\n`, `\t` or `\u{H…}` |
-| T005 | a `\u{…}` that is not a Unicode scalar value |
-| T006 | a `}` with no open block |
-| T007 | the end of the file inside a block, at the block's `{` |
-| T008 | an element head that is not kind, identifier, optional label; outside every element, a line that is neither an element head nor, before the first element, a directive |
-| T009 | an identifier with a character outside ASCII letters, digits and `_`, or starting with a digit |
-| T010 | a directive after the first element |
-| T011 | a `@` with no key |
-| T012 | an identifier already defined, with the position of the first definition |
-| T013 | a directive or attribute key given twice in the same header or block |
-| T014 | more than 32 nested blocks |
-| T015 | a reference to an identifier no element has — produced by the lookup, when a notation resolves a content word |
+| SRC001 | text that is not UTF-8 |
+| SRC002 | a control character other than tab and the line ends, a lone `CR` included |
+| SRC003 | a string not closed before the end of its line |
+| SRC004 | an escape that is not `\"`, `\\`, `\n`, `\t` or `\u{H…}` |
+| SRC005 | a `\u{…}` that is not a Unicode scalar value |
+| SRC006 | a `}` with no open block |
+| SRC007 | the end of the file inside a block, at the block's `{` |
+| SRC008 | an element head that is not kind, identifier, optional label; outside every element, a line that is neither an element head nor, before the first element, a directive |
+| SRC009 | an identifier with a character outside ASCII letters, digits and `_`, or starting with a digit |
+| SRC010 | a directive after the first element |
+| SRC011 | a `@` with no key |
+| SRC012 | an identifier already defined, with the position of the first definition |
+| SRC013 | a directive or attribute key given twice in the same header or block |
+| SRC014 | more than 32 nested blocks |
+| SRC015 | a reference to an identifier no element has — produced by the lookup, when a notation resolves a content word |
 
-The codes are reserved here and produced by the reader, `T015` by its
+The codes are reserved here and produced by the reader, `SRC015` by its
 lookup; the
 documentation of the reader lists exactly the codes it produces, and a
 test holds the two together.
@@ -498,7 +506,7 @@ under it. The file of the section on checking, where refusals add up,
 is in the same directory.
 
 Two refused files are not text: in them, and only in them, `\xHH`
-stands for the byte of hexadecimal value `HH`. `T015` has no file:
+stands for the byte of hexadecimal value `HH`. `SRC015` has no file:
 only the lookup produces it, and no notation calls the lookup before
 the conceptual data model.
 
@@ -658,7 +666,7 @@ entity MATERIEL { // to be filled
 
 ### Refused
 
-`refuse-T001.fg` — bytes that are not UTF-8: here `\xff`:
+`refuse-SRC001.fg` — bytes that are not UTF-8: here `\xff`:
 
 ```
 entity A {
@@ -667,11 +675,11 @@ entity A {
 ```
 
 ```
-refuse-T001.fg:2:5: error[T001]: invalid bytes: the text must be UTF-8
-refuse-T001.fg: refused (1 error)
+refuse-SRC001.fg:2:5: error[SRC001]: invalid bytes: the text must be UTF-8
+refuse-SRC001.fg: refused (1 error)
 ```
 
-`refuse-T002.fg` — a control character: here `\x07`, the bell:
+`refuse-SRC002.fg` — a control character: here `\x07`, the bell:
 
 ```
 entity A {
@@ -680,11 +688,11 @@ entity A {
 ```
 
 ```
-refuse-T002.fg:2:4: error[T002]: control character U+0007 refused: only tab and line ends are allowed
-refuse-T002.fg: refused (1 error)
+refuse-SRC002.fg:2:4: error[SRC002]: control character U+0007 refused: only tab and line ends are allowed
+refuse-SRC002.fg: refused (1 error)
 ```
 
-`refuse-T003.fg` — a string not closed on its line:
+`refuse-SRC003.fg` — a string not closed on its line:
 
 ```
 entity A {
@@ -693,11 +701,11 @@ entity A {
 ```
 
 ```
-refuse-T003.fg:2:3: error[T003]: string not closed before the end of its line
-refuse-T003.fg: refused (1 error)
+refuse-SRC003.fg:2:3: error[SRC003]: string not closed before the end of its line
+refuse-SRC003.fg: refused (1 error)
 ```
 
-`refuse-T004.fg` — an unknown escape:
+`refuse-SRC004.fg` — an unknown escape:
 
 ```
 entity A {
@@ -706,11 +714,11 @@ entity A {
 ```
 
 ```
-refuse-T004.fg:2:4: error[T004]: unknown escape `\q`
-refuse-T004.fg: refused (1 error)
+refuse-SRC004.fg:2:4: error[SRC004]: unknown escape `\q`
+refuse-SRC004.fg: refused (1 error)
 ```
 
-`refuse-T005.fg` — an escape outside the Unicode scalar values:
+`refuse-SRC005.fg` — an escape outside the Unicode scalar values:
 
 ```
 entity A {
@@ -719,11 +727,11 @@ entity A {
 ```
 
 ```
-refuse-T005.fg:2:4: error[T005]: escape `\u{D800}` is not a Unicode scalar value
-refuse-T005.fg: refused (1 error)
+refuse-SRC005.fg:2:4: error[SRC005]: escape `\u{D800}` is not a Unicode scalar value
+refuse-SRC005.fg: refused (1 error)
 ```
 
-`refuse-T006.fg` — a `}` with no open block:
+`refuse-SRC006.fg` — a `}` with no open block:
 
 ```
 entity A {}
@@ -731,11 +739,11 @@ entity A {}
 ```
 
 ```
-refuse-T006.fg:2:1: error[T006]: `}` with no open block
-refuse-T006.fg: refused (1 error)
+refuse-SRC006.fg:2:1: error[SRC006]: `}` with no open block
+refuse-SRC006.fg: refused (1 error)
 ```
 
-`refuse-T007.fg` — a block not closed at the end of the file:
+`refuse-SRC007.fg` — a block not closed at the end of the file:
 
 ```
 entity A {
@@ -743,11 +751,11 @@ entity A {
 ```
 
 ```
-refuse-T007.fg:1:10: error[T007]: block not closed before the end of the file
-refuse-T007.fg: refused (1 error)
+refuse-SRC007.fg:1:10: error[SRC007]: block not closed before the end of the file
+refuse-SRC007.fg: refused (1 error)
 ```
 
-`refuse-T008.fg` — a line outside every element:
+`refuse-SRC008.fg` — a line outside every element:
 
 ```
 entity A {
@@ -757,22 +765,22 @@ prenom
 ```
 
 ```
-refuse-T008.fg:4:1: error[T008]: outside every element, a line is an element head or, before the first element, a directive
-refuse-T008.fg: refused (1 error)
+refuse-SRC008.fg:4:1: error[SRC008]: outside every element, a line is an element head or, before the first element, a directive
+refuse-SRC008.fg: refused (1 error)
 ```
 
-`refuse-T009.fg` — an identifier starting with a digit:
+`refuse-SRC009.fg` — an identifier starting with a digit:
 
 ```
 entity 1b {}
 ```
 
 ```
-refuse-T009.fg:1:8: error[T009]: identifier `1b`: only ASCII letters, digits and `_`, not starting with a digit
-refuse-T009.fg: refused (1 error)
+refuse-SRC009.fg:1:8: error[SRC009]: identifier `1b`: only ASCII letters, digits and `_`, not starting with a digit
+refuse-SRC009.fg: refused (1 error)
 ```
 
-`refuse-T010.fg` — a directive after the first element:
+`refuse-SRC010.fg` — a directive after the first element:
 
 ```
 entity A {}
@@ -781,22 +789,22 @@ entity A {}
 ```
 
 ```
-refuse-T010.fg:3:1: error[T010]: directive `@notation` after the first element: the header comes before every element
-refuse-T010.fg: refused (1 error)
+refuse-SRC010.fg:3:1: error[SRC010]: directive `@notation` after the first element: the header comes before every element
+refuse-SRC010.fg: refused (1 error)
 ```
 
-`refuse-T011.fg` — a `@` with no key:
+`refuse-SRC011.fg` — a `@` with no key:
 
 ```
 @ notation merise
 ```
 
 ```
-refuse-T011.fg:1:1: error[T011]: `@` with no key
-refuse-T011.fg: refused (1 error)
+refuse-SRC011.fg:1:1: error[SRC011]: `@` with no key
+refuse-SRC011.fg: refused (1 error)
 ```
 
-`refuse-T012.fg` — an identifier defined twice:
+`refuse-SRC012.fg` — an identifier defined twice:
 
 ```
 entity A {}
@@ -805,11 +813,11 @@ entity A {}
 ```
 
 ```
-refuse-T012.fg:3:8: error[T012]: identifier `A` already defined at 1:8
-refuse-T012.fg: refused (1 error)
+refuse-SRC012.fg:3:8: error[SRC012]: identifier `A` already defined at 1:8
+refuse-SRC012.fg: refused (1 error)
 ```
 
-`refuse-T013.fg` — a header key given twice:
+`refuse-SRC013.fg` — a header key given twice:
 
 ```
 @notation merise
@@ -817,11 +825,11 @@ refuse-T012.fg: refused (1 error)
 ```
 
 ```
-refuse-T013.fg:2:1: error[T013]: key `@notation` already given at 1:1
-refuse-T013.fg: refused (1 error)
+refuse-SRC013.fg:2:1: error[SRC013]: key `@notation` already given at 1:1
+refuse-SRC013.fg: refused (1 error)
 ```
 
-`refuse-T014.fg` — 33 nested blocks:
+`refuse-SRC014.fg` — 33 nested blocks:
 
 ```
 group G0 {
@@ -861,6 +869,6 @@ group G0 {
 ```
 
 ```
-refuse-T014.fg:33:75: error[T014]: more than 32 nested blocks
-refuse-T014.fg: refused (1 error)
+refuse-SRC014.fg:33:75: error[SRC014]: more than 32 nested blocks
+refuse-SRC014.fg: refused (1 error)
 ```

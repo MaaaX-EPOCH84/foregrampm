@@ -335,11 +335,11 @@ impl Graph {
             match (node.is_container(), node.size) {
                 (false, None) => d.push(Diagnostic::new(
                     node.pos,
-                    Message::new("G011.leaf").msg("subject", who.clone()),
+                    Message::new("GPH011.leaf").msg("subject", who.clone()),
                 )),
                 (true, Some(_)) => d.push(Diagnostic::new(
                     node.pos,
-                    Message::new("G011.container").msg("subject", who.clone()),
+                    Message::new("GPH011.container").msg("subject", who.clone()),
                 )),
                 (_, Some(size)) => {
                     read::check_range(size.width, 1, COORD_MAX, at("width"), node.pos, d);
@@ -352,7 +352,7 @@ impl Graph {
                 if !node.is_container() {
                     d.push(Diagnostic::new(
                         node.pos,
-                        Message::new("G012").msg("subject", who.clone()),
+                        Message::new("GPH012").msg("subject", who.clone()),
                     ));
                 }
             }
@@ -364,12 +364,12 @@ impl Graph {
                 if node.layer.is_none() {
                     d.push(Diagnostic::new(
                         node.pos,
-                        Message::new("G004").msg("subject", who.clone()),
+                        Message::new("GPH004").msg("subject", who.clone()),
                     ));
                 }
             }
             if let Some(first) = nodes.get(node.id.as_str()) {
-                let message = again("G001", "G001.again", first.pos);
+                let message = again("GPH001", "GPH001.again", first.pos);
                 d.push(Diagnostic::new(node.pos, message.text("id", &node.id)));
             } else {
                 nodes.insert(&node.id, node);
@@ -378,7 +378,7 @@ impl Graph {
                 if let Some(first) = slots.get(&(layer, order)) {
                     d.push(Diagnostic::new(
                         node.pos,
-                        Message::new("G005")
+                        Message::new("GPH005")
                             .msg("subject", who.clone())
                             .text("other", &first.id),
                     ));
@@ -391,7 +391,7 @@ impl Graph {
                 let at = |key| field_at(who.clone(), key);
                 read::check_ident(&port.id, at("id"), port.pos, d);
                 if let Some(first) = ports.get(port.id.as_str()) {
-                    let message = again("G006", "G006.again", first.1.pos);
+                    let message = again("GPH006", "GPH006.again", first.1.pos);
                     d.push(Diagnostic::new(port.pos, message.text("id", &port.id)));
                 } else {
                     ports.insert(&port.id, (node, port));
@@ -403,7 +403,7 @@ impl Graph {
                 if node.ports_ordered && port.side.is_none() {
                     d.push(Diagnostic::new(
                         port.pos,
-                        Message::new("G009")
+                        Message::new("GPH009")
                             .msg("subject", read::item_name("node", &node.id, index))
                             .text("port", &port.id),
                     ));
@@ -412,11 +412,11 @@ impl Graph {
                     match (port.side, node.size) {
                         (None, _) => d.push(Diagnostic::new(
                             port.pos,
-                            Message::new("G010.side").msg("subject", who.clone()),
+                            Message::new("GPH010.side").msg("subject", who.clone()),
                         )),
                         (Some(_), None) => d.push(Diagnostic::new(
                             port.pos,
-                            Message::new("G010.container").msg("subject", who.clone()),
+                            Message::new("GPH010.container").msg("subject", who.clone()),
                         )),
                         (Some(side), Some(size)) => {
                             let rect = Rect {
@@ -428,7 +428,7 @@ impl Graph {
                             if !(rect.border_has(position) && rect.side_has(side, position)) {
                                 d.push(Diagnostic::new(
                                     port.pos,
-                                    Message::new("G010.border")
+                                    Message::new("GPH010.border")
                                         .msg("subject", who.clone())
                                         .text("x", position.x)
                                         .text("y", position.y)
@@ -447,7 +447,7 @@ impl Graph {
             let d = &mut diags;
             read::check_ident(&edge.id, field_at(who.clone(), "id"), edge.pos, d);
             if let Some(first) = edges.get(edge.id.as_str()) {
-                let message = again("G002", "G002.again", first.pos);
+                let message = again("GPH002", "GPH002.again", first.pos);
                 d.push(Diagnostic::new(edge.pos, message.text("id", &edge.id)));
             } else {
                 edges.insert(&edge.id, edge);
@@ -474,7 +474,7 @@ impl Graph {
                 if !nodes.contains_key(end.as_str()) {
                     d.push(Diagnostic::new(
                         edge.pos,
-                        Message::new("G003")
+                        Message::new("GPH003")
                             .msg("subject", who.clone())
                             .text("key", key)
                             .text("node", end),
@@ -486,7 +486,7 @@ impl Graph {
                 if side.is_some() {
                     d.push(Diagnostic::new(
                         edge.pos,
-                        Message::new("G008")
+                        Message::new("GPH008")
                             .msg("subject", who.clone())
                             .text("side", side_key)
                             .text("port", port_key),
@@ -495,14 +495,14 @@ impl Graph {
                 match ports.get(port.as_str()) {
                     None => d.push(Diagnostic::new(
                         edge.pos,
-                        Message::new("G007.unknown")
+                        Message::new("GPH007.unknown")
                             .msg("subject", who.clone())
                             .text("key", port_key)
                             .text("port", port),
                     )),
                     Some((owner, _)) if owner.id != *end => d.push(Diagnostic::new(
                         edge.pos,
-                        Message::new("G007.other")
+                        Message::new("GPH007.other")
                             .msg("subject", who.clone())
                             .text("key", port_key)
                             .text("port", port)
@@ -706,7 +706,7 @@ fn read_size(
         (Some(_), None) => {
             diags.push(Diagnostic::new(
                 obj.pos,
-                Message::new("S003")
+                Message::new("SCH003")
                     .text("key", "height")
                     .msg("in", Message::new(within)),
             ));
@@ -715,7 +715,7 @@ fn read_size(
         (None, Some(_)) => {
             diags.push(Diagnostic::new(
                 obj.pos,
-                Message::new("S003")
+                Message::new("SCH003")
                     .text("key", "width")
                     .msg("in", Message::new(within)),
             ));
@@ -786,7 +786,7 @@ fn read_port(value: &Value, diags: &mut Vec<Diagnostic>) -> Option<Port> {
             let missing = if present.is_some() { "y" } else { "x" };
             diags.push(Diagnostic::new(
                 obj.pos,
-                Message::new("S003")
+                Message::new("SCH003")
                     .text("key", missing)
                     .msg("in", Message::new("in.port")),
             ));

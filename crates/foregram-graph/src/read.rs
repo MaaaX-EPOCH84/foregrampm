@@ -80,7 +80,7 @@ impl<'a> Obj<'a> {
         if value.is_none() {
             diags.push(Diagnostic::new(
                 self.pos,
-                Message::new("S003")
+                Message::new("SCH003")
                     .text("key", key)
                     .msg("in", Message::new(self.within)),
             ));
@@ -94,7 +94,7 @@ impl<'a> Obj<'a> {
             if !seen {
                 diags.push(Diagnostic::new(
                     member.key_pos,
-                    Message::new("S002")
+                    Message::new("SCH002")
                         .text("key", &member.key)
                         .msg("in", Message::new(self.within)),
                 ));
@@ -107,7 +107,7 @@ impl<'a> Obj<'a> {
 pub(crate) fn type_error(value: &Value, label: Message, expected: &'static str) -> Diagnostic {
     Diagnostic::new(
         value.pos,
-        Message::new("S001")
+        Message::new("SCH001")
             .msg("field", label)
             .msg("expected", Message::new(expected))
             .msg("found", Message::new(value.kind.name())),
@@ -176,7 +176,7 @@ pub(crate) fn choice_of<T: Copy>(
     let words: Vec<&str> = table.iter().map(|(word, _)| *word).collect();
     diags.push(Diagnostic::new(
         value.pos,
-        Message::new("S006")
+        Message::new("SCH006")
             .msg("field", label)
             .text("value", text)
             .text("words", words.join(", ")),
@@ -193,7 +193,7 @@ pub(crate) fn header(obj: &mut Obj<'_>, format: &str, diags: &mut Vec<Diagnostic
     {
         diags.push(Diagnostic::new(
             value.pos,
-            Message::new("S004")
+            Message::new("SCH004")
                 .text("found", found)
                 .text("expected", format),
         ));
@@ -204,7 +204,7 @@ pub(crate) fn header(obj: &mut Obj<'_>, format: &str, diags: &mut Vec<Diagnostic
     {
         diags.push(Diagnostic::new(
             value.pos,
-            Message::new("S005")
+            Message::new("SCH005")
                 .text("found", found)
                 .text("supported", FORMAT_VERSION),
         ));
@@ -216,11 +216,11 @@ pub(crate) fn header(obj: &mut Obj<'_>, format: &str, diags: &mut Vec<Diagnostic
 pub(crate) fn check_ident(text: &str, label: Message, pos: Pos, diags: &mut Vec<Diagnostic>) {
     let length = text.chars().count();
     let message = if text.is_empty() {
-        Message::new("S007.empty")
+        Message::new("SCH007.empty")
     } else if text.chars().any(char::is_control) {
-        Message::new("S007.control")
+        Message::new("SCH007.control")
     } else if length > IDENT_MAX_CHARS {
-        Message::new("S007.long")
+        Message::new("SCH007.long")
             .text("length", length)
             .text("max", IDENT_MAX_CHARS)
     } else {
@@ -240,7 +240,7 @@ pub(crate) fn check_range(
     if value < min || value > max {
         diags.push(Diagnostic::new(
             pos,
-            Message::new("S008")
+            Message::new("SCH008")
                 .msg("field", label)
                 .text("value", value)
                 .text("min", min)

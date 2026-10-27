@@ -24,7 +24,7 @@
 //! edges, prefixed with the path of their container. An edge without an
 //! identifier gets one, `e1`, `e2`…, the first free.
 //!
-//! Import refusals carry the `E` family, following those of the reader,
+//! Import refusals carry the `ELK` family, following those of the reader,
 //! and point into the `.elkt`; those of the produced graph are the validator's,
 //! with the same position.
 
@@ -82,7 +82,7 @@ pub fn import(name: &str, bytes: &[u8]) -> Result<Imported, Vec<Diagnostic>> {
     let direction = importer.direction;
     importer.notes.labels += root.labels.len();
     if !root.ports.is_empty() {
-        let message = Message::new("E011.ports");
+        let message = Message::new("ELK011.ports");
         importer.diags.push(Diagnostic::new(root.pos, message));
     }
     let edges = importer.name_edges();
@@ -188,7 +188,7 @@ fn choice<T: Copy>(
         return Some(*choice);
     }
     let list: Vec<&str> = words.iter().map(|(word, _)| *word).collect();
-    let message = Message::new("E010")
+    let message = Message::new("ELK010")
         .text("key", &property.key)
         .text("value", text)
         .text("words", list.join(", "));
@@ -400,7 +400,7 @@ impl Importer<'_> {
     fn number(&mut self, number: &Number) -> Option<i64> {
         let value = hundredths(number);
         if value.is_none() {
-            let message = Message::new("E009").text("text", &number.text);
+            let message = Message::new("ELK009").text("text", &number.text);
             self.diags.push(Diagnostic::new(number.pos, message));
         }
         value
@@ -546,7 +546,7 @@ impl Importer<'_> {
     fn edge(&mut self, edge: &ElkEdge, path: &str, scopes: &[&str]) {
         let ends = edge.sources.len() + edge.targets.len();
         if ends != 2 {
-            let message = Message::new("E008").text("count", ends);
+            let message = Message::new("ELK008").text("count", ends);
             self.diags.push(Diagnostic::new(edge.pos, message));
             return;
         }
@@ -599,12 +599,12 @@ impl Importer<'_> {
             Some(Target::Node(id)) => Some((id.clone(), None)),
             Some(Target::Port(node, port)) => Some((node.clone(), Some(port.clone()))),
             Some(Target::Root) => {
-                let message = Message::new("E011").text("name", name.text());
+                let message = Message::new("ELK011").text("name", name.text());
                 self.diags.push(Diagnostic::new(name.pos, message));
                 None
             }
             None => {
-                let message = Message::new("E007").text("name", name.text());
+                let message = Message::new("ELK007").text("name", name.text());
                 self.diags.push(Diagnostic::new(name.pos, message));
                 None
             }
@@ -982,9 +982,9 @@ mod tests {
         assert_eq!(
             texts(text),
             [
-                "1:1: error[E010]: `elk.direction` is `DIAGONAL`: UNDEFINED, RIGHT, DOWN, LEFT, UP expected",
-                "2:30: error[E010]: `portConstraints` is `FIXED_RATIO`: UNDEFINED, FREE, FIXED_SIDE, FIXED_ORDER, FIXED_POS expected",
-                "4:47: error[E010]: `edgeLabels.placement` is `true`: UNDEFINED, CENTER, HEAD, TAIL expected",
+                "1:1: error[ELK010]: `elk.direction` is `DIAGONAL`: UNDEFINED, RIGHT, DOWN, LEFT, UP expected",
+                "2:30: error[ELK010]: `portConstraints` is `FIXED_RATIO`: UNDEFINED, FREE, FIXED_SIDE, FIXED_ORDER, FIXED_POS expected",
+                "4:47: error[ELK010]: `edgeLabels.placement` is `true`: UNDEFINED, CENTER, HEAD, TAIL expected",
             ]
         );
         // The side is only read under a constraint that fixes it.
@@ -992,7 +992,7 @@ mod tests {
             refusals(
                 "node a { layout [size: 1, 1] portConstraints: FIXED_SIDE port p { side: 3 } }"
             ),
-            [("E010", 1, 67)]
+            [("ELK010", 1, 67)]
         );
     }
 
@@ -1002,24 +1002,24 @@ mod tests {
         assert_eq!(
             texts(text),
             [
-                "3:11: error[E007]: `b` refers to no node or port",
-                "4:1: error[E008]: an edge with 3 ends: one source and one target expected",
-                "5:11: error[E011]: `G` is the graph itself, not a node",
-                "6:11: error[E007]: `G.p` refers to no node or port",
+                "3:11: error[ELK007]: `b` refers to no node or port",
+                "4:1: error[ELK008]: an edge with 3 ends: one source and one target expected",
+                "5:11: error[ELK011]: `G` is the graph itself, not a node",
+                "6:11: error[ELK007]: `G.p` refers to no node or port",
             ]
         );
         assert_eq!(
             refusals(text),
             [
-                ("E007", 3, 11),
-                ("E008", 4, 1),
-                ("E011", 5, 11),
-                ("E007", 6, 11)
+                ("ELK007", 3, 11),
+                ("ELK008", 4, 1),
+                ("ELK011", 5, 11),
+                ("ELK007", 6, 11)
             ]
         );
         assert_eq!(
             texts("port p\nnode a { layout [size: 1, 1] }"),
-            ["1:1: error[E011]: the graph itself has ports"]
+            ["1:1: error[ELK011]: the graph itself has ports"]
         );
     }
 
@@ -1027,26 +1027,29 @@ mod tests {
     fn a_number_that_does_not_fit_is_refused() {
         assert_eq!(
             texts("node a { layout [size: 1e30, 1] }"),
-            ["1:24: error[E009]: number `1e30` cannot be carried in hundredths of a pixel"]
+            ["1:24: error[ELK009]: number `1e30` cannot be carried in hundredths of a pixel"]
         );
         assert_eq!(
             refusals(
                 "node a { layout [size: 1, 1] port p { layout [size: 99999999999999999999, 1] } }"
             ),
-            [("E009", 1, 53)]
+            [("ELK009", 1, 53)]
         );
     }
 
     #[test]
     fn syntax_and_validation_refusals_point_into_the_file() {
-        assert_eq!(refusals("node a {"), [("E004", 1, 9)]);
+        assert_eq!(refusals("node a {"), [("ELK004", 1, 9)]);
         // Two `a` nodes at the same level: ELK tells them apart, the format does not.
         assert_eq!(
             refusals("node a { layout [size: 1, 1] }\nnode a { layout [size: 1, 1] }"),
-            [("G001", 2, 1)]
+            [("GPH001", 2, 1)]
         );
         // A zero size is refused by the validator, at the node's line.
-        assert_eq!(refusals("node a { layout [size: 0, 1] }"), [("S008", 1, 1)]);
+        assert_eq!(
+            refusals("node a { layout [size: 0, 1] }"),
+            [("SCH008", 1, 1)]
+        );
     }
 
     #[test]

@@ -84,8 +84,8 @@ On the 1 graph laid out by both engines, how often each does better, lower being
 |---|---:|---:|
 | laid out and valid | 0 | 2 |
 | refused | 2 | 0 |
-| refused with `L016` | 1 | 0 |
-| refused with `R003` | 1 | 0 |
+| refused with `LYT016` | 1 | 0 |
+| refused with `REF003` | 1 | 0 |
 
 | measure | dot total | dot median | dot 90th | dot max | elk total | elk median | elk 90th | elk max |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|

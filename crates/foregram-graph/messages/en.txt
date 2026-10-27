@@ -3,31 +3,31 @@
 # One entry per line: `key = template`. In a template, `{name}` is replaced
 # by the argument of that name; any other brace is kept as is; `\n` starts
 # a new line.
-# A refusal key starts with its stable code (G003), followed if needed by a
-# variant (J005.zero). The other keys are fragments that refusals embed.
+# A refusal key starts with its stable code (GPH003), followed if needed by a
+# variant (JSN005.zero). The other keys are fragments that refusals embed.
 
 # JSON syntax
-J001.utf8 = invalid bytes: the text must be UTF-8
-J001.bom = byte order mark (BOM) refused at the start of the text
-J002.value-char = unexpected character `{char}`: a value is expected
-J002.value-word = unknown word `{word}`: a value is expected
-J002.expected = unexpected character `{char}`: {expected} expected
-J003.value = unexpected end of text: a value is expected
-J003.expected = unexpected end of text: {expected} expected
-J003.string = unterminated string
-J004 = non-integer number: only integers are allowed
-J005.digit = malformed number: a digit is expected after `-`
-J005.zero = malformed number: leading zero
-J005.minus-zero = malformed number: `-0` is written `0`
-J006 = integer too large to be represented
-J007.control = unescaped control character {char} in a string
-J007.high = high surrogate without its low surrogate
-J007.low = lone low surrogate
-J007.escape = unknown escape sequence
-J007.hex = four hexadecimal digits are expected after `\u`
-J008 = duplicate key `{key}` in the same object
-J009 = nesting too deep: at most {max} levels
-J010 = unexpected content after the value: `{char}`
+JSN001.utf8 = invalid bytes: the text must be UTF-8
+JSN001.bom = byte order mark (BOM) refused at the start of the text
+JSN002.value-char = unexpected character `{char}`: a value is expected
+JSN002.value-word = unknown word `{word}`: a value is expected
+JSN002.expected = unexpected character `{char}`: {expected} expected
+JSN003.value = unexpected end of text: a value is expected
+JSN003.expected = unexpected end of text: {expected} expected
+JSN003.string = unterminated string
+JSN004 = non-integer number: only integers are allowed
+JSN005.digit = malformed number: a digit is expected after `-`
+JSN005.zero = malformed number: leading zero
+JSN005.minus-zero = malformed number: `-0` is written `0`
+JSN006 = integer too large to be represented
+JSN007.control = unescaped control character {char} in a string
+JSN007.high = high surrogate without its low surrogate
+JSN007.low = lone low surrogate
+JSN007.escape = unknown escape sequence
+JSN007.hex = four hexadecimal digits are expected after `\u`
+JSN008 = duplicate key `{key}` in the same object
+JSN009 = nesting too deep: at most {max} levels
+JSN010 = unexpected content after the value: `{char}`
 
 # What the JSON reader expected
 expect.comma-bracket = `,` or `]`
@@ -36,144 +36,144 @@ expect.colon = `:`
 expect.key = a quoted key
 
 # Structure, for both formats
-S001 = {field}: {expected} expected, got {found}
-S001.point = {field}: a point is written [x, y], two integers
-S001.segment = {field}: a route element is a point [x, y] or a curve [[x, y], [x, y], [x, y]]
-S002 = unknown key `{key}` ({in})
-S003 = required key `{key}` missing ({in})
-S004 = unexpected format `{found}`: `{expected}` expected
-S005 = version {found} not supported: versions 1 to {supported} are read
-S006 = {field}: unknown value `{value}`; expected one of {words}
-S007.empty = {field}: identifier empty
-S007.control = {field}: identifier contains a control character
-S007.long = {field}: identifier too long ({length} characters, at most {max})
-S008 = {field}: {value} outside the range {min} to {max}
+SCH001 = {field}: {expected} expected, got {found}
+SCH001.point = {field}: a point is written [x, y], two integers
+SCH001.segment = {field}: a route element is a point [x, y] or a curve [[x, y], [x, y], [x, y]]
+SCH002 = unknown key `{key}` ({in})
+SCH003 = required key `{key}` missing ({in})
+SCH004 = unexpected format `{found}`: `{expected}` expected
+SCH005 = version {found} not supported: versions 1 to {supported} are read
+SCH006 = {field}: unknown value `{value}`; expected one of {words}
+SCH007.empty = {field}: identifier empty
+SCH007.control = {field}: identifier contains a control character
+SCH007.long = {field}: identifier too long ({length} characters, at most {max})
+SCH008 = {field}: {value} outside the range {min} to {max}
 
 # Graph
-G001 = node identifier "{id}" already used
-G001.again = node identifier "{id}" already used (line {line})
-G002 = edge identifier "{id}" already used
-G002.again = edge identifier "{id}" already used (line {line})
-G003 = {subject}: `{key}` refers to node "{node}", which does not exist
-G004 = {subject}: `order` without `layer`
-G005 = {subject}: same `layer` and same `order` as node "{other}"
-G006 = port identifier "{id}" already used
-G006.again = port identifier "{id}" already used (line {line})
-G007.unknown = {subject}: `{key}` refers to port "{port}", which does not exist
-G007.other = {subject}: `{key}` refers to port "{port}", which belongs to node "{owner}", not to node "{node}"
-G008 = {subject}: `{side}` cannot be given together with `{port}`
-G009 = {subject}: `ports_ordered` requires a `side` on every port; port "{port}" has none
-G010.side = {subject}: a position requires `side`
-G010.border = {subject}: position ({x}, {y}) is off the `{side}` side of its node
-G010.container = {subject}: a node with children cannot position its ports
-G011.leaf = {subject}: `width` and `height` are required for a node without children
-G011.container = {subject}: a node with children has no `width` or `height`; the layout gives them
-G012 = {subject}: `padding` only applies to a node with children
+GPH001 = node identifier "{id}" already used
+GPH001.again = node identifier "{id}" already used (line {line})
+GPH002 = edge identifier "{id}" already used
+GPH002.again = edge identifier "{id}" already used (line {line})
+GPH003 = {subject}: `{key}` refers to node "{node}", which does not exist
+GPH004 = {subject}: `order` without `layer`
+GPH005 = {subject}: same `layer` and same `order` as node "{other}"
+GPH006 = port identifier "{id}" already used
+GPH006.again = port identifier "{id}" already used (line {line})
+GPH007.unknown = {subject}: `{key}` refers to port "{port}", which does not exist
+GPH007.other = {subject}: `{key}` refers to port "{port}", which belongs to node "{owner}", not to node "{node}"
+GPH008 = {subject}: `{side}` cannot be given together with `{port}`
+GPH009 = {subject}: `ports_ordered` requires a `side` on every port; port "{port}" has none
+GPH010.side = {subject}: a position requires `side`
+GPH010.border = {subject}: position ({x}, {y}) is off the `{side}` side of its node
+GPH010.container = {subject}: a node with children cannot position its ports
+GPH011.leaf = {subject}: `width` and `height` are required for a node without children
+GPH011.container = {subject}: a node with children has no `width` or `height`; the layout gives them
+GPH012 = {subject}: `padding` only applies to a node with children
 
 # Layout
-L001 = this layout belongs to graph "{layout}", not to "{graph}"
-L002 = node "{id}" is not in the graph
-L003 = node "{id}" placed twice
-L003.again = node "{id}" placed twice (line {line})
-L004 = node "{id}" not placed
-L005 = edge "{id}" is not in the graph
-L006 = edge "{id}" routed twice
-L006.again = edge "{id}" routed twice (line {line})
-L007 = edge "{id}" has no route
-L008 = {subject}: a route has at least two points, this one has {count}
-L009.start = edge "{id}": the route starts at ({x}, {y}), off the border of node "{node}"
-L009.end = edge "{id}": the route ends at ({x}, {y}), off the border of node "{node}"
-L010.start = edge "{id}": the route starts at ({x}, {y}), off the imposed side `{side}` of node "{node}"
-L010.end = edge "{id}": the route ends at ({x}, {y}), off the imposed side `{side}` of node "{node}"
-L011 = edge "{id}": {placed} label(s) placed, the graph has {expected}
-L012 = node "{id}" does not fit inside its parent "{parent}"
-L013.container = node "{id}": a node with children needs `width` and `height` in the layout
-L013.leaf = node "{id}": `width` and `height` are not given for a node without children
-L014.unknown = port "{id}" is not a port of node "{node}"
-L014.missing = port "{id}" of node "{node}" not placed
-L014.twice = port "{id}" placed twice
-L014.twice-again = port "{id}" placed twice (line {line})
-L015.border = port "{id}": anchored at ({x}, {y}), off the border of node "{node}"
-L015.side = port "{id}": anchored at ({x}, {y}), off its side `{side}` of node "{node}"
-L015.fixed = port "{id}": anchored at ({x}, {y}), the graph fixes it at ({fx}, {fy})
-L016.start = edge "{id}": the route starts at ({x}, {y}), off port "{port}"
-L016.end = edge "{id}": the route ends at ({x}, {y}), off port "{port}"
-L017 = {subject}: a route starts with a point [x, y], not a curve
+LYT001 = this layout belongs to graph "{layout}", not to "{graph}"
+LYT002 = node "{id}" is not in the graph
+LYT003 = node "{id}" placed twice
+LYT003.again = node "{id}" placed twice (line {line})
+LYT004 = node "{id}" not placed
+LYT005 = edge "{id}" is not in the graph
+LYT006 = edge "{id}" routed twice
+LYT006.again = edge "{id}" routed twice (line {line})
+LYT007 = edge "{id}" has no route
+LYT008 = {subject}: a route has at least two points, this one has {count}
+LYT009.start = edge "{id}": the route starts at ({x}, {y}), off the border of node "{node}"
+LYT009.end = edge "{id}": the route ends at ({x}, {y}), off the border of node "{node}"
+LYT010.start = edge "{id}": the route starts at ({x}, {y}), off the imposed side `{side}` of node "{node}"
+LYT010.end = edge "{id}": the route ends at ({x}, {y}), off the imposed side `{side}` of node "{node}"
+LYT011 = edge "{id}": {placed} label(s) placed, the graph has {expected}
+LYT012 = node "{id}" does not fit inside its parent "{parent}"
+LYT013.container = node "{id}": a node with children needs `width` and `height` in the layout
+LYT013.leaf = node "{id}": `width` and `height` are not given for a node without children
+LYT014.unknown = port "{id}" is not a port of node "{node}"
+LYT014.missing = port "{id}" of node "{node}" not placed
+LYT014.twice = port "{id}" placed twice
+LYT014.twice-again = port "{id}" placed twice (line {line})
+LYT015.border = port "{id}": anchored at ({x}, {y}), off the border of node "{node}"
+LYT015.side = port "{id}": anchored at ({x}, {y}), off its side `{side}` of node "{node}"
+LYT015.fixed = port "{id}": anchored at ({x}, {y}), the graph fixes it at ({fx}, {fy})
+LYT016.start = edge "{id}": the route starts at ({x}, {y}), off port "{port}"
+LYT016.end = edge "{id}": the route ends at ({x}, {y}), off port "{port}"
+LYT017 = {subject}: a route starts with a point [x, y], not a curve
 
 # GraphML import
-X001 = text that is not UTF-8
-X002 = malformed XML: {detail}
-X003 = root element `{name}`: `graphml` expected
-X004 = `graphml` must contain exactly one `graph`, it contains {count}
-X005 = element `{name}` not supported inside `{parent}`
-X005.text = text not expected inside `{parent}`
-X006 = attribute `{name}` not supported on `{element}`
-X007 = `{element}` without its `{name}` attribute
-X008.edgedefault = `edgedefault` is "{value}": `directed` or `undirected` expected
-X008.directed = `directed` is "{value}": `true` or `false` expected
+GML001 = text that is not UTF-8
+GML002 = malformed XML: {detail}
+GML003 = root element `{name}`: `graphml` expected
+GML004 = `graphml` must contain exactly one `graph`, it contains {count}
+GML005 = element `{name}` not supported inside `{parent}`
+GML005.text = text not expected inside `{parent}`
+GML006 = attribute `{name}` not supported on `{element}`
+GML007 = `{element}` without its `{name}` attribute
+GML008.edgedefault = `edgedefault` is "{value}": `directed` or `undirected` expected
+GML008.directed = `directed` is "{value}": `true` or `false` expected
 
 # ELK text (.elkt) reader
-E001 = text that is not UTF-8
-E002.string = unterminated string
-E002.comment = unterminated comment
-E003 = unexpected character `{char}`
-E004 = unexpected `{found}`: {expected} expected
-E004.end = unexpected end of text: {expected} expected
-E005 = unknown escape sequence in a string
-E006 = `{key}` given twice in the same `layout`
+ELK001 = text that is not UTF-8
+ELK002.string = unterminated string
+ELK002.comment = unterminated comment
+ELK003 = unexpected character `{char}`
+ELK004 = unexpected `{found}`: {expected} expected
+ELK004.end = unexpected end of text: {expected} expected
+ELK005 = unknown escape sequence in a string
+ELK006 = `{key}` given twice in the same `layout`
 
 # ELK import
-E007 = `{name}` refers to no node or port
-E008 = an edge with {count} ends: one source and one target expected
-E009 = number `{text}` cannot be carried in hundredths of a pixel
-E010 = `{key}` is `{value}`: {words} expected
-E011 = `{name}` is the graph itself, not a node
-E011.ports = the graph itself has ports
+ELK007 = `{name}` refers to no node or port
+ELK008 = an edge with {count} ends: one source and one target expected
+ELK009 = number `{text}` cannot be carried in hundredths of a pixel
+ELK010 = `{key}` is `{value}`: {words} expected
+ELK011 = `{name}` is the graph itself, not a node
+ELK011.ports = the graph itself has ports
 
 # CDM text (.mcd) import
-M001 = text that is not UTF-8
-M002 = `{word}` starts no block: `entite NAME` or `association NAME` expected
-M002.name = `{word}` without a name
-M003 = indented line before any block
-M004 = only an association carries links; `{name}` is an entity
-M005 = `{text}`: a property, or an entity followed by a cardinality (`0,1`, `0,n`, `1,1` or `1,n`) expected
-M006 = `{name}` already declared (line {line})
-M007 = `{name}` is not a declared entity
-M008 = association `{name}` needs two links at least, it has {count}
+MCD001 = text that is not UTF-8
+MCD002 = `{word}` starts no block: `entite NAME` or `association NAME` expected
+MCD002.name = `{word}` without a name
+MCD003 = indented line before any block
+MCD004 = only an association carries links; `{name}` is an entity
+MCD005 = `{text}`: a property, or an entity followed by a cardinality (`0,1`, `0,n`, `1,1` or `1,n`) expected
+MCD006 = `{name}` already declared (line {line})
+MCD007 = `{name}` is not a declared entity
+MCD008 = association `{name}` needs two links at least, it has {count}
 
 # Reference engines of the benchmark
-R001 = {engine}: not found at {path}; run corpus/fetch.sh
-R002 = {engine}: version {found} found, the manifest pins {pinned}
-R003 = {engine} failed: {detail}
-R004 = {engine} timed out after {millis} ms
-R005 = {engine} output not understood: {detail}
-R006 = {engine} output: number `{text}` cannot be carried in hundredths of a pixel
-R007 = {engine} changed the size of leaf "{id}" to {width} × {height}
+REF001 = {engine}: not found at {path}; run corpus/fetch.sh
+REF002 = {engine}: version {found} found, the manifest pins {pinned}
+REF003 = {engine} failed: {detail}
+REF004 = {engine} timed out after {millis} ms
+REF005 = {engine} output not understood: {detail}
+REF006 = {engine} output: number `{text}` cannot be carried in hundredths of a pixel
+REF007 = {engine} changed the size of leaf "{id}" to {width} × {height}
 
 # Rendering
-V001 = scale {scale} outside the range 1 to {max}
-V002 = image of {width} × {height} pixels exceeds {max} pixels
-V003 = PNG encoding failed: {error}
+DRW001 = scale {scale} outside the range 1 to {max}
+DRW002 = image of {width} × {height} pixels exceeds {max} pixels
+DRW003 = PNG encoding failed: {error}
 
 # Source format (.fg) reader
-T001 = invalid bytes: the text must be UTF-8
-T002 = control character {char} refused: only tab and line ends are allowed
-T003 = string not closed before the end of its line
-T004 = unknown escape `{escape}`
-T005 = escape `{escape}` is not a Unicode scalar value
-T006 = `}` with no open block
-T007 = block not closed before the end of the file
-T008.top = outside every element, a line is an element head or, before the first element, a directive
-T008.kind = an element head starts with a kind word, which does not start with `@`
-T008.id = an element head gives an identifier after its kind, as a word
-T008.label = only a label, as a string, may stand between the identifier and `{`
-T009 = identifier `{id}`: only ASCII letters, digits and `_`, not starting with a digit
-T010 = directive `@{key}` after the first element: the header comes before every element
-T011 = `@` with no key
-T012 = identifier `{id}` already defined at {line}:{col}
-T013 = key `@{key}` already given at {line}:{col}
-T014 = more than {max} nested blocks
-T015 = reference `{id}`: no element has this identifier
+SRC001 = invalid bytes: the text must be UTF-8
+SRC002 = control character {char} refused: only tab and line ends are allowed
+SRC003 = string not closed before the end of its line
+SRC004 = unknown escape `{escape}`
+SRC005 = escape `{escape}` is not a Unicode scalar value
+SRC006 = `}` with no open block
+SRC007 = block not closed before the end of the file
+SRC008.top = outside every element, a line is an element head or, before the first element, a directive
+SRC008.kind = an element head starts with a kind word, which does not start with `@`
+SRC008.id = an element head gives an identifier after its kind, as a word
+SRC008.label = only a label, as a string, may stand between the identifier and `{`
+SRC009 = identifier `{id}`: only ASCII letters, digits and `_`, not starting with a digit
+SRC010 = directive `@{key}` after the first element: the header comes before every element
+SRC011 = `@` with no key
+SRC012 = identifier `{id}` already defined at {line}:{col}
+SRC013 = key `@{key}` already given at {line}:{col}
+SRC014 = more than {max} nested blocks
+SRC015 = reference `{id}`: no element has this identifier
 
 # What the ELK text reader expected
 expect.literal = `{text}`

@@ -169,7 +169,7 @@ impl<'a> Parser<'a> {
                 Tok::Close => {
                     let pos = token.pos;
                     self.i += 1;
-                    self.refuse(pos, Message::new("T006"));
+                    self.refuse(pos, Message::new("SRC006"));
                     continue;
                 }
                 _ => {}
@@ -201,9 +201,9 @@ impl<'a> Parser<'a> {
                 } else if let Some(first) = values.first() {
                     let key = first.text.get(1..).unwrap_or("");
                     let message = if key.is_empty() {
-                        Message::new("T011")
+                        Message::new("SRC011")
                     } else {
-                        Message::new("T010").text("key", key)
+                        Message::new("SRC010").text("key", key)
                     };
                     self.refuse(first.pos, message);
                 }
@@ -211,7 +211,7 @@ impl<'a> Parser<'a> {
                 && !stray
             {
                 stray = true;
-                self.refuse(first.pos, Message::new("T008.top"));
+                self.refuse(first.pos, Message::new("SRC008.top"));
             }
         }
         if no_item_yet {
@@ -234,11 +234,11 @@ impl<'a> Parser<'a> {
         let at = values.next()?;
         let key = at.text.get(1..).unwrap_or("").to_string();
         if key.is_empty() {
-            self.refuse(at.pos, Message::new("T011"));
+            self.refuse(at.pos, Message::new("SRC011"));
             return None;
         }
         if let Some(first) = keys.get(&key) {
-            let message = Message::new("T013")
+            let message = Message::new("SRC013")
                 .text("key", &key)
                 .text("line", first.line)
                 .text("col", first.col);
@@ -259,39 +259,39 @@ impl<'a> Parser<'a> {
     /// reported here; `None` when the head cannot make an element.
     fn head(&mut self, head: &[Value], open: Pos) -> Option<Head> {
         let Some(kind) = head.first() else {
-            self.refuse(open, Message::new("T008.kind"));
+            self.refuse(open, Message::new("SRC008.kind"));
             return None;
         };
         if kind.quoted || kind.text.starts_with('@') {
-            self.refuse(kind.pos, Message::new("T008.kind"));
+            self.refuse(kind.pos, Message::new("SRC008.kind"));
             return None;
         }
         let Some(id) = head.get(1) else {
-            self.refuse(open, Message::new("T008.id"));
+            self.refuse(open, Message::new("SRC008.id"));
             return None;
         };
         if id.quoted {
-            self.refuse(id.pos, Message::new("T008.id"));
+            self.refuse(id.pos, Message::new("SRC008.id"));
             return None;
         }
         let label = match head.get(2) {
             None => None,
             Some(label) if label.quoted => Some(label.clone()),
             Some(other) => {
-                self.refuse(other.pos, Message::new("T008.label"));
+                self.refuse(other.pos, Message::new("SRC008.label"));
                 return None;
             }
         };
         if let Some(extra) = head.get(3) {
-            self.refuse(extra.pos, Message::new("T008.label"));
+            self.refuse(extra.pos, Message::new("SRC008.label"));
             return None;
         }
         if !is_identifier(&id.text) {
-            self.refuse(id.pos, Message::new("T009").text("id", &id.text));
+            self.refuse(id.pos, Message::new("SRC009").text("id", &id.text));
             return None;
         }
         if let Some(first) = self.ids.get(&id.text) {
-            let message = Message::new("T012")
+            let message = Message::new("SRC012")
                 .text("id", &id.text)
                 .text("line", first.line)
                 .text("col", first.col);
@@ -316,7 +316,7 @@ impl<'a> Parser<'a> {
         let header = self.head(head, open);
         self.i += 1;
         if depth > NESTING_MAX {
-            self.refuse(open, Message::new("T014").text("max", NESTING_MAX));
+            self.refuse(open, Message::new("SRC014").text("max", NESTING_MAX));
             self.skip_block(open);
             return None;
         }
@@ -326,7 +326,7 @@ impl<'a> Parser<'a> {
         let mut pending: Vec<Comment> = Vec::new();
         let close = loop {
             let Some(token) = self.peek() else {
-                self.refuse(open, Message::new("T007"));
+                self.refuse(open, Message::new("SRC007"));
                 return None;
             };
             match token.tok {
@@ -403,6 +403,6 @@ impl<'a> Parser<'a> {
                 _ => {}
             }
         }
-        self.refuse(open, Message::new("T007"));
+        self.refuse(open, Message::new("SRC007"));
     }
 }

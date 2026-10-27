@@ -76,13 +76,13 @@ pub fn parse(bytes: &[u8]) -> Result<Value, Diagnostic> {
         Err(error) => {
             let valid = bytes.get(..error.valid_up_to()).unwrap_or(&[]);
             let prefix = std::str::from_utf8(valid).unwrap_or("");
-            return Err(Diagnostic::new(end_of(prefix), Message::new("J001.utf8")));
+            return Err(Diagnostic::new(end_of(prefix), Message::new("JSN001.utf8")));
         }
     };
     if text.starts_with('\u{FEFF}') {
         return Err(Diagnostic::new(
             Pos { line: 1, col: 1 },
-            Message::new("J001.bom"),
+            Message::new("JSN001.bom"),
         ));
     }
     let mut parser = Parser {
@@ -97,7 +97,7 @@ pub fn parse(bytes: &[u8]) -> Result<Value, Diagnostic> {
     if let Some(c) = parser.peek() {
         return Err(Diagnostic::new(
             pos,
-            Message::new("J010").text("char", show(c)),
+            Message::new("JSN010").text("char", show(c)),
         ));
     }
     Ok(value)
@@ -207,7 +207,7 @@ impl Parser<'_> {
         let pos = self.pos();
         let kind = match self.peek() {
             None => {
-                return Err(Diagnostic::new(pos, Message::new("J003.value")));
+                return Err(Diagnostic::new(pos, Message::new("JSN003.value")));
             }
             Some('{') => {
                 check_depth(depth, pos)?;
@@ -223,7 +223,7 @@ impl Parser<'_> {
             Some(c) => {
                 return Err(Diagnostic::new(
                     pos,
-                    Message::new("J002.value-char").text("char", show(c)),
+                    Message::new("JSN002.value-char").text("char", show(c)),
                 ));
             }
         };
@@ -246,7 +246,7 @@ impl Parser<'_> {
             "null" => Ok(Kind::Null),
             _ => Err(Diagnostic::new(
                 pos,
-                Message::new("J002.value-word").text("word", word),
+                Message::new("JSN002.value-word").text("word", word),
             )),
         }
     }
@@ -266,16 +266,16 @@ impl Parser<'_> {
             self.bump();
         }
         if digits.is_empty() {
-            return Err(Diagnostic::new(pos, Message::new("J005.digit")));
+            return Err(Diagnostic::new(pos, Message::new("JSN005.digit")));
         }
         if matches!(self.peek(), Some('.' | 'e' | 'E')) {
-            return Err(Diagnostic::new(pos, Message::new("J004")));
+            return Err(Diagnostic::new(pos, Message::new("JSN004")));
         }
         if digits.len() > 1 && digits.starts_with('0') {
-            return Err(Diagnostic::new(pos, Message::new("J005.zero")));
+            return Err(Diagnostic::new(pos, Message::new("JSN005.zero")));
         }
         if negative && digits == "0" {
-            return Err(Diagnostic::new(pos, Message::new("J005.minus-zero")));
+            return Err(Diagnostic::new(pos, Message::new("JSN005.minus-zero")));
         }
         let mut value: i64 = 0;
         for digit in digits.bytes() {
@@ -287,7 +287,7 @@ impl Parser<'_> {
                     v.checked_add(digit)
                 }
             });
-            value = next.ok_or_else(|| Diagnostic::new(pos, Message::new("J006")))?;
+            value = next.ok_or_else(|| Diagnostic::new(pos, Message::new("JSN006")))?;
         }
         Ok(value)
     }
@@ -300,14 +300,14 @@ impl Parser<'_> {
             let pos = self.pos();
             match self.bump() {
                 None => {
-                    return Err(Diagnostic::new(start, Message::new("J003.string")));
+                    return Err(Diagnostic::new(start, Message::new("JSN003.string")));
                 }
                 Some('"') => return Ok(out),
                 Some('\\') => out.push(self.escape(pos)?),
                 Some(c) if (c as u32) < 0x20 => {
                     return Err(Diagnostic::new(
                         pos,
-                        Message::new("J007.control").text("char", show(c)),
+                        Message::new("JSN007.control").text("char", show(c)),
                     ));
                 }
                 Some(c) => out.push(c),
@@ -330,24 +330,24 @@ impl Parser<'_> {
                 let high = self.hex4(pos)?;
                 if (0xD800..0xDC00).contains(&high) {
                     if self.bump() != Some('\\') || self.bump() != Some('u') {
-                        return Err(bad("J007.high"));
+                        return Err(bad("JSN007.high"));
                     }
                     let low = self.hex4(pos)?;
                     if !(0xDC00..0xE000).contains(&low) {
-                        return Err(bad("J007.high"));
+                        return Err(bad("JSN007.high"));
                     }
                     let code = 0x10000 + ((high - 0xD800) << 10) + (low - 0xDC00);
                     // A surrogate pair always yields a valid code point.
                     Ok(char::from_u32(code).unwrap_or(char::REPLACEMENT_CHARACTER))
                 } else if (0xDC00..0xE000).contains(&high) {
-                    Err(bad("J007.low"))
+                    Err(bad("JSN007.low"))
                 } else {
                     // Outside the surrogates, four digits always give a valid
                     // code point.
                     Ok(char::from_u32(high).unwrap_or(char::REPLACEMENT_CHARACTER))
                 }
             }
-            _ => Err(bad("J007.escape")),
+            _ => Err(bad("JSN007.escape")),
         }
     }
 
@@ -357,7 +357,7 @@ impl Parser<'_> {
             let digit = self
                 .bump()
                 .and_then(|c| c.to_digit(16))
-                .ok_or_else(|| Diagnostic::new(pos, Message::new("J007.hex")))?;
+                .ok_or_else(|| Diagnostic::new(pos, Message::new("JSN007.hex")))?;
             code = code * 16 + digit;
         }
         Ok(code)
@@ -402,7 +402,7 @@ impl Parser<'_> {
             if members.iter().any(|m| m.key == key) {
                 return Err(Diagnostic::new(
                     key_pos,
-                    Message::new("J008").text("key", key),
+                    Message::new("JSN008").text("key", key),
                 ));
             }
             self.skip_ws();
@@ -433,7 +433,7 @@ fn check_depth(depth: usize, pos: Pos) -> Result<(), Diagnostic> {
     if depth >= MAX_DEPTH {
         return Err(Diagnostic::new(
             pos,
-            Message::new("J009").text("max", MAX_DEPTH),
+            Message::new("JSN009").text("max", MAX_DEPTH),
         ));
     }
     Ok(())
@@ -443,10 +443,10 @@ fn check_depth(depth: usize, pos: Pos) -> Result<(), Diagnostic> {
 fn expected(found: Option<char>, pos: Pos, what: &'static str) -> Diagnostic {
     let what = Message::new(what);
     match found {
-        None => Diagnostic::new(pos, Message::new("J003.expected").msg("expected", what)),
+        None => Diagnostic::new(pos, Message::new("JSN003.expected").msg("expected", what)),
         Some(c) => Diagnostic::new(
             pos,
-            Message::new("J002.expected")
+            Message::new("JSN002.expected")
                 .text("char", show(c))
                 .msg("expected", what),
         ),
@@ -485,19 +485,19 @@ mod tests {
 
     #[test]
     fn empty_text_and_blank_text_are_refused() {
-        assert_eq!(refusal(""), ("J003", 1, 1));
-        assert_eq!(refusal(" \n\t "), ("J003", 2, 3));
+        assert_eq!(refusal(""), ("JSN003", 1, 1));
+        assert_eq!(refusal(" \n\t "), ("JSN003", 2, 3));
     }
 
     #[test]
     fn numbers_must_be_plain_integers() {
-        assert_eq!(refusal("1.5"), ("J004", 1, 1));
-        assert_eq!(refusal("[1e3]"), ("J004", 1, 2));
-        assert_eq!(refusal("01"), ("J005", 1, 1));
-        assert_eq!(refusal("-"), ("J005", 1, 1));
-        assert_eq!(refusal("-0"), ("J005", 1, 1));
-        assert_eq!(refusal("9223372036854775808"), ("J006", 1, 1));
-        assert_eq!(refusal("-9223372036854775809"), ("J006", 1, 1));
+        assert_eq!(refusal("1.5"), ("JSN004", 1, 1));
+        assert_eq!(refusal("[1e3]"), ("JSN004", 1, 2));
+        assert_eq!(refusal("01"), ("JSN005", 1, 1));
+        assert_eq!(refusal("-"), ("JSN005", 1, 1));
+        assert_eq!(refusal("-0"), ("JSN005", 1, 1));
+        assert_eq!(refusal("9223372036854775808"), ("JSN006", 1, 1));
+        assert_eq!(refusal("-9223372036854775809"), ("JSN006", 1, 1));
     }
 
     #[test]
@@ -515,22 +515,22 @@ mod tests {
 
     #[test]
     fn duplicate_keys_are_refused_at_the_second_key() {
-        assert_eq!(refusal("{\"a\": 1,\n \"a\": 2}"), ("J008", 2, 2));
+        assert_eq!(refusal("{\"a\": 1,\n \"a\": 2}"), ("JSN008", 2, 2));
     }
 
     #[test]
     fn structure_errors_name_the_place() {
-        assert_eq!(refusal("[1,]"), ("J002", 1, 4));
-        assert_eq!(refusal("[1 2]"), ("J002", 1, 4));
-        assert_eq!(refusal("{\"a\" 1}"), ("J002", 1, 6));
-        assert_eq!(refusal("{a: 1}"), ("J002", 1, 2));
-        assert_eq!(refusal("[1"), ("J003", 1, 3));
-        assert_eq!(refusal("{\"a\": 1"), ("J003", 1, 8));
-        assert_eq!(refusal("tru"), ("J002", 1, 1));
-        assert_eq!(refusal("truex"), ("J002", 1, 1));
-        assert_eq!(refusal("?"), ("J002", 1, 1));
-        assert_eq!(refusal("1 2"), ("J010", 1, 3));
-        assert_eq!(refusal("{} x"), ("J010", 1, 4));
+        assert_eq!(refusal("[1,]"), ("JSN002", 1, 4));
+        assert_eq!(refusal("[1 2]"), ("JSN002", 1, 4));
+        assert_eq!(refusal("{\"a\" 1}"), ("JSN002", 1, 6));
+        assert_eq!(refusal("{a: 1}"), ("JSN002", 1, 2));
+        assert_eq!(refusal("[1"), ("JSN003", 1, 3));
+        assert_eq!(refusal("{\"a\": 1"), ("JSN003", 1, 8));
+        assert_eq!(refusal("tru"), ("JSN002", 1, 1));
+        assert_eq!(refusal("truex"), ("JSN002", 1, 1));
+        assert_eq!(refusal("?"), ("JSN002", 1, 1));
+        assert_eq!(refusal("1 2"), ("JSN010", 1, 3));
+        assert_eq!(refusal("{} x"), ("JSN010", 1, 4));
     }
 
     #[test]
@@ -541,32 +541,32 @@ mod tests {
 
     #[test]
     fn bad_strings_are_refused() {
-        assert_eq!(refusal("\"abc"), ("J003", 1, 1));
-        assert_eq!(refusal("\"a\tb\""), ("J007", 1, 3));
-        assert_eq!(refusal(r#""\x""#), ("J007", 1, 2));
-        assert_eq!(refusal(r#""\u12g4""#), ("J007", 1, 2));
-        assert_eq!(refusal(r#""\ud83d""#), ("J007", 1, 2));
-        assert_eq!(refusal(r#""\ude00""#), ("J007", 1, 2));
-        assert_eq!(refusal(r#""\ud83d\u0041""#), ("J007", 1, 2));
+        assert_eq!(refusal("\"abc"), ("JSN003", 1, 1));
+        assert_eq!(refusal("\"a\tb\""), ("JSN007", 1, 3));
+        assert_eq!(refusal(r#""\x""#), ("JSN007", 1, 2));
+        assert_eq!(refusal(r#""\u12g4""#), ("JSN007", 1, 2));
+        assert_eq!(refusal(r#""\ud83d""#), ("JSN007", 1, 2));
+        assert_eq!(refusal(r#""\ude00""#), ("JSN007", 1, 2));
+        assert_eq!(refusal(r#""\ud83d\u0041""#), ("JSN007", 1, 2));
     }
 
     #[test]
     fn columns_count_code_points_not_bytes() {
         // "é" and "😀" take several bytes but only one column.
-        assert_eq!(refusal("[\"é😀\", ?]"), ("J002", 1, 8));
+        assert_eq!(refusal("[\"é😀\", ?]"), ("JSN002", 1, 8));
     }
 
     #[test]
     fn carriage_return_line_feed_counts_one_line() {
-        assert_eq!(refusal("[\r\n?]"), ("J002", 2, 1));
+        assert_eq!(refusal("[\r\n?]"), ("JSN002", 2, 1));
     }
 
     #[test]
     fn invalid_utf8_and_bom_are_refused() {
         let d = parse(b"[\n \xff]").unwrap_err();
-        assert_eq!((d.code, d.pos.line, d.pos.col), ("J001", 2, 2));
+        assert_eq!((d.code, d.pos.line, d.pos.col), ("JSN001", 2, 2));
         let d = parse(b"\xef\xbb\xbf{}").unwrap_err();
-        assert_eq!((d.code, d.pos.line, d.pos.col), ("J001", 1, 1));
+        assert_eq!((d.code, d.pos.line, d.pos.col), ("JSN001", 1, 1));
     }
 
     #[test]
@@ -575,7 +575,7 @@ mod tests {
         assert!(parse(ok.as_bytes()).is_ok());
         let deep = format!("{}{}", "[".repeat(MAX_DEPTH + 1), "]".repeat(MAX_DEPTH + 1));
         let d = parse(deep.as_bytes()).unwrap_err();
-        assert_eq!(d.code, "J009");
+        assert_eq!(d.code, "JSN009");
         assert_eq!(d.pos.col as usize, MAX_DEPTH + 1);
     }
 

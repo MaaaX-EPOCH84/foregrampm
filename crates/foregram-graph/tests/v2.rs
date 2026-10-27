@@ -101,13 +101,13 @@ fn nested_nodes_are_written_one_per_line_with_deeper_indentation() {
 
 #[test]
 fn port_identifiers_are_unique_in_the_whole_graph() {
-    assert_eq!(keys(&case("port-twice")), ["G006.again", "G006.again"]);
+    assert_eq!(keys(&case("port-twice")), ["GPH006.again", "GPH006.again"]);
 }
 
 #[test]
 fn an_edge_port_exists_belongs_to_its_node_and_excludes_a_side() {
     let diags = case("edge-port-unknown-or-foreign");
-    assert_eq!(keys(&diags), ["G007.unknown", "G007.other", "G008"]);
+    assert_eq!(keys(&diags), ["GPH007.unknown", "GPH007.other", "GPH008"]);
     assert_eq!(
         diags[1].text(),
         "edge \"f\": `source_port` refers to port \"p\", which belongs to node \"A\", not to node \"B\""
@@ -116,14 +116,14 @@ fn an_edge_port_exists_belongs_to_its_node_and_excludes_a_side() {
 
 #[test]
 fn ordered_ports_all_need_a_side() {
-    assert_eq!(keys(&case("ordered-without-side")), ["G009"]);
+    assert_eq!(keys(&case("ordered-without-side")), ["GPH009"]);
 }
 
 #[test]
 fn a_port_position_needs_a_side_and_sits_on_that_side() {
     assert_eq!(
         keys(&case("port-position")),
-        ["G010.side", "G010.border", "S008", "G010.container"]
+        ["GPH010.side", "GPH010.border", "SCH008", "GPH010.container"]
     );
 }
 
@@ -131,20 +131,23 @@ fn a_port_position_needs_a_side_and_sits_on_that_side() {
 fn leaves_have_a_size_and_containers_do_not() {
     assert_eq!(
         keys(&case("sizes-and-padding")),
-        ["G011.leaf", "G012", "G011.container"]
+        ["GPH011.leaf", "GPH012", "GPH011.container"]
     );
 }
 
 #[test]
 fn width_and_height_come_together_and_so_do_x_and_y() {
-    assert_eq!(keys(&case("half-size")), ["S003", "S003", "S003", "S003"]);
+    assert_eq!(
+        keys(&case("half-size")),
+        ["SCH003", "SCH003", "SCH003", "SCH003"]
+    );
     assert!(case("half-size")[3].text().contains("`y` missing (port)"));
 }
 
 #[test]
 fn a_port_identifier_follows_the_identifier_rules() {
     let diags = case("bad-port-identifier");
-    assert_eq!(keys(&diags), ["S007.empty"]);
+    assert_eq!(keys(&diags), ["SCH007.empty"]);
     assert_eq!(diags[0].text(), "port #1: `id`: identifier empty");
 }
 
@@ -196,10 +199,10 @@ fn a_graph_built_in_memory_reports_duplicate_ports_without_a_line() {
         pos: Pos::NONE,
     };
     let diags = graph.validate();
-    assert_eq!(keys(&diags), ["G006"]);
+    assert_eq!(keys(&diags), ["GPH006"]);
     assert_eq!(
         diags[0].to_string(),
-        "error[G006]: port identifier \"p\" already used"
+        "error[GPH006]: port identifier \"p\" already used"
     );
 }
 
@@ -209,10 +212,10 @@ fn a_graph_built_in_memory_reports_duplicate_ports_without_a_line() {
 fn a_layout_checks_its_own_ports_and_route_shapes() {
     assert_eq!(
         keys(&case("layout-ports-and-curves")),
-        ["L014.twice-again", "L017"]
+        ["LYT014.twice-again", "LYT017"]
     );
     let diags = case("layout-half-size-and-label-point");
-    assert_eq!(keys(&diags), ["S003", "S003", "S001.point"]);
+    assert_eq!(keys(&diags), ["SCH003", "SCH003", "SCH001.point"]);
     assert!(diags[1].text().contains("`y` missing (placed port)"));
 }
 
@@ -242,7 +245,7 @@ fn a_layout_built_in_memory_reports_duplicate_ports_without_a_line() {
         edges: Vec::new(),
         pos: Pos::NONE,
     };
-    assert_eq!(keys(&layout.validate()), ["L014.twice"]);
+    assert_eq!(keys(&layout.validate()), ["LYT014.twice"]);
 }
 
 #[test]
@@ -251,12 +254,12 @@ fn children_fit_in_their_parent_and_sizes_match_the_kind_of_node() {
     assert_eq!(
         keys(&diags),
         [
-            "L012",
-            "L013.leaf",
-            "L015.fixed",
-            "L014.unknown",
-            "L014.missing",
-            "L009.start"
+            "LYT012",
+            "LYT013.leaf",
+            "LYT015.fixed",
+            "LYT014.unknown",
+            "LYT014.missing",
+            "LYT009.start"
         ]
     );
     assert_eq!(
@@ -269,16 +272,16 @@ fn children_fit_in_their_parent_and_sizes_match_the_kind_of_node() {
 fn a_container_needs_its_size_and_ports_sit_on_their_side() {
     assert_eq!(
         keys(&case("check-port-sides")),
-        ["L007", "L007", "L013.container", "L015.side"]
+        ["LYT007", "LYT007", "LYT013.container", "LYT015.side"]
     );
 }
 
 #[test]
 fn a_route_with_a_port_touches_the_port() {
-    assert_eq!(keys(&case("check-route-off-port-start")), ["L016.start"]);
+    assert_eq!(keys(&case("check-route-off-port-start")), ["LYT016.start"]);
     assert_eq!(
         keys(&case("check-port-interior")),
-        ["L015.border", "L016.end"]
+        ["LYT015.border", "LYT016.end"]
     );
     // The port `q` has a 20 × 20 box centred on its anchor: any point
     // of the box fits, the first point outside the box does not.
@@ -295,8 +298,8 @@ fn a_route_with_a_port_touches_the_port() {
     assert_eq!(check("[300, 50]"), none);
     assert_eq!(check("[290, 40]"), none);
     assert_eq!(check("[310, 60]"), none);
-    assert_eq!(check("[311, 60]"), ["L016.end"]);
-    assert_eq!(check("[289, 50]"), ["L016.end"]);
+    assert_eq!(check("[311, 60]"), ["LYT016.end"]);
+    assert_eq!(check("[289, 50]"), ["LYT016.end"]);
 }
 
 #[test]
@@ -314,14 +317,14 @@ fn padding_counts_when_a_child_is_placed_against_the_border() {
         let layout = Layout::parse(layout(&nodes, edges).as_bytes()).unwrap();
         keys(&layout.check(&graph))
             .into_iter()
-            .filter(|k| k.starts_with("L012"))
+            .filter(|k| k.starts_with("LYT012"))
             .collect::<Vec<_>>()
     };
     let none: [&str; 0] = [];
     assert_eq!(check("10, \"y\": 10"), none);
     assert_eq!(check("90, \"y\": 90"), none);
-    assert_eq!(check("9, \"y\": 10"), ["L012"]);
-    assert_eq!(check("91, \"y\": 10"), ["L012"]);
+    assert_eq!(check("9, \"y\": 10"), ["LYT012"]);
+    assert_eq!(check("91, \"y\": 10"), ["LYT012"]);
 }
 
 #[test]
@@ -335,7 +338,7 @@ fn nested_positions_are_relative_to_the_parent() {
     );
     let placed = Layout::parse(layout(&nodes, NESTED_LAYOUT_EDGES).as_bytes()).unwrap();
     let diags = placed.check(&graph);
-    assert_eq!(keys(&diags), ["L016.start", "L009.start", "L009.end"]);
+    assert_eq!(keys(&diags), ["LYT016.start", "LYT009.start", "LYT009.end"]);
     let edges = NESTED_LAYOUT_EDGES
         .replace("[110, 60]", "[1110, 60]")
         .replace("[60, 110]", "[1060, 110]")

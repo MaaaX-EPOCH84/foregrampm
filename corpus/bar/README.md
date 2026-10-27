@@ -21,13 +21,13 @@ covers the graphs both laid out. Rome, North and the in-house models are
 complete under both engines. On elk-models:
 
 - **ELK refuses 20 of 898**: 19 Ptolemy models whose ports it places off the
-  border of a leaf too small to hold them (`L015` — the format does not let
+  border of a leaf too small to hold them (`LYT015` — the format does not let
   an engine grow a node, and the import does not carry
   `nodeSize.constraints`), and `tests/layered/connected_components/compound06`,
-  on which ELK itself throws (`R003`).
-- **dot refuses 339 of 898**: 310 where several edges share a port (`L016`,
+  on which ELK itself throws (`REF003`).
+- **dot refuses 339 of 898**: 310 where several edges share a port (`LYT016`,
   dot has no ports), 26 compound graphs on which it fails with
-  "triangulation failed" (`R003`), 3 where it grows a 1 × 1 leaf (`L009`).
+  "triangulation failed" (`REF003`), 3 where it grows a 1 × 1 leaf (`LYT009`).
 
 The own engine must lay out every graph. On a graph a reference refused it
 has nothing to beat, and the comparison says so rather than counting it.

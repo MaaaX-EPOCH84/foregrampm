@@ -683,17 +683,20 @@ mod tests {
 
     #[test]
     fn failures_are_read_by_path_and_code() {
-        let text = "rome/a.graphml: error[R003]: dot failed\n\
-                    elk-models/b.elkt:3:7: error[L009]: off the border\n\
-                    elk-models/b.elkt:4:7: error[L009]: off the border\n\
-                    elk-models/b.elkt: error[L016]: shared port\n\
+        let text = "rome/a.graphml: error[REF003]: dot failed\n\
+                    elk-models/b.elkt:3:7: error[LYT009]: off the border\n\
+                    elk-models/b.elkt:4:7: error[LYT009]: off the border\n\
+                    elk-models/b.elkt: error[LYT016]: shared port\n\
                     not a failure\n";
         let read = read_failures(text);
         assert_eq!(read.len(), 2);
-        assert_eq!(read["rome/a.graphml"], BTreeMap::from([("R003".into(), 1)]));
+        assert_eq!(
+            read["rome/a.graphml"],
+            BTreeMap::from([("REF003".into(), 1)])
+        );
         assert_eq!(
             read["elk-models/b.elkt"],
-            BTreeMap::from([("L009".into(), 2), ("L016".into(), 1)])
+            BTreeMap::from([("LYT009".into(), 2), ("LYT016".into(), 1)])
         );
         assert_eq!(strip_position("a/b.elkt"), "a/b.elkt");
         assert_eq!(strip_position("a/b.elkt:12:5"), "a/b.elkt");
@@ -706,7 +709,7 @@ mod tests {
         let mut entries: Vec<Entry> = (0..20)
             .map(|i| entry("rome", &format!("g{i:02}"), measured(i), measured(10)))
             .collect();
-        entries[3].outcomes[1] = refused("R003");
+        entries[3].outcomes[1] = refused("REF003");
         entries.push(entry("mcd", "m", measured(1), measured(0)));
         let rows = sample(&entries);
         let regular: Vec<usize> = rows
@@ -742,16 +745,16 @@ mod tests {
         let entries = vec![
             entry("rome", "a", measured(1), measured(3)),
             entry("rome", "b", measured(2), measured(2)),
-            entry("rome", "c", measured(5), refused("L009")),
-            entry("rome", "d", refused("R003"), refused("R003")),
+            entry("rome", "c", measured(5), refused("LYT009")),
+            entry("rome", "d", refused("REF003"), refused("REF003")),
         ];
         let engines = [("dot", "16.1.0"), ("elk", "0.12.0")];
         let text = report(&engines, &entries);
         assert!(text.contains("dot 16.1.0, elk 0.12.0"), "{text}");
         assert!(text.contains("| laid out and valid | 3 | 2 |"), "{text}");
         assert!(text.contains("| refused | 1 | 2 |"), "{text}");
-        assert!(text.contains("| refused with `L009` | 0 | 1 |"), "{text}");
-        assert!(text.contains("| refused with `R003` | 1 | 1 |"), "{text}");
+        assert!(text.contains("| refused with `LYT009` | 0 | 1 |"), "{text}");
+        assert!(text.contains("| refused with `REF003` | 1 | 1 |"), "{text}");
         // dot: 1, 2, 5; ELK: 3, 2.
         assert!(
             text.contains("| crossings | 8 | 2 | 5 | 5 | 5 | 2 | 3 | 3 |"),
@@ -764,7 +767,7 @@ mod tests {
 
     #[test]
     fn the_json_has_one_line_per_graph_and_engine() {
-        let entries = vec![entry("mcd", "m.mcd", measured(1), refused("L009"))];
+        let entries = vec![entry("mcd", "m.mcd", measured(1), refused("LYT009"))];
         let text = metrics_json(&[("dot", "16.1.0"), ("elk", "0.12.0")], &entries);
         let lines: Vec<&str> = text.lines().collect();
         assert_eq!(lines[3], "  \"engines\": [");
@@ -780,7 +783,7 @@ mod tests {
         );
         assert_eq!(
             lines[9],
-            "    {\"corpus\": \"mcd\", \"graph\": \"mcd/m.mcd\", \"engine\": \"elk\", \"refused\": {\"L009\": 1}}"
+            "    {\"corpus\": \"mcd\", \"graph\": \"mcd/m.mcd\", \"engine\": \"elk\", \"refused\": {\"LYT009\": 1}}"
         );
         assert!(
             foregram_graph::json::parse(text.as_bytes()).is_ok(),

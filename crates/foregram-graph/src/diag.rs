@@ -44,7 +44,7 @@ pub struct Diagnostic {
 }
 
 impl Diagnostic {
-    /// The code is the message key minus its variant: `J005` for `J005.zero`.
+    /// The code is the message key minus its variant: `JSN005` for `JSN005.zero`.
     pub fn new(pos: Pos, message: Message) -> Self {
         let code = message.key.split('.').next().unwrap_or(message.key);
         // Every refusal produced by the tests is checked against the English
@@ -69,7 +69,7 @@ impl Diagnostic {
     }
 
     /// The refusal preceded by the file it was read from, as a command line
-    /// writes it: `g.json:7:5: error[G001]: …`, or `g.json: error[…]`
+    /// writes it: `g.json:7:5: error[GPH001]: …`, or `g.json: error[…]`
     /// without a position.
     pub fn render_in_file(&self, file: &str, catalog: &Catalog) -> String {
         let key = if self.pos.is_none() {

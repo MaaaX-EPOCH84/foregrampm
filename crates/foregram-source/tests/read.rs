@@ -229,7 +229,7 @@ fn columns_count_code_points() {
     assert_eq!(c.values[1].text, "c");
     assert_eq!((c.values[1].pos.line, c.values[1].pos.col), (1, 12));
     // And a refusal after it too.
-    assert_eq!(places("a b { \"éé\" }}\n"), [("T006", 1, 13)]);
+    assert_eq!(places("a b { \"éé\" }}\n"), [("SRC006", 1, 13)]);
 }
 
 #[test]
@@ -379,7 +379,7 @@ fn a_byte_order_mark_is_dropped_before_counting_columns() {
         (document.elements[0].pos.line, document.elements[0].pos.col),
         (1, 1)
     );
-    assert_eq!(places("\u{FEFF}}"), [("T006", 1, 1)]);
+    assert_eq!(places("\u{FEFF}}"), [("SRC006", 1, 1)]);
 }
 
 #[test]
@@ -388,7 +388,10 @@ fn crlf_and_lf_give_the_same_document() {
     let crlf = lf.replace('\n', "\r\n");
     assert_eq!(read(lf), read(&crlf));
     // Positions after a CRLF line are those of the LF file.
-    assert_eq!(places("a {\r\n}}\r\n"), [("T008.id", 1, 3), ("T006", 2, 2)]);
+    assert_eq!(
+        places("a {\r\n}}\r\n"),
+        [("SRC008.id", 1, 3), ("SRC006", 2, 2)]
+    );
 }
 
 // --------------------------------------------------------------- refusals
@@ -400,8 +403,8 @@ fn bytes_that_are_not_utf8_stop_the_reading() {
         .iter()
         .map(|d| (d.message.key, d.pos.line, d.pos.col))
         .collect();
-    assert_eq!(found, [("T001", 2, 5)]);
-    assert_eq!(places_bytes(b"\xef\xbb\xbfe\xc3"), [("T001", 1, 2)]);
+    assert_eq!(found, [("SRC001", 2, 5)]);
+    assert_eq!(places_bytes(b"\xef\xbb\xbfe\xc3"), [("SRC001", 1, 2)]);
 }
 
 fn places_bytes(bytes: &[u8]) -> Vec<(&'static str, u32, u32)> {
@@ -416,10 +419,10 @@ fn control_characters_are_refused_once_per_line() {
     assert_eq!(
         places("e A {\n  a\u{7}b\u{7}\u{0}\n  c\rd\n  \"s\u{1b}\"\n  // \u{7f}\n}\n"),
         [
-            ("T002", 2, 4),
-            ("T002", 3, 4),
-            ("T002", 4, 5),
-            ("T002", 5, 6)
+            ("SRC002", 2, 4),
+            ("SRC002", 3, 4),
+            ("SRC002", 4, 5),
+            ("SRC002", 5, 6)
         ]
     );
     let diags = refusals("e A { \u{7} }".as_bytes());
@@ -433,22 +436,25 @@ fn control_characters_are_refused_once_per_line() {
 fn strings_and_escapes_are_checked() {
     assert_eq!(
         places("e A \"open {\n}\n"),
-        [("T008.top", 1, 1), ("T003", 1, 5), ("T006", 2, 1)]
+        [("SRC008.top", 1, 1), ("SRC003", 1, 5), ("SRC006", 2, 1)]
     );
-    assert_eq!(places("e A \"x\\"), [("T008.top", 1, 1), ("T003", 1, 5)]);
+    assert_eq!(
+        places("e A \"x\\"),
+        [("SRC008.top", 1, 1), ("SRC003", 1, 5)]
+    );
     assert_eq!(
         places("e A \"\\q \\u00e9 \\u{} \\u{1234567} \\u{e9\" {}\n"),
         [
-            ("T004", 1, 6),
-            ("T004", 1, 9),
-            ("T004", 1, 16),
-            ("T004", 1, 21),
-            ("T004", 1, 33)
+            ("SRC004", 1, 6),
+            ("SRC004", 1, 9),
+            ("SRC004", 1, 16),
+            ("SRC004", 1, 21),
+            ("SRC004", 1, 33)
         ]
     );
     assert_eq!(
         places("e A \"\\u{D800} \\u{110000}\" {}"),
-        [("T005", 1, 6), ("T005", 1, 15)]
+        [("SRC005", 1, 6), ("SRC005", 1, 15)]
     );
     let diags = refusals(b"e A \"\\q\" {}");
     assert_eq!(diags[0].text(), "unknown escape `\\q`");
@@ -461,32 +467,32 @@ fn strings_and_escapes_are_checked() {
 
 #[test]
 fn braces_must_pair() {
-    assert_eq!(places("}\ne A {}\n}"), [("T006", 1, 1), ("T006", 3, 1)]);
+    assert_eq!(places("}\ne A {}\n}"), [("SRC006", 1, 1), ("SRC006", 3, 1)]);
     // One refusal per open block, at its brace.
     assert_eq!(
         places("e A {\n  f B { x\n"),
-        [("T007", 1, 5), ("T007", 2, 7)]
+        [("SRC007", 1, 5), ("SRC007", 2, 7)]
     );
 }
 
 #[test]
 fn an_element_head_has_a_strict_shape() {
-    assert_eq!(places("{ x }"), [("T008.kind", 1, 1)]);
-    assert_eq!(places("\"e\" A {}"), [("T008.kind", 1, 1)]);
-    assert_eq!(places("@e A {}"), [("T008.kind", 1, 1)]);
-    assert_eq!(places("e {}"), [("T008.id", 1, 3)]);
-    assert_eq!(places("e \"A\" {}"), [("T008.id", 1, 3)]);
-    assert_eq!(places("e A B {}"), [("T008.label", 1, 5)]);
-    assert_eq!(places("e A \"a\" b {}"), [("T008.label", 1, 9)]);
+    assert_eq!(places("{ x }"), [("SRC008.kind", 1, 1)]);
+    assert_eq!(places("\"e\" A {}"), [("SRC008.kind", 1, 1)]);
+    assert_eq!(places("@e A {}"), [("SRC008.kind", 1, 1)]);
+    assert_eq!(places("e {}"), [("SRC008.id", 1, 3)]);
+    assert_eq!(places("e \"A\" {}"), [("SRC008.id", 1, 3)]);
+    assert_eq!(places("e A B {}"), [("SRC008.label", 1, 5)]);
+    assert_eq!(places("e A \"a\" b {}"), [("SRC008.label", 1, 9)]);
     // A faulty head still opens its block, which is read for its refusals.
     assert_eq!(
         places("e A B {\n  f 1x {}\n}\n"),
-        [("T008.label", 1, 5), ("T009", 2, 5)]
+        [("SRC008.label", 1, 5), ("SRC009", 2, 5)]
     );
     // The block must open on the head line.
     assert_eq!(
         places("e A\n{\n}\n"),
-        [("T008.top", 1, 1), ("T008.kind", 2, 1)]
+        [("SRC008.top", 1, 1), ("SRC008.kind", 2, 1)]
     );
 }
 
@@ -494,20 +500,20 @@ fn an_element_head_has_a_strict_shape() {
 fn a_run_of_stray_lines_is_refused_once() {
     assert_eq!(
         places("nom\nprenom\n\n#x\ne A {}\nlate\n"),
-        [("T008.top", 1, 1), ("T008.top", 6, 1)]
+        [("SRC008.top", 1, 1), ("SRC008.top", 6, 1)]
     );
-    assert_eq!(places("e A {} tail\n"), [("T008.top", 1, 8)]);
+    assert_eq!(places("e A {} tail\n"), [("SRC008.top", 1, 8)]);
 }
 
 #[test]
 fn identifiers_are_ascii_and_unique() {
-    assert_eq!(places("e 1a {}"), [("T009", 1, 3)]);
-    assert_eq!(places("e é {}"), [("T009", 1, 3)]);
-    assert_eq!(places("e a-b {}"), [("T009", 1, 3)]);
+    assert_eq!(places("e 1a {}"), [("SRC009", 1, 3)]);
+    assert_eq!(places("e é {}"), [("SRC009", 1, 3)]);
+    assert_eq!(places("e a-b {}"), [("SRC009", 1, 3)]);
     read("e _a {} e b_9 {} e Z {} e z {}");
     assert_eq!(
         places("e A {\n  g B {}\n}\nf B {}\ng A { h B {} }\n"),
-        [("T012", 4, 3), ("T012", 5, 3), ("T012", 5, 9)]
+        [("SRC012", 4, 3), ("SRC012", 5, 3), ("SRC012", 5, 9)]
     );
     let diags = refusals(b"e A {}\ne A {}");
     assert_eq!(diags[0].text(), "identifier `A` already defined at 1:3");
@@ -519,12 +525,12 @@ fn identifiers_are_ascii_and_unique() {
 
 #[test]
 fn the_header_comes_first_and_keys_are_given_once() {
-    assert_eq!(places("e A {}\n@notation merise\n"), [("T010", 2, 1)]);
-    assert_eq!(places("e A {}\n@\n"), [("T011", 2, 1)]);
-    assert_eq!(places("@ notation\n"), [("T011", 1, 1)]);
-    assert_eq!(places("e A { @ 1 }"), [("T011", 1, 7)]);
-    assert_eq!(places("@a 1\n@b\n@a 2\n"), [("T013", 3, 1)]);
-    assert_eq!(places("e A { @a 1; @a 2 }"), [("T013", 1, 13)]);
+    assert_eq!(places("e A {}\n@notation merise\n"), [("SRC010", 2, 1)]);
+    assert_eq!(places("e A {}\n@\n"), [("SRC011", 2, 1)]);
+    assert_eq!(places("@ notation\n"), [("SRC011", 1, 1)]);
+    assert_eq!(places("e A { @ 1 }"), [("SRC011", 1, 7)]);
+    assert_eq!(places("@a 1\n@b\n@a 2\n"), [("SRC013", 3, 1)]);
+    assert_eq!(places("e A { @a 1; @a 2 }"), [("SRC013", 1, 13)]);
     // Same key in two blocks, or in the header and a block: allowed.
     read("@a 1\ne A { @a 1 }\ne B { @a 1; f C { @a 2 } }");
     let diags = refusals(b"@a 1\n@a 2");
@@ -543,17 +549,17 @@ fn nesting_is_bounded() {
     };
     assert_eq!(NESTING_MAX, 32);
     read(&nest(32));
-    assert_eq!(places(&nest(33)), [("T014", 33, 7)]);
+    assert_eq!(places(&nest(33)), [("SRC014", 33, 7)]);
     let diags = refusals(nest(40).as_bytes());
     assert_eq!(diags.len(), 1);
     assert_eq!(diags[0].text(), "more than 32 nested blocks");
     // Far deeper than a stack would bear, with no head and no end: the
     // recursion stops at the bound.
     let diags = refusals("{".repeat(200_000).as_bytes());
-    let t014: Vec<&Diagnostic> = diags.iter().filter(|d| d.code == "T014").collect();
+    let t014: Vec<&Diagnostic> = diags.iter().filter(|d| d.code == "SRC014").collect();
     assert_eq!(t014.len(), 1);
     assert_eq!((t014[0].pos.line, t014[0].pos.col), (1, 33));
-    assert_eq!(diags.iter().filter(|d| d.code == "T007").count(), 33);
+    assert_eq!(diags.iter().filter(|d| d.code == "SRC007").count(), 33);
 }
 
 #[test]
@@ -562,12 +568,12 @@ fn every_refusal_is_reported_sorted_by_position() {
     assert_eq!(
         places(text),
         [
-            ("T013", 3, 3),
-            ("T006", 5, 1),
-            ("T012", 6, 3),
-            ("T009", 7, 3),
-            ("T004", 7, 9),
-            ("T010", 8, 1),
+            ("SRC013", 3, 3),
+            ("SRC006", 5, 1),
+            ("SRC012", 6, 3),
+            ("SRC009", 7, 3),
+            ("SRC004", 7, 9),
+            ("SRC010", 8, 1),
         ]
     );
 }
@@ -590,7 +596,7 @@ fn every_refusal_reads_in_both_languages() {
     assert!(
         refusals("{".repeat(40).as_bytes())
             .iter()
-            .any(|d| d.code == "T014")
+            .any(|d| d.code == "SRC014")
     );
 }
 

@@ -26,7 +26,7 @@ pub(crate) fn render(scene: &Scene, style: &Style, scale: i64) -> Result<Vec<u8>
     if !(1..=SCALE_MAX).contains(&scale) {
         return Err(Diagnostic::new(
             Pos::NONE,
-            Message::new("V001")
+            Message::new("DRW001")
                 .text("scale", scale)
                 .text("max", SCALE_MAX),
         ));
@@ -36,7 +36,7 @@ pub(crate) fn render(scene: &Scene, style: &Style, scale: i64) -> Result<Vec<u8>
     if i128::from(width) * i128::from(height) > i128::from(PIXELS_MAX) {
         return Err(Diagnostic::new(
             Pos::NONE,
-            Message::new("V002")
+            Message::new("DRW002")
                 .text("width", width)
                 .text("height", height)
                 .text("max", PIXELS_MAX),
@@ -412,7 +412,7 @@ fn oriented(mut points: Vec<Point>) -> Vec<Point> {
 /// Encodes the image as PNG, 8-bit grey.
 fn encode(width: i64, height: i64, pixels: &[u8]) -> Result<Vec<u8>, Diagnostic> {
     let fail = |error: png::EncodingError| {
-        Diagnostic::new(Pos::NONE, Message::new("V003").text("error", error))
+        Diagnostic::new(Pos::NONE, Message::new("DRW003").text("error", error))
     };
     let (w, h) = (
         u32::try_from(width).unwrap_or(0),
@@ -540,7 +540,7 @@ mod tests {
     #[test]
     fn the_encoder_refuses_a_short_buffer() {
         let diag = encode(2, 2, &[0; 3]).unwrap_err();
-        assert_eq!(diag.code, "V003");
+        assert_eq!(diag.code, "DRW003");
         assert!(encode(2, 2, &[0; 4]).is_ok());
     }
 }

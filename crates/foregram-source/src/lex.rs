@@ -46,7 +46,7 @@ pub(crate) fn decode(bytes: &[u8]) -> Result<&str, Diagnostic> {
             let valid = bytes.get(..error.valid_up_to()).unwrap_or(&[]);
             let prefix = std::str::from_utf8(valid).unwrap_or("");
             let prefix = prefix.strip_prefix('\u{FEFF}').unwrap_or(prefix);
-            Err(Diagnostic::new(end_of(prefix), Message::new("T001")))
+            Err(Diagnostic::new(end_of(prefix), Message::new("SRC001")))
         }
     }
 }
@@ -147,7 +147,7 @@ impl Lexer<'_> {
             self.control_line = pos.line;
             self.refuse(
                 pos,
-                Message::new("T002").text("char", format!("U+{:04X}", c as u32)),
+                Message::new("SRC002").text("char", format!("U+{:04X}", c as u32)),
             );
         }
     }
@@ -235,11 +235,11 @@ impl Lexer<'_> {
         let mut text = String::new();
         loop {
             if self.at_eol() {
-                self.refuse(pos, Message::new("T003"));
+                self.refuse(pos, Message::new("SRC003"));
                 break;
             }
             let Some(c) = self.peek() else {
-                self.refuse(pos, Message::new("T003"));
+                self.refuse(pos, Message::new("SRC003"));
                 break;
             };
             let here = self.pos();
@@ -291,7 +291,7 @@ impl Lexer<'_> {
             c if c.is_control() => {}
             c => {
                 self.bump();
-                self.refuse(pos, Message::new("T004").text("escape", format!("\\{c}")));
+                self.refuse(pos, Message::new("SRC004").text("escape", format!("\\{c}")));
             }
         }
     }
@@ -317,7 +317,7 @@ impl Lexer<'_> {
             }
         }
         if !closed || digits.is_empty() || digits.len() > 6 {
-            self.refuse(pos, Message::new("T004").text("escape", written));
+            self.refuse(pos, Message::new("SRC004").text("escape", written));
             return;
         }
         match u32::from_str_radix(&digits, 16)
@@ -325,7 +325,7 @@ impl Lexer<'_> {
             .and_then(char::from_u32)
         {
             Some(c) => text.push(c),
-            None => self.refuse(pos, Message::new("T005").text("escape", written)),
+            None => self.refuse(pos, Message::new("SRC005").text("escape", written)),
         }
     }
 }

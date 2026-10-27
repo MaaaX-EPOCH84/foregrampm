@@ -134,7 +134,7 @@ fn a_refused_graphml_file_says_where_in_the_graphml() {
     assert_eq!(
         err,
         format!(
-            "{path}:4:1: error[G003]: edge \"e\": `target` refers to node \"b\", which does not exist\n\
+            "{path}:4:1: error[GPH003]: edge \"e\": `target` refers to node \"b\", which does not exist\n\
              {path}: refused (1 error)\n"
         )
     );
@@ -239,7 +239,7 @@ fn an_elkt_file_comes_out_as_a_canonical_graph() {
     assert_eq!(
         err,
         format!(
-            "{bad}:2:11: error[E007]: `b` refers to no node or port\n{bad}: refused (1 error)\n"
+            "{bad}:2:11: error[ELK007]: `b` refers to no node or port\n{bad}: refused (1 error)\n"
         )
     );
     let (code, _, _) = run(&["elkt", &dir.join("absent.elkt").display().to_string()]);
@@ -289,11 +289,11 @@ fn every_disagreement_with_graph_log_is_reported() {
             "{log}:10: line not understood\n\
              {absent}: absent from Graph.log\n\
              {differs}: 3 nodes and 2 edges, Graph.log says 3 nodes and 3 edges\n\
-             {refused}:1:1: error[X004]: `graphml` must contain exactly one `graph`, it contains 0\n\
+             {refused}:1:1: error[GML004]: `graphml` must contain exactly one `graph`, it contains 0\n\
              {refused}: refused (1 error)\n\
              {log}: lists graph \"orphan\", which has no file\n\
              rome: 3 graphs, 5 problems\n\
-             {unresolved}:2:11: error[E007]: `b` refers to no node or port\n\
+             {unresolved}:2:11: error[ELK007]: `b` refers to no node or port\n\
              {unresolved}: refused (1 error)\n\
              {manifest}: 2 files found and 1 imported, the manifest says 3 files and 3\n\
              elk-models: 2 graphs, 2 problems\n"
@@ -357,7 +357,7 @@ fn a_refused_model_says_where_in_the_mcd() {
     assert_eq!(
         err,
         format!(
-            "{path}:4:3: error[M007]: `B` is not a declared entity\n\
+            "{path}:4:3: error[MCD007]: `B` is not a declared entity\n\
              {path}: refused (1 error)\n"
         )
     );
@@ -370,7 +370,7 @@ fn a_refused_model_says_where_in_the_mcd() {
 
 /// The board's fixture set: four small corpora written here, their placements
 /// by dot and ELK, frozen, and what the board must draw from them. The placement of
-/// `elk-models/e2.elkt` by dot is removed and its `R003` failure written by
+/// `elk-models/e2.elkt` by dot is removed and its `REF003` failure written by
 /// hand in `failures.txt`: an engine that returned nothing.
 fn board_data(name: &str) -> String {
     format!("{}/tests/data/board/{name}", env!("CARGO_MANIFEST_DIR"))

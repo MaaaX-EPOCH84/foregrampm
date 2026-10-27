@@ -75,7 +75,7 @@ impl Process {
     /// Starts `java` on the driver, with all the cache's jars.
     pub fn start(tools: Tools) -> Result<Process, Diagnostic> {
         let failed = |detail: String| {
-            let message = Message::new("R003")
+            let message = Message::new("REF003")
                 .text("engine", Kind::Elk.name())
                 .text("detail", detail);
             Diagnostic::new(Pos::NONE, message)
@@ -108,7 +108,7 @@ impl Process {
     /// Lays out a graph: writes its description, reads the reply up to `end`.
     pub fn layout(&mut self, graph: &Graph) -> Result<Layout, Diagnostic> {
         let failed = |detail: String| {
-            let message = Message::new("R003")
+            let message = Message::new("REF003")
                 .text("engine", Kind::Elk.name())
                 .text("detail", detail);
             Diagnostic::new(Pos::NONE, message)
@@ -251,7 +251,7 @@ pub fn read(graph: &Graph, engine: Engine, lines: &[String]) -> Result<Layout, D
         match fields.as_slice() {
             ["layout", name] if *name == graph.name => {}
             ["fail", _, detail] => {
-                let message = Message::new("R003")
+                let message = Message::new("REF003")
                     .text("engine", Kind::Elk.name())
                     .text("detail", *detail);
                 return Err(Diagnostic::new(Pos::NONE, message));
@@ -271,7 +271,7 @@ pub fn read(graph: &Graph, engine: Engine, lines: &[String]) -> Result<Layout, D
                 if let Some(given) = node.size.filter(|_| !node.is_container())
                     && given != size
                 {
-                    let message = Message::new("R007")
+                    let message = Message::new("REF007")
                         .text("engine", Kind::Elk.name())
                         .text("id", *id)
                         .text("width", px(size.width))
@@ -474,20 +474,20 @@ mod tests {
         let graph = components();
         let refusal = |text: &str| read(&graph, engine(), &lines(text)).unwrap_err();
         let failed = refusal("fail\tcomponents\tNullPointerException: boom");
-        assert_eq!(failed.code, "R003");
+        assert_eq!(failed.code, "REF003");
         assert_eq!(failed.text(), "elk failed: NullPointerException: boom");
         let grown = refusal("node\tClient\t0\t0\t100.5\t60.0");
-        assert_eq!(grown.code, "R007");
+        assert_eq!(grown.code, "REF007");
         assert_eq!(
             grown.text(),
             "elk changed the size of leaf \"Client\" to 100.50 × 60.00"
         );
-        assert_eq!(refusal("node\tNobody\t0\t0\t1\t1").code, "R005");
-        assert_eq!(refusal("port\tClient\treq\t0\t0\t0\t0").code, "R005");
-        assert_eq!(refusal("edge\te1\t1\t2\t3").code, "R005");
-        assert_eq!(refusal("label\te9\t1\t2").code, "R005");
-        assert_eq!(refusal("what\tis\tthis").code, "R005");
-        assert_eq!(refusal("node\tClient\t1e30\t0\t100.0\t60.0").code, "R006");
+        assert_eq!(refusal("node\tNobody\t0\t0\t1\t1").code, "REF005");
+        assert_eq!(refusal("port\tClient\treq\t0\t0\t0\t0").code, "REF005");
+        assert_eq!(refusal("edge\te1\t1\t2\t3").code, "REF005");
+        assert_eq!(refusal("label\te9\t1\t2").code, "REF005");
+        assert_eq!(refusal("what\tis\tthis").code, "REF005");
+        assert_eq!(refusal("node\tClient\t1e30\t0\t100.0\t60.0").code, "REF006");
     }
 
     #[test]

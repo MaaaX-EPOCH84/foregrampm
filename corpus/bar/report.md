@@ -84,10 +84,10 @@ On the 1277 graphs laid out by both engines, how often each does better, lower b
 |---|---:|---:|
 | laid out and valid | 559 | 878 |
 | refused | 339 | 20 |
-| refused with `L009` | 3 | 0 |
-| refused with `L015` | 0 | 19 |
-| refused with `L016` | 310 | 0 |
-| refused with `R003` | 26 | 1 |
+| refused with `LYT009` | 3 | 0 |
+| refused with `LYT015` | 0 | 19 |
+| refused with `LYT016` | 310 | 0 |
+| refused with `REF003` | 26 | 1 |
 
 | measure | dot total | dot median | dot 90th | dot max | elk total | elk median | elk 90th | elk max |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|

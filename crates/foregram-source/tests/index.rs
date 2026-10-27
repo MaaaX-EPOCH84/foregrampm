@@ -131,7 +131,7 @@ fn an_unknown_identifier_is_refused_at_the_value() {
     let refused = index.resolve(words[1]).unwrap_err();
     assert_eq!(
         (refused.code, refused.pos),
-        ("T015", Pos { line: 3, col: 3 })
+        ("SRC015", Pos { line: 3, col: 3 })
     );
     assert_eq!(
         refused.text(),
@@ -155,7 +155,7 @@ fn case_matters() {
     assert_eq!(index.get("CLIENT").unwrap().pos, Pos { line: 1, col: 1 });
     assert_eq!(index.get("client").unwrap().pos, Pos { line: 2, col: 1 });
     let word = first_words(&document.elements[2])[0];
-    assert_eq!(index.resolve(word).unwrap_err().code, "T015");
+    assert_eq!(index.resolve(word).unwrap_err().code, "SRC015");
 }
 
 #[test]
@@ -169,7 +169,7 @@ fn an_element_may_name_itself_and_a_string_is_looked_up_by_its_text() {
     ));
     assert!(words[1].quoted);
     assert_eq!(index.resolve(words[1]).unwrap().id, "A");
-    assert_eq!(index.resolve(words[2]).unwrap_err().code, "T015");
+    assert_eq!(index.resolve(words[2]).unwrap_err().code, "SRC015");
 }
 
 #[test]

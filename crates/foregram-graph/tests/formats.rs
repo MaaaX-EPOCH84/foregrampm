@@ -150,7 +150,7 @@ fn an_edge_identifier_is_used_once() {
     let edges = "{\"id\": \"e\", \"source\": \"A\", \"target\": \"B\"},\n\
                  {\"id\": \"e\", \"source\": \"B\", \"target\": \"A\"}";
     let diags = graph_refusals(&graph_with(AB, edges));
-    assert_eq!(places(&diags), [("G002", 5, 1)]);
+    assert_eq!(places(&diags), [("GPH002", 5, 1)]);
     assert_eq!(
         diags[0].text(),
         "edge identifier \"e\" already used (line 4)"
@@ -160,34 +160,34 @@ fn an_edge_identifier_is_used_once() {
 #[test]
 fn a_syntax_error_is_the_only_refusal() {
     let diags = graph_refusals("{\"format\": \"foregram-graph\", \"width\": 1.5}");
-    assert_eq!(places(&diags), [("J004", 1, 39)]);
+    assert_eq!(places(&diags), [("JSN004", 1, 39)]);
 }
 
 #[test]
 fn the_root_must_be_a_graph_object() {
-    assert_eq!(places(&graph_refusals("[]")), [("S001", 1, 1)]);
+    assert_eq!(places(&graph_refusals("[]")), [("SCH001", 1, 1)]);
     assert_eq!(
         codes(&graph_refusals("{}")),
-        ["S003", "S003", "S003", "S003", "S003"]
+        ["SCH003", "SCH003", "SCH003", "SCH003", "SCH003"]
     );
 }
 
 #[test]
 fn format_and_version_are_checked() {
     let text = graph_with("", "").replace("foregram-graph", "foregram-layout");
-    assert_eq!(codes(&graph_refusals(&text)), ["S004"]);
+    assert_eq!(codes(&graph_refusals(&text)), ["SCH004"]);
     // Version 2 is read, like 1; 3 does not exist yet.
     let text = graph_with("", "").replace("\"version\": 1", "\"version\": 2");
     assert!(Graph::parse(text.as_bytes()).is_ok());
     let text = graph_with("", "").replace("\"version\": 1", "\"version\": 3");
-    assert_eq!(codes(&graph_refusals(&text)), ["S005"]);
+    assert_eq!(codes(&graph_refusals(&text)), ["SCH005"]);
     assert!(
         graph_refusals(&text)[0]
             .text()
             .contains("versions 1 to 2 are read")
     );
     let text = graph_with("", "").replace("\"version\": 1", "\"version\": \"1\"");
-    assert_eq!(codes(&graph_refusals(&text)), ["S001"]);
+    assert_eq!(codes(&graph_refusals(&text)), ["SCH001"]);
 }
 
 #[test]
@@ -205,14 +205,14 @@ fn structure_refusals_are_all_reported_with_their_place() {
     assert_eq!(
         places(&diags),
         [
-            ("S006", 1, 70), // unknown direction
-            ("S001", 2, 32), // width is not an integer
-            ("S002", 2, 56), // unknown key « colour »
-            ("S003", 3, 1),  // height missing
-            ("S001", 4, 1),  // a node is not an object
-            ("S006", 5, 68), // unknown side
-            ("S006", 6, 44), // unknown anchor
-            ("S002", 6, 58), // unknown key « extra »
+            ("SCH006", 1, 70), // unknown direction
+            ("SCH001", 2, 32), // width is not an integer
+            ("SCH002", 2, 56), // unknown key « colour »
+            ("SCH003", 3, 1),  // height missing
+            ("SCH001", 4, 1),  // a node is not an object
+            ("SCH006", 5, 68), // unknown side
+            ("SCH006", 6, 44), // unknown anchor
+            ("SCH002", 6, 58), // unknown key « extra »
         ]
     );
     assert!(diags[0].text().contains("right, down, left, up"));
@@ -223,7 +223,7 @@ fn meaning_refusals_are_all_reported() {
     let diags = Graph::parse(&data("refuse-lien-orphelin.graph.json")).unwrap_err();
     assert_eq!(
         places(&diags),
-        [("G001", 7, 5), ("S008", 7, 5), ("G003", 10, 5)]
+        [("GPH001", 7, 5), ("SCH008", 7, 5), ("GPH003", 10, 5)]
     );
     assert_eq!(
         diags[0].text(),
@@ -253,12 +253,12 @@ fn sizes_and_constraints_have_bounds() {
     assert_eq!(
         places(&diags),
         [
-            ("S008", 2, 11), // A: width 0
-            ("S008", 2, 11), // A: height too large
-            ("S008", 3, 1),  // B: negative layer
-            ("G004", 4, 1),  // C: order without layer
-            ("G005", 6, 1),  // E: same place as D
-            ("S008", 8, 11), // label no. 2: negative width
+            ("SCH008", 2, 11), // A: width 0
+            ("SCH008", 2, 11), // A: height too large
+            ("SCH008", 3, 1),  // B: negative layer
+            ("GPH004", 4, 1),  // C: order without layer
+            ("GPH005", 6, 1),  // E: same place as D
+            ("SCH008", 8, 11), // label no. 2: negative width
         ]
     );
     assert!(diags[5].text().starts_with("edge \"e\", label #2"));
@@ -275,7 +275,7 @@ fn identifiers_have_rules() {
          {{\"id\": \"{fits}\", \"width\": 1, \"height\": 1}}"
     );
     let diags = graph_refusals(&graph_with(&nodes, ""));
-    assert_eq!(codes(&diags), ["S007", "S007", "S007"]);
+    assert_eq!(codes(&diags), ["SCH007", "SCH007", "SCH007"]);
     assert_eq!(diags[0].text(), "node #1: `id`: identifier empty");
     assert!(diags[1].text().starts_with("node #2: `id`"));
     assert!(diags[2].text().contains("256 characters, at most 255"));
@@ -322,12 +322,12 @@ fn a_graph_built_in_memory_is_validated_the_same_way() {
     graph.nodes.push(node("A"));
     graph.edges[0].target = "Z".to_string();
     let diags = graph.validate();
-    assert_eq!(codes(&diags), ["G001", "G003"]);
+    assert_eq!(codes(&diags), ["GPH001", "GPH003"]);
     // Without source text, no position, and the message does not pretend to have one.
     assert!(diags[0].pos.is_none());
     assert_eq!(
         diags[0].to_string(),
-        "error[G001]: node identifier \"A\" already used"
+        "error[GPH001]: node identifier \"A\" already used"
     );
 }
 
@@ -373,10 +373,10 @@ fn a_layout_is_validated_on_its_own() {
     assert_eq!(
         places(&diags),
         [
-            ("L003", 4, 1),
-            ("S008", 4, 1),
-            ("L008", 5, 11),
-            ("L006", 6, 1)
+            ("LYT003", 4, 1),
+            ("SCH008", 4, 1),
+            ("LYT008", 5, 11),
+            ("LYT006", 6, 1)
         ]
     );
 }
@@ -392,7 +392,7 @@ fn layout_structure_is_strict() {
     let diags = layout_refusals(&text);
     assert_eq!(
         codes(&diags),
-        ["S002", "S003", "S001", "S001", "S001", "S001"]
+        ["SCH002", "SCH003", "SCH001", "SCH001", "SCH001", "SCH001"]
     );
     assert!(
         diags[2]
@@ -402,7 +402,7 @@ fn layout_structure_is_strict() {
     // Labels, for their part, are points and nothing else.
     let edges = "{\"id\": \"e\", \"route\": [[0, 0], [1, 1]], \"labels\": [[1]]}";
     let diags = layout_refusals(&layout_with("", edges));
-    assert_eq!(codes(&diags), ["S001"]);
+    assert_eq!(codes(&diags), ["SCH001"]);
     assert!(diags[0].text().contains("a point is written [x, y]"));
 }
 
@@ -413,11 +413,11 @@ fn a_layout_must_cover_its_graph_and_nothing_else() {
     assert_eq!(
         places(&diags),
         [
-            ("L004", 1, 1),  // MATERIEL not placed
-            ("L007", 1, 1),  // materiel-pret without route
-            ("L002", 9, 5),  // INCONNU absent from the graph
-            ("L009", 12, 5), // start outside the edge of MEMBRE
-            ("L011", 12, 5), // missing label
+            ("LYT004", 1, 1),  // MATERIEL not placed
+            ("LYT007", 1, 1),  // materiel-pret without route
+            ("LYT002", 9, 5),  // INCONNU absent from the graph
+            ("LYT009", 12, 5), // start outside the edge of MEMBRE
+            ("LYT011", 12, 5), // missing label
         ]
     );
     assert_eq!(
@@ -433,7 +433,7 @@ fn a_layout_routes_only_the_edges_of_its_graph() {
     let edges = "{\"id\": \"fantôme\", \"route\": [[100, 50], [300, 50]]}";
     let layout = Layout::parse(layout_with(nodes, edges).as_bytes()).unwrap();
     let diags = layout.check(&graph);
-    assert_eq!(codes(&diags), ["L005"]);
+    assert_eq!(codes(&diags), ["LYT005"]);
     assert_eq!(diags[0].text(), "edge \"fantôme\" is not in the graph");
 }
 
@@ -441,7 +441,7 @@ fn a_layout_routes_only_the_edges_of_its_graph() {
 fn a_layout_names_its_graph() {
     let graph = Graph::parse(graph_with("", "").replace("\"g\"", "\"autre\"").as_bytes()).unwrap();
     let layout = Layout::parse(layout_with("", "").as_bytes()).unwrap();
-    assert_eq!(codes(&layout.check(&graph)), ["L001"]);
+    assert_eq!(codes(&layout.check(&graph)), ["LYT001"]);
 }
 
 #[test]
@@ -461,10 +461,10 @@ fn route_ends_sit_on_the_node_border() {
     assert_eq!(check("[[100, 50], [300, 50]]"), none); // right edge, left edge
     assert_eq!(check("[[100, 100], [300, 0]]"), none); // two corners
     assert_eq!(check("[[50, 0], [350, 100]]"), none); // top edge, bottom edge
-    assert_eq!(check("[[50, 50], [300, 50]]"), ["L009"]); // start inside
-    assert_eq!(check("[[101, 50], [300, 50]]"), ["L009"]); // start one notch outside
-    assert_eq!(check("[[100, 50], [299, 50]]"), ["L009"]); // arrival one notch short
-    assert_eq!(check("[[100, 101], [401, 50]]"), ["L009", "L009"]);
+    assert_eq!(check("[[50, 50], [300, 50]]"), ["LYT009"]); // start inside
+    assert_eq!(check("[[101, 50], [300, 50]]"), ["LYT009"]); // start one notch outside
+    assert_eq!(check("[[100, 50], [299, 50]]"), ["LYT009"]); // arrival one notch short
+    assert_eq!(check("[[100, 101], [401, 50]]"), ["LYT009", "LYT009"]);
 }
 
 #[test]
@@ -481,7 +481,7 @@ fn imposed_sides_are_respected() {
     assert!(check("[[100, 50], [350, 0]]").is_empty());
     assert!(check("[[100, 0], [300, 0]]").is_empty()); // a corner lies on two sides
     let diags = check("[[50, 100], [300, 50]]");
-    assert_eq!(codes(&diags), ["L010", "L010"]);
+    assert_eq!(codes(&diags), ["LYT010", "LYT010"]);
     assert!(
         diags[0]
             .text()
@@ -533,11 +533,15 @@ fn doc_named(name: &str) -> String {
 
 /// The code families of the exchange format, its imports, its engines and
 /// its rendering, documented in `exchange-format.md`.
-const EXCHANGE: &str = "JSGLXEMRV";
+const EXCHANGE: &[&str] = &[
+    "JSN", "SCH", "GPH", "LYT", "GML", "ELK", "MCD", "REF", "DRW",
+];
 /// The code family of the source format, documented in `source-format.md`.
-const SOURCE: &str = "T";
+const SOURCE: &[&str] = &["SRC"];
 /// Every family.
-const ALL: &str = "JSGLXEMRVT";
+const ALL: &[&str] = &[
+    "JSN", "SCH", "GPH", "LYT", "GML", "ELK", "MCD", "REF", "DRW", "SRC",
+];
 
 /// The rows of the tables of a documentation file.
 fn table_rows(doc: &str) -> String {
@@ -547,21 +551,22 @@ fn table_rows(doc: &str) -> String {
         .join("\n")
 }
 
-/// The codes cited in a text: a letter among `letters`, then three digits.
-fn codes_in(text: &str, quoted: bool, letters: &str) -> std::collections::BTreeSet<String> {
+/// The codes cited in a text: a family among `families`, then three digits.
+fn codes_in(text: &str, quoted: bool, families: &[&str]) -> std::collections::BTreeSet<String> {
     let chars: Vec<char> = text.chars().collect();
     let mut found = std::collections::BTreeSet::new();
-    for window in chars.windows(if quoted { 6 } else { 4 }) {
+    for window in chars.windows(if quoted { 8 } else { 6 }) {
         let code = if quoted {
-            // Between quotes: the code alone, or the start of a key with a variant (`"J005.zero"`).
-            if window[0] != '"' || !(window[5] == '"' || window[5] == '.') {
+            // Between quotes: the code alone, or the start of a key with a variant (`"JSN005.zero"`).
+            if window[0] != '"' || !(window[7] == '"' || window[7] == '.') {
                 continue;
             }
-            &window[1..5]
+            &window[1..7]
         } else {
             window
         };
-        if letters.contains(code[0]) && code[1..].iter().all(char::is_ascii_digit) {
+        let family: String = code[..3].iter().collect();
+        if families.contains(&family.as_str()) && code[3..].iter().all(char::is_ascii_digit) {
             found.insert(code.iter().collect());
         }
     }
