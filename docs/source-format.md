@@ -341,7 +341,10 @@ check.fg: refused (2 errors)
 ```
 
 The exit code is 0 when every file is well formed, 1 when a file is
-refused, 2 on a wrong call or a file that cannot be read. `check` does
+refused, 2 on a wrong call or a file that cannot be read; 3 is reserved
+to an internal error, as in [the exchange
+format](exchange-format.md#internal-errors), which no reading of a source
+file produces. `check` does
 not build the index: no notation reads the content words yet, so
 nothing resolves a reference and `SRC015` never comes out of it.
 

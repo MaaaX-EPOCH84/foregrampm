@@ -108,6 +108,11 @@ DRW001 = échelle {scale} hors de l'intervalle de 1 à {max}
 DRW002 = une image de {width} x {height} pixels dépasse {max} pixels
 DRW003 = échec de l'encodage PNG : {error}
 
+# Erreurs internes : un invariant du produit est rompu, le fichier peut être juste
+INT001 = erreur interne, à signaler : le nœud « {id} » n'a pas de place dans un placement tenu pour vérifié
+INT002 = erreur interne, à signaler : le port « {id} » du nœud « {node} » n'a pas de place dans un placement tenu pour vérifié
+INT003 = erreur interne, à signaler : le lien « {id} » n'a pas de tracé dans un placement tenu pour vérifié
+
 # Lecteur du format source (.fg)
 SRC001 = octets invalides : le texte doit être en UTF-8
 SRC002 = caractère de contrôle {char} refusé : seuls la tabulation et les fins de ligne sont admis

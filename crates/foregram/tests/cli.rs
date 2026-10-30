@@ -892,7 +892,10 @@ fn json_metrics_are_the_ones_of_the_library() {
     assert_eq!(string(&all[0], "key"), "cli.measured");
     let g = Graph::parse(&std::fs::read(&graph).unwrap()).unwrap();
     let l = Layout::parse(&std::fs::read(&layout).unwrap()).unwrap();
-    let expected = format!(", \"metrics\": {}}}\n", Metrics::measure(&g, &l).to_json());
+    let expected = format!(
+        ", \"metrics\": {}}}\n",
+        Metrics::measure(&g, &l).unwrap().to_json()
+    );
     assert!(out.ends_with(&expected), "{out}");
 }
 

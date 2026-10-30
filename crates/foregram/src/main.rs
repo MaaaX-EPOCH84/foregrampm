@@ -34,6 +34,9 @@ const VALID: u8 = 0;
 const REFUSED: u8 = 1;
 /// The call is incorrect, or a file could not be read or written.
 const UNUSABLE: u8 = 2;
+/// An invariant of the product broke (family `INT`): the file may be right.
+/// It wins over the other codes, a fault making the other verdicts suspect.
+const INTERNAL: u8 = 3;
 
 /// The file name that stands for standard input.
 const STDIN: &str = "-";
@@ -154,6 +157,16 @@ impl Out {
             }
         }
         *status = (*status).max(REFUSED);
+    }
+
+    /// A refusal that may be an internal error: reported like any other,
+    /// but with the exit code of a fault of the product.
+    fn fault(self, file: &str, diag: Diagnostic, status: &mut u8) {
+        let internal = diag.code.starts_with("INT");
+        self.refuse(file, &[diag], status);
+        if internal {
+            *status = (*status).max(INTERNAL);
+        }
     }
 
     /// An object of the JSON stream other than a refusal: its kind, its file, its message
@@ -383,7 +396,13 @@ fn metrics(out: Out, graph_arg: &OsStr, layout_args: &[OsString]) -> u8 {
             continue;
         };
         let header = about_layout("cli.measured", &name, &layout);
-        let measured = Metrics::measure(&graph, &layout);
+        let measured = match Metrics::measure(&graph, &layout) {
+            Ok(measured) => measured,
+            Err(diag) => {
+                out.fault(&name, diag, &mut status);
+                continue;
+            }
+        };
         if out.json {
             let extra = format!(", \"metrics\": {}", measured.to_json());
             emit(&out.object("metrics", &name, &header, &extra));
@@ -414,14 +433,15 @@ fn render(out: Out, graph_arg: &OsStr, layout_arg: &OsStr, image_path: &Path, sc
     };
     let style = foregram_render::Style::default();
     let image = if svg {
-        foregram_render::svg(&graph, &layout, &style).into_bytes()
+        foregram_render::svg(&graph, &layout, &style).map(String::into_bytes)
     } else {
-        match foregram_render::png(&graph, &layout, &style, scale) {
-            Ok(image) => image,
-            Err(diag) => {
-                out.refuse(&image_path.display().to_string(), &[diag], &mut status);
-                return status;
-            }
+        foregram_render::png(&graph, &layout, &style, scale)
+    };
+    let image = match image {
+        Ok(image) => image,
+        Err(diag) => {
+            out.fault(&image_path.display().to_string(), diag, &mut status);
+            return status;
         }
     };
     if let Err(error) = std::fs::write(image_path, &image) {
@@ -498,4 +518,33 @@ fn write_out(text: &str) {
 /// A line on standard error, under the same conditions.
 fn emit_err(line: &str) {
     let _ = writeln!(std::io::stderr().lock(), "{line}");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use foregram_graph::Pos;
+
+    #[test]
+    fn an_internal_error_sets_the_exit_code_three_over_the_others() {
+        let out = Out {
+            json: true,
+            catalog: Catalog::english(),
+        };
+        let fault = || Diagnostic::new(Pos::NONE, Message::new("INT003").text("id", "e"));
+        let mut status = REFUSED;
+        out.fault("g.json", fault(), &mut status);
+        assert_eq!(status, INTERNAL);
+        let mut status = UNUSABLE;
+        out.fault("g.json", fault(), &mut status);
+        assert_eq!(status, INTERNAL);
+        // A refusal of another family keeps the ordinary code.
+        let refusal = Diagnostic::new(
+            Pos::NONE,
+            Message::new("DRW001").text("scale", 9).text("max", 8),
+        );
+        let mut status = VALID;
+        out.fault("g.png", refusal, &mut status);
+        assert_eq!(status, REFUSED);
+    }
 }

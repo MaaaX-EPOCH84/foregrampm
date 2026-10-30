@@ -94,6 +94,7 @@ impl Message {
             None => catalog.get(self.key),
             Some(number) => catalog.get(&format!("{}.{}", self.key, catalog.plural(number))),
         };
+        // fallback: the last line of defence: a key missing from the catalogue is written raw, key and arguments; the guards of tests/messages.rs keep it from happening
         let Some(template) = template else {
             let args: Vec<String> = self
                 .args
@@ -330,6 +331,7 @@ fn pieces(template: &str) -> Vec<Piece<'_>> {
     let mut out = Vec::new();
     let mut rest = template;
     while let Some(open) = rest.find('{') {
+        // fallback: every index is found in `rest` itself, on a char boundary
         let after = rest.get(open + 1..).unwrap_or("");
         let name_len = after
             .find(|c: char| !(c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-'))
@@ -340,6 +342,7 @@ fn pieces(template: &str) -> Vec<Piece<'_>> {
             out.push(Piece::Slot(after.get(..name_len).unwrap_or("")));
             rest = after.get(name_len + 1..).unwrap_or("");
         } else {
+            // fallback: `open` is an index found in `rest` itself, on a `{`
             out.push(Piece::Literal(rest.get(..=open).unwrap_or("")));
             rest = after;
         }

@@ -121,6 +121,7 @@ impl<'a> Parser<'a> {
             j += 1;
         }
         let token = self.toks.get(j)?;
+        // fallback: no comment on the line means none trailing
         let Tok::Comment(text) = &token.tok else {
             return None;
         };
@@ -199,6 +200,7 @@ impl<'a> Parser<'a> {
                         document.directives.push(directive);
                     }
                 } else if let Some(first) = values.first() {
+                    // fallback: the word starts with `@`, so index 1 is a char boundary
                     let key = first.text.get(1..).unwrap_or("");
                     let message = if key.is_empty() {
                         Message::new("SRC011")
@@ -232,6 +234,7 @@ impl<'a> Parser<'a> {
     ) -> Option<Directive> {
         let mut values = values.into_iter();
         let at = values.next()?;
+        // fallback: the word starts with `@`, so index 1 is a char boundary
         let key = at.text.get(1..).unwrap_or("").to_string();
         if key.is_empty() {
             self.refuse(at.pos, Message::new("SRC011"));

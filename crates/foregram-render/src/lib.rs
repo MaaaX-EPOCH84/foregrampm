@@ -30,6 +30,11 @@
 //! - **Scene**: [`Scene`], [`Item`], [`Shape`], [`Class`] — what the two
 //!   outputs draw, exposed so that a caller can render it another way
 //!   (a canvas, for instance) and still show the same thing.
+//!
+//! The layout given to [`svg`], `png` and [`Scene::build`] is taken as
+//! checked by `Layout::check`. One that is not may come back as an internal
+//! error, family `INT`, which the command line reports with exit code 3: the
+//! caller checks first and never draws with a hole.
 
 #![deny(missing_docs)]
 
@@ -41,24 +46,26 @@ mod raster;
 
 pub use scene::{Class, Item, Scene, Shape, Style};
 
-use foregram_graph::{Graph, Layout};
+use foregram_graph::{Diagnostic, Graph, Layout};
 
-/// The SVG of a layout, hundredths of a pixel converted to pixels.
-pub fn svg(graph: &Graph, layout: &Layout, style: &Style) -> String {
-    svg::write(&Scene::build(graph, layout, style), style)
+/// The SVG of a layout, hundredths of a pixel converted to pixels. The layout
+/// is taken as checked: see [`Scene::build`] for the internal errors.
+pub fn svg(graph: &Graph, layout: &Layout, style: &Style) -> Result<String, Diagnostic> {
+    Ok(svg::write(&Scene::build(graph, layout, style)?, style))
 }
 
 /// The PNG of a layout, in greyscale, at `scale` pixels per pixel of the
 /// drawing. Refuses a scale outside 1 to [`SCALE_MAX`] (DRW001), an image of
-/// more than [`PIXELS_MAX`] pixels (DRW002).
+/// more than [`PIXELS_MAX`] pixels (DRW002); the layout is taken as checked,
+/// see [`Scene::build`] for the internal errors.
 #[cfg(feature = "png")]
 pub fn png(
     graph: &Graph,
     layout: &Layout,
     style: &Style,
     scale: i64,
-) -> Result<Vec<u8>, foregram_graph::Diagnostic> {
-    raster::render(&Scene::build(graph, layout, style), style, scale)
+) -> Result<Vec<u8>, Diagnostic> {
+    raster::render(&Scene::build(graph, layout, style)?, style, scale)
 }
 
 /// The largest scale of a PNG, in pixels per pixel of the drawing.

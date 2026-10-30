@@ -245,6 +245,7 @@ impl Layout {
         let mut rects: BTreeMap<&str, Rect> = BTreeMap::new();
         let places: BTreeMap<&str, _> = self.nodes.iter().map(|n| (n.id.as_str(), n)).collect();
         for (node, parent) in graph.all_nodes() {
+            // fallback: said in the doc: an unplaced node has no rectangle, and the callers refuse it
             let Some(place) = places.get(node.id.as_str()) else {
                 continue;
             };
@@ -360,6 +361,7 @@ impl Layout {
             if let (Some(parent), Some(rect)) = (parent, rect)
                 && let Some(parent_rect) = placed.get(parent.id.as_str()).and_then(|p| p.rect)
             {
+                // fallback: no padding written means none
                 let padding = parent.padding.unwrap_or(0);
                 let fits = rect.x >= parent_rect.x + padding
                     && rect.y >= parent_rect.y + padding
@@ -429,9 +431,11 @@ impl Layout {
                 ),
             ];
             for ([off_border, off_side, off_port], point, node_id, port_id, side) in ends {
+                // fallback: an empty route is refused as LYT008, an unplaced node as LYT004
                 let (Some(point), Some(at)) = (point, placed.get(node_id.as_str())) else {
                     continue;
                 };
+                // fallback: a node without a rectangle is refused by the node checks above
                 let Some(rect) = at.rect else {
                     continue;
                 };
@@ -452,6 +456,7 @@ impl Layout {
                             x: rect.x + p.x,
                             y: rect.y + p.y,
                         });
+                    // fallback: a port not placed is refused as LYT014.missing
                     let Some(anchor) = anchor else {
                         continue;
                     };
@@ -581,6 +586,7 @@ fn check_port(
         ));
         return;
     }
+    // fallback: a node without a rectangle is refused by the node checks
     let Some(rect) = rect else {
         return;
     };

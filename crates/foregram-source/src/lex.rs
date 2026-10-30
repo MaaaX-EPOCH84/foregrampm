@@ -40,6 +40,7 @@ pub(crate) struct Lexed {
 /// The text of a file: UTF-8, without its byte order mark. Invalid bytes
 /// stop the reading at the first of them.
 pub(crate) fn decode(bytes: &[u8]) -> Result<&str, Diagnostic> {
+    // fallback: a text without byte order mark stays as it is; `valid_up_to` is within the bytes, and what precedes it is valid UTF-8
     match std::str::from_utf8(bytes) {
         Ok(text) => Ok(text.strip_prefix('\u{FEFF}').unwrap_or(text)),
         Err(error) => {
@@ -71,6 +72,7 @@ fn end_of(text: &str) -> Pos {
     let mut pos = Pos { line: 1, col: 1 };
     for c in text.chars() {
         if c == '\n' {
+            // fallback: positions saturate rather than wrap on an absurdly long text
             pos.line = pos.line.saturating_add(1);
             pos.col = 1;
         } else {
@@ -124,6 +126,7 @@ impl Lexer<'_> {
     fn bump(&mut self) -> Option<char> {
         let c = self.rest.next()?;
         if c == '\n' {
+            // fallback: positions saturate rather than wrap on an absurdly long text
             self.line = self.line.saturating_add(1);
             self.col = 1;
         } else {
@@ -271,6 +274,7 @@ impl Lexer<'_> {
         if self.at_eol() {
             return;
         }
+        // fallback: the end of the text after a backslash is refused as SRC003 by the caller
         let Some(c) = self.peek() else {
             return;
         };
@@ -320,6 +324,7 @@ impl Lexer<'_> {
             self.refuse(pos, Message::new("SRC004").text("escape", written));
             return;
         }
+        // fallback: six hex digits at most always parse; a value out of range is refused as SRC005
         match u32::from_str_radix(&digits, 16)
             .ok()
             .and_then(char::from_u32)

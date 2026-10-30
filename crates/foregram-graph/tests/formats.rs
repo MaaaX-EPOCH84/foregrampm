@@ -531,16 +531,16 @@ fn doc_named(name: &str) -> String {
     std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path} : {e}"))
 }
 
-/// The code families of the exchange format, its imports, its engines and
-/// its rendering, documented in `exchange-format.md`.
+/// The code families of the exchange format, its imports, its engines, its
+/// rendering and the internal errors, documented in `exchange-format.md`.
 const EXCHANGE: &[&str] = &[
-    "JSN", "SCH", "GPH", "LYT", "GML", "ELK", "MCD", "REF", "DRW",
+    "JSN", "SCH", "GPH", "LYT", "GML", "ELK", "MCD", "REF", "DRW", "INT",
 ];
 /// The code family of the source format, documented in `source-format.md`.
 const SOURCE: &[&str] = &["SRC"];
 /// Every family.
 const ALL: &[&str] = &[
-    "JSN", "SCH", "GPH", "LYT", "GML", "ELK", "MCD", "REF", "DRW", "SRC",
+    "JSN", "SCH", "GPH", "LYT", "GML", "ELK", "MCD", "REF", "DRW", "INT", "SRC",
 ];
 
 /// The rows of the tables of a documentation file.
@@ -602,12 +602,12 @@ fn the_documentation_lists_every_code_and_no_other() {
     // code of the source format listed here would be one too many.
     let documented = codes_in(&table_rows(&doc()), false, ALL);
     assert_eq!(produced, documented);
-    assert_eq!(produced.len(), 84);
+    assert_eq!(produced.len(), 87);
 
     // Each refusal the code can utter is provoked by at least one test:
     // those of this file, and those that follow the code in json.rs, in the
-    // GraphML, ELK and MCD imports of the bench, in its reference engines and
-    // in the rendering.
+    // GraphML, ELK and MCD imports of the bench, in its reference engines,
+    // in the rendering and in the measures.
     let mut tests = String::new();
     for source in [
         "src/json.rs",
@@ -625,7 +625,7 @@ fn the_documentation_lists_every_code_and_no_other() {
         let text = std::fs::read_to_string(&path).unwrap_or_else(|e| panic!("{path} : {e}"));
         tests.push_str(text.split(MARK).last().unwrap());
     }
-    for name in ["formats.rs", "v2.rs", "common/mod.rs"] {
+    for name in ["formats.rs", "v2.rs", "common/mod.rs", "metrics.rs"] {
         let here = format!("{}/tests/{name}", env!("CARGO_MANIFEST_DIR"));
         tests.push_str(&std::fs::read_to_string(&here).unwrap_or_else(|e| panic!("{here} : {e}")));
     }

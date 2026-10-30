@@ -16,7 +16,7 @@ fn measure(nodes: &str, edges: &str, placed: &str, routed: &str) -> Metrics {
     let graph = Graph::parse(graph(nodes, edges).as_bytes()).unwrap();
     let layout = Layout::parse(layout(placed, routed).as_bytes()).unwrap();
     assert_eq!(layout.check(&graph), vec![]);
-    Metrics::measure(&graph, &layout)
+    Metrics::measure(&graph, &layout).unwrap()
 }
 
 fn leaf(id: &str, w: i64, h: i64) -> String {
@@ -491,7 +491,7 @@ fn broken_layer_and_order_constraints_are_counted_by_pair() {
         "",
     );
     let layout = Layout::parse(placed.as_bytes()).unwrap();
-    let m = Metrics::measure(&graph, &layout);
+    let m = Metrics::measure(&graph, &layout).unwrap();
     assert_eq!((m.layer_violations, m.order_violations), (0, 1));
 }
 
@@ -573,7 +573,7 @@ fn port_order_is_read_clockwise_on_each_side() {
 fn the_example_files_measure_as_counted_by_hand() {
     let graph = Graph::parse(&data("components.graph.json")).unwrap();
     let layout = Layout::parse(&data("components.layout.json")).unwrap();
-    let m = Metrics::measure(&graph, &layout);
+    let m = Metrics::measure(&graph, &layout).unwrap();
     // e1: 3 500 + 1 000 + 3 500 in two bends; e2: 6 000; e3: a
     // curve between its chord (3 606) and its control polygon (4 032).
     assert_eq!(m.bends, 2);
@@ -590,7 +590,7 @@ fn the_example_files_measure_as_counted_by_hand() {
     assert_eq!(m.density, 358);
     assert_eq!(m.proportion, 4800);
     assert_eq!(m.port_order_violations, 0);
-    assert_eq!(m, Metrics::measure(&graph, &layout));
+    assert_eq!(m, Metrics::measure(&graph, &layout).unwrap());
 }
 
 #[test]
@@ -599,6 +599,7 @@ fn the_report_has_one_line_per_measure_from_the_catalogue() {
     let layout = Layout::parse(&data("components.layout.json")).unwrap();
     let catalog = Catalog::english();
     let lines: Vec<String> = Metrics::measure(&graph, &layout)
+        .unwrap()
         .report()
         .iter()
         .map(|m| {
@@ -623,7 +624,7 @@ fn the_report_has_one_line_per_measure_from_the_catalogue() {
 fn the_json_has_one_integer_key_per_measure_in_a_fixed_order() {
     let graph = Graph::parse(&data("components.graph.json")).unwrap();
     let layout = Layout::parse(&data("components.layout.json")).unwrap();
-    let m = Metrics::measure(&graph, &layout);
+    let m = Metrics::measure(&graph, &layout).unwrap();
     let text = m.to_json();
     assert!(!text.contains('\n'));
     // The values checked by hand for `components`, under the right keys.
@@ -672,4 +673,39 @@ fn the_documentation_states_the_curve_steps() {
     ))
     .unwrap();
     assert!(doc.contains(&format!("{CURVE_STEPS} straight segments")));
+}
+
+#[test]
+fn a_layout_taken_as_checked_but_leaving_something_unplaced_is_an_internal_error() {
+    let graph = Graph::parse(&data("components.graph.json")).unwrap();
+    let layout = Layout::parse(&data("components.layout.json")).unwrap();
+    let mut no_node = layout.clone();
+    let gone = no_node.nodes.remove(0).id;
+    assert!(!no_node.check(&graph).is_empty());
+    let fault = Metrics::measure(&graph, &no_node).unwrap_err();
+    assert_eq!(fault.code, "INT001");
+    assert!(
+        fault.text().contains(&format!("node \"{gone}\"")),
+        "{}",
+        fault.text()
+    );
+    assert!(fault.pos.is_none());
+    let mut no_port = layout.clone();
+    let with_ports = no_port
+        .nodes
+        .iter_mut()
+        .find(|n| !n.ports.is_empty())
+        .unwrap();
+    with_ports.ports.pop();
+    let fault = Metrics::measure(&graph, &no_port).unwrap_err();
+    assert_eq!(fault.code, "INT002");
+    let french = fault.text_in(Catalog::french());
+    assert!(
+        french.starts_with("erreur interne, à signaler\u{a0}: le port"),
+        "{french}"
+    );
+    let mut no_edge = layout;
+    no_edge.edges.pop();
+    let fault = Metrics::measure(&graph, &no_edge).unwrap_err();
+    assert_eq!(fault.code, "INT003");
 }

@@ -46,6 +46,7 @@ pub struct Diagnostic {
 impl Diagnostic {
     /// The code is the message key minus its variant: `JSN005` for `JSN005.zero`.
     pub fn new(pos: Pos, message: Message) -> Self {
+        // fallback: split always yields a first piece
         let code = message.key.split('.').next().unwrap_or(message.key);
         // Every refusal produced by the tests is checked against the English
         // catalogue: a missing key or a forgotten argument shows up at once.

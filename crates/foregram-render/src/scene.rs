@@ -2,7 +2,9 @@
 // Copyright (C) 2026 Maxime MARCONATO (MaaaX / EPOCH84)
 // SPDX-License-Identifier: GPL-3.0-or-later
 
-use foregram_graph::{Graph, Layout, Point, Rect, Segment, extent, polyline};
+use foregram_graph::{
+    Diagnostic, Graph, Layout, Message, Point, Pos, Rect, Segment, extent, polyline,
+};
 
 /// The neutral look: greys and thicknesses, the same for all engines. Greys
 /// run from 0 (black) to 255 (white); lengths are in hundredths of a pixel.
@@ -125,9 +127,11 @@ pub struct Scene {
 }
 
 impl Scene {
-    /// Builds the scene of a layout. What is not placed is not drawn; a layout
-    /// that passes `Layout::check` is drawn in full.
-    pub fn build(graph: &Graph, layout: &Layout, style: &Style) -> Scene {
+    /// Builds the scene of a layout. The layout is taken as checked by
+    /// `Layout::check`: a node, a port or an edge it leaves unplaced is an
+    /// internal error (`INT001` to `INT003`), not a drawing with a hole.
+    pub fn build(graph: &Graph, layout: &Layout, style: &Style) -> Result<Scene, Diagnostic> {
+        // fallback: an empty layout draws an empty sheet, plus the margin
         let drawn = extent(graph, layout).unwrap_or(Rect {
             x: 0,
             y: 0,
@@ -149,7 +153,7 @@ impl Scene {
         let mut ports = Vec::new();
         for (node, _) in graph.all_nodes() {
             let Some(rect) = rects.get(node.id.as_str()) else {
-                continue;
+                return Err(internal(Message::new("INT001").text("id", &node.id)));
             };
             let class = if node.is_container() {
                 Class::Container
@@ -162,11 +166,14 @@ impl Scene {
                 title: Some(node.id.clone()),
             });
             let Some(place) = layout.nodes.iter().find(|n| n.id == node.id) else {
-                continue;
+                return Err(internal(Message::new("INT001").text("id", &node.id)));
             };
             for port in &node.ports {
                 let Some(at) = place.ports.iter().find(|p| p.id == port.id) else {
-                    continue;
+                    let message = Message::new("INT002")
+                        .text("id", &port.id)
+                        .text("node", &node.id);
+                    return Err(internal(message));
                 };
                 let (width, height) = match port.size {
                     Some(size) => (size.width, size.height),
@@ -187,7 +194,7 @@ impl Scene {
         let mut labels = Vec::new();
         for edge in &graph.edges {
             let Some(place) = layout.edges.iter().find(|e| e.id == edge.id) else {
-                continue;
+                return Err(internal(Message::new("INT003").text("id", &edge.id)));
             };
             items.push(Item {
                 class: Class::Edge,
@@ -216,15 +223,21 @@ impl Scene {
         }
         items.extend(labels);
         items.extend(ports);
-        Scene {
+        Ok(Scene {
             title: format!(
                 "{} · {} {}",
                 graph.name, layout.engine.name, layout.engine.version
             ),
             view,
             items,
-        }
+        })
     }
+}
+
+/// An internal error: an invariant of a checked layout broke. It has no
+/// position, the file being possibly right.
+fn internal(message: Message) -> Diagnostic {
+    Diagnostic::new(Pos::NONE, message)
 }
 
 /// The triangle that ends a route: the tip at the end, the base set back in
@@ -280,5 +293,6 @@ pub(crate) fn isqrt(n: i128) -> i128 {
 /// Quotient rounded to nearest, the divisor being positive.
 pub(crate) fn div_round(a: i128, b: i128) -> i64 {
     let q = (2 * a + b).div_euclid(2 * b);
+    // fallback: a quotient beyond i64 is brought back to i64::MAX
     i64::try_from(q).unwrap_or(i64::MAX)
 }

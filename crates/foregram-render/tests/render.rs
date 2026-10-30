@@ -46,16 +46,16 @@ fn decode(bytes: &[u8]) -> (u32, u32, Vec<u8>) {
 fn the_examples_render_to_the_golden_svg_byte_for_byte() {
     for name in ["components", "gestpret"] {
         let (graph, layout) = example(name);
-        let text = svg(&graph, &layout, &Style::default());
+        let text = svg(&graph, &layout, &Style::default()).unwrap();
         assert_eq!(text, golden(&format!("{name}.svg")), "{name}");
-        assert_eq!(text, svg(&graph, &layout, &Style::default()));
+        assert_eq!(text, svg(&graph, &layout, &Style::default()).unwrap());
     }
 }
 
 #[test]
 fn the_svg_carries_the_identifiers_and_no_number_has_a_float_shape() {
     let (graph, layout) = example("components");
-    let text = svg(&graph, &layout, &Style::default());
+    let text = svg(&graph, &layout, &Style::default()).unwrap();
     for id in [
         "Client", "System", "Core", "Store", "e1", "e2", "e3", "req", "in", "out",
     ] {
@@ -69,7 +69,7 @@ fn the_svg_carries_the_identifiers_and_no_number_has_a_float_shape() {
 #[test]
 fn the_scene_draws_in_a_fixed_order() {
     let (graph, layout) = example("components");
-    let scene = Scene::build(&graph, &layout, &Style::default());
+    let scene = Scene::build(&graph, &layout, &Style::default()).unwrap();
     let classes: Vec<Class> = scene.items.iter().map(|i| i.class).collect();
     assert_eq!(classes[0], Class::Sheet);
     assert_eq!(
@@ -152,7 +152,7 @@ fn empty() -> (Graph, Layout) {
 #[test]
 fn an_empty_layout_renders_as_a_margin() {
     let (graph, layout) = empty();
-    let text = svg(&graph, &layout, &Style::default());
+    let text = svg(&graph, &layout, &Style::default()).unwrap();
     assert!(text.contains("viewBox=\"-10 -10 20 20\""));
     let (width, height, pixels) = decode(&png(&graph, &layout, &Style::default(), 1).unwrap());
     assert_eq!((width, height), (20, 20));
@@ -205,8 +205,50 @@ fn the_view_grows_with_a_protruding_route_and_label() {
     )
     .unwrap();
     assert!(layout.check(&graph).is_empty());
-    let scene = Scene::build(&graph, &layout, &Style::default());
+    let scene = Scene::build(&graph, &layout, &Style::default()).unwrap();
     // From (0, -60) to (420, 120) in pixels — the route goes down to 120 —, plus the margin.
     assert_eq!((scene.view.x, scene.view.y), (-1000, -7000));
     assert_eq!((scene.view.width, scene.view.height), (44000, 20000));
+}
+
+/// The example with ports, and the same layout with one place taken away:
+/// a node (its identifier given), a port, an edge.
+fn unplaced() -> (Graph, String, Layout, Layout, Layout) {
+    let (graph, layout) = example("components");
+    let mut no_node = layout.clone();
+    let gone = no_node.nodes.remove(0).id;
+    let mut no_port = layout.clone();
+    let with_ports = no_port
+        .nodes
+        .iter_mut()
+        .find(|n| !n.ports.is_empty())
+        .unwrap();
+    with_ports.ports.pop();
+    let mut no_edge = layout.clone();
+    no_edge.edges.pop();
+    (graph, gone, no_node, no_port, no_edge)
+}
+
+#[test]
+fn a_layout_taken_as_checked_but_leaving_something_unplaced_is_an_internal_error() {
+    let (graph, gone, no_node, no_port, no_edge) = unplaced();
+    let style = Style::default();
+    // Each one would have been refused by `check`: the scene is asked anyway.
+    assert!(!no_node.check(&graph).is_empty());
+    let fault = Scene::build(&graph, &no_node, &style).unwrap_err();
+    assert_eq!(fault.code, "INT001");
+    assert!(fault.pos.is_none());
+    assert_eq!(
+        fault.text(),
+        format!(
+            "internal error, please report it: node \"{gone}\" has no place in a layout taken as checked"
+        )
+    );
+    let fault = Scene::build(&graph, &no_port, &style).unwrap_err();
+    assert_eq!(fault.code, "INT002");
+    let fault = Scene::build(&graph, &no_edge, &style).unwrap_err();
+    assert_eq!(fault.code, "INT003");
+    // Both outputs carry the fault out instead of drawing with a hole.
+    assert_eq!(svg(&graph, &no_edge, &style).unwrap_err().code, "INT003");
+    assert_eq!(png(&graph, &no_node, &style, 1).unwrap_err().code, "INT001");
 }

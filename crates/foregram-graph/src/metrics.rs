@@ -4,9 +4,16 @@
 
 use std::collections::BTreeMap;
 
+use crate::diag::{Diagnostic, Pos};
 use crate::graph::{Direction, Edge, Graph, Node, Point, Rect, Side};
 use crate::layout::{EdgePlace, Layout, Segment};
 use crate::msg::Message;
+
+/// An internal error: an invariant of a checked layout broke. It has no
+/// position, the file being possibly right.
+fn internal(message: Message) -> Diagnostic {
+    Diagnostic::new(Pos::NONE, message)
+}
 
 /// Number of steps used to flatten a Bézier curve: every measure is taken on
 /// the resulting polyline.
@@ -137,10 +144,33 @@ struct Measured<'a> {
 }
 
 impl Metrics {
-    /// Measures a layout valid for its graph.
-    pub fn measure<'a>(graph: &'a Graph, layout: &Layout) -> Metrics {
+    /// Measures a layout valid for its graph. The layout is taken as checked
+    /// by [`Layout::check`]: a node, a port or an edge it leaves unplaced is
+    /// an internal error (`INT001` to `INT003`), not a measure of zero.
+    pub fn measure<'a>(graph: &'a Graph, layout: &Layout) -> Result<Metrics, Diagnostic> {
         let all = graph.all_nodes();
         let rects = layout.absolute_rects(graph);
+        for (node, _) in &all {
+            if !rects.contains_key(node.id.as_str()) {
+                return Err(internal(Message::new("INT001").text("id", &node.id)));
+            }
+            let Some(place) = layout.nodes.iter().find(|n| n.id == node.id) else {
+                return Err(internal(Message::new("INT001").text("id", &node.id)));
+            };
+            for port in &node.ports {
+                if !place.ports.iter().any(|p| p.id == port.id) {
+                    let message = Message::new("INT002")
+                        .text("id", &port.id)
+                        .text("node", &node.id);
+                    return Err(internal(message));
+                }
+            }
+        }
+        for edge in &graph.edges {
+            if !layout.edges.iter().any(|e| e.id == edge.id) {
+                return Err(internal(Message::new("INT003").text("id", &edge.id)));
+            }
+        }
         let parents: BTreeMap<&str, &str> = all
             .iter()
             .filter_map(|(node, parent)| parent.map(|p| (node.id.as_str(), p.id.as_str())))
@@ -185,7 +215,7 @@ impl Metrics {
         m.measure_labels(&edges, &rects);
         m.measure_extent(&all, &rects, &edges);
         m.measure_constraints(graph, &all, &rects, layout);
-        m
+        Ok(m)
     }
 
     /// The report lines, one per measure, in a fixed order.
@@ -222,6 +252,7 @@ impl Metrics {
     /// writes and what the bench aggregates. A count that does not fit in an
     /// `i64` is brought back to `i64::MAX`.
     pub fn fields(&self) -> [(&'static str, i64); 18] {
+        // fallback: said in the doc: a count beyond i64 is brought back to i64::MAX
         let n = |value: u64| i64::try_from(value).unwrap_or(i64::MAX);
         [
             ("crossings", n(self.crossings)),
@@ -260,10 +291,13 @@ impl Metrics {
         for edge in edges {
             let mut length: i64 = 0;
             for pair in edge.points.windows(2) {
+                // fallback: totals saturate rather than wrap
                 length = length.saturating_add(distance(pair[0], pair[1]));
             }
+            // fallback: totals saturate rather than wrap
             self.edge_length = self.edge_length.saturating_add(length);
             self.longest_edge = self.longest_edge.max(length);
+            // fallback: a polyline of fewer than two points has no inner vertex
             for i in 1..edge.points.len().saturating_sub(1) {
                 let before = sub(edge.points[i], edge.points[i - 1]);
                 let after = sub(edge.points[i + 1], edge.points[i]);
@@ -301,6 +335,7 @@ impl Metrics {
                     Meet::Proper => self.crossings += 1,
                     Meet::Shared(length) => {
                         self.shared_segments += 1;
+                        // fallback: totals saturate rather than wrap
                         self.shared_length = self.shared_length.saturating_add(length);
                     }
                     Meet::None | Meet::Touch => {}
@@ -311,11 +346,13 @@ impl Metrics {
         // segments does not see it, the vertex tells. A vertex common to both
         // is judged once, on the side of `q`.
         let (p, q) = (&p.points, &q.points);
+        // fallback: a polyline of fewer than two points has no inner vertex
         for i in 1..q.len().saturating_sub(1) {
             if passes_through(q[i - 1], q[i], q[i + 1], p) {
                 self.crossings += 1;
             }
         }
+        // fallback: a polyline of fewer than two points has no inner vertex
         for i in 1..p.len().saturating_sub(1) {
             if !q.contains(&p[i]) && passes_through(p[i - 1], p[i], p[i + 1], q) {
                 self.crossings += 1;
@@ -340,10 +377,12 @@ impl Metrics {
             false
         };
         for (i, (a, _)) in all.iter().enumerate() {
+            // fallback: every node has a rectangle, checked in `measure`
             let Some(ra) = rects.get(a.id.as_str()) else {
                 continue;
             };
             for (b, _) in &all[i + 1..] {
+                // fallback: every node has a rectangle, checked in `measure`
                 let Some(rb) = rects.get(b.id.as_str()) else {
                     continue;
                 };
@@ -353,6 +392,7 @@ impl Metrics {
                 let area = overlap_area(*ra, *rb);
                 if area > 0 {
                     self.node_overlaps += 1;
+                    // fallback: totals saturate rather than wrap
                     self.node_overlap_area = self.node_overlap_area.saturating_add(area);
                 }
             }
@@ -416,6 +456,7 @@ impl Metrics {
             edges.iter().flat_map(|e| e.points.iter().copied()),
             edges.iter().flat_map(|e| e.labels.iter().copied()),
         );
+        // fallback: an empty layout measures zero
         let Some(bound) = bound else {
             return;
         };
@@ -434,6 +475,7 @@ impl Metrics {
         rects: &BTreeMap<&str, Rect>,
         layout: &Layout,
     ) {
+        // fallback: no direction written means right
         let direction = graph.direction.unwrap_or(Direction::Right);
         // The center of a node, doubled to stay integer: along the direction,
         // then across.
@@ -454,6 +496,7 @@ impl Metrics {
             .collect();
         for (i, (a, ra)) in layered.iter().enumerate() {
             for (b, rb) in &layered[i + 1..] {
+                // fallback: `layered` holds the nodes with a layer only
                 let (la, lb) = (a.layer.unwrap_or(0), b.layer.unwrap_or(0));
                 if la != lb {
                     let placed = along(ra).cmp(&along(rb));
@@ -472,6 +515,7 @@ impl Metrics {
             if !node.ports_ordered {
                 continue;
             }
+            // fallback: every node is placed, checked in `measure`
             let Some(place) = layout.nodes.iter().find(|n| n.id == node.id) else {
                 continue;
             };
@@ -588,6 +632,7 @@ fn flatten(route: &[Segment]) -> (Vec<Point>, Vec<bool>) {
         match segment {
             Segment::Line(p) => push(*p, true, &mut points, &mut corner),
             Segment::Cubic { c1, c2, end } => {
+                // fallback: a route starting with a curve is refused as LYT017
                 let Some(start) = points.last().copied() else {
                     continue;
                 };
@@ -602,6 +647,7 @@ fn flatten(route: &[Segment]) -> (Vec<Point>, Vec<bool>) {
     // both are; `corner[i]` only tells about the incoming one yet.
     let n = points.len();
     let mut both = vec![false; n];
+    // fallback: a polyline of fewer than two points has no inner vertex
     for i in 1..n.saturating_sub(1) {
         both[i] = corner[i] && corner[i + 1];
     }
@@ -671,6 +717,7 @@ fn distance(a: Point, b: Point) -> i64 {
     } else {
         root
     };
+    // fallback: a length beyond i64 is brought back to i64::MAX
     i64::try_from(rounded).unwrap_or(i64::MAX)
 }
 
@@ -753,6 +800,7 @@ fn passes_through(prev: Point, at: Point, next: Point, path: &[Point]) -> bool {
             .find(|s| orient(s[0], s[1], at) == 0 && between(at, s[0], s[1]))
             .map(|s| (sub(s[0], at), sub(s[1], at)))
     };
+    // fallback: `at` off `path` means no crossing there
     let Some((r1, r2)) = rays else {
         return false;
     };

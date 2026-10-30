@@ -29,5 +29,12 @@ fn main() {
     };
 
     let style = Style::default();
-    print!("{}", svg(&graph, &layout, &style));
+    match svg(&graph, &layout, &style) {
+        Ok(text) => print!("{text}"),
+        // An internal error: the layout was read, not checked against its graph.
+        Err(fault) => {
+            eprintln!("{}", fault.render(catalog));
+            std::process::exit(3);
+        }
+    }
 }

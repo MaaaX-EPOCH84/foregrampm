@@ -74,6 +74,7 @@ pub fn parse(bytes: &[u8]) -> Result<Value, Diagnostic> {
     let text = match std::str::from_utf8(bytes) {
         Ok(text) => text,
         Err(error) => {
+            // fallback: `valid_up_to` is within the bytes, and what precedes it is valid UTF-8
             let valid = bytes.get(..error.valid_up_to()).unwrap_or(&[]);
             let prefix = std::str::from_utf8(valid).unwrap_or("");
             return Err(Diagnostic::new(end_of(prefix), Message::new("JSN001.utf8")));
@@ -150,6 +151,7 @@ fn end_of(text: &str) -> Pos {
     let mut pos = Pos { line: 1, col: 1 };
     for c in text.chars() {
         if c == '\n' {
+            // fallback: positions saturate rather than wrap on an absurdly long text
             pos.line = pos.line.saturating_add(1);
             pos.col = 1;
         } else {
@@ -189,6 +191,7 @@ impl Parser<'_> {
     fn bump(&mut self) -> Option<char> {
         let c = self.rest.next()?;
         if c == '\n' {
+            // fallback: positions saturate rather than wrap on an absurdly long text
             self.line = self.line.saturating_add(1);
             self.col = 1;
         } else {
@@ -280,6 +283,7 @@ impl Parser<'_> {
         let mut value: i64 = 0;
         for digit in digits.bytes() {
             let digit = i64::from(digit - b'0');
+            // fallback: an overflow is refused as JSN006 below
             let next = value.checked_mul(10).and_then(|v| {
                 if negative {
                     v.checked_sub(digit)
@@ -337,12 +341,12 @@ impl Parser<'_> {
                         return Err(bad("JSN007.high"));
                     }
                     let code = 0x10000 + ((high - 0xD800) << 10) + (low - 0xDC00);
-                    // A surrogate pair always yields a valid code point.
+                    // fallback: a surrogate pair always yields a valid code point.
                     Ok(char::from_u32(code).unwrap_or(char::REPLACEMENT_CHARACTER))
                 } else if (0xDC00..0xE000).contains(&high) {
                     Err(bad("JSN007.low"))
                 } else {
-                    // Outside the surrogates, four digits always give a valid
+                    // fallback: outside the surrogates, four digits always give a valid
                     // code point.
                     Ok(char::from_u32(high).unwrap_or(char::REPLACEMENT_CHARACTER))
                 }

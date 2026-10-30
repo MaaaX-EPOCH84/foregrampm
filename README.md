@@ -21,7 +21,10 @@ canonical form, measures and draws files of that format — and checks and
 rewrites the source file of a diagram, `.fg`, described in
 [`docs/source-format.md`](docs/source-format.md) — and with
 `--json` writes its results and refusals as JSON, one object per line;
-`--lang fr` says them in French, English being the default.
+`--lang fr` says them in French, English being the default. It exits 0
+when everything is valid, 1 on a refused file, 2 on a wrong call or an
+unreadable file, 3 on an internal error — a fault of the product, family
+`INT`, which asks to be reported.
 
 ```
 cargo test

@@ -50,6 +50,7 @@ pub(crate) fn render(scene: &Scene, style: &Style, scale: i64) -> Result<Vec<u8>
             x: scene.view.x,
             y: scene.view.y,
         },
+        // fallback: the size is bounded by DRW002 above
         pixels: vec![style.sheet; usize::try_from(width * height).unwrap_or(0)],
     };
     for item in &scene.items {
@@ -161,6 +162,7 @@ impl Canvas {
         }
         sides.sort_by_key(|s| s.y0);
         let top = sides[0].y0.max(0);
+        // fallback: no side means nothing to fill, caught by `bottom <= top`
         let bottom = sides
             .iter()
             .map(|s| s.y1)
@@ -170,6 +172,7 @@ impl Canvas {
         if bottom <= top {
             return;
         }
+        // fallback: the width is bounded by DRW002
         let row_width = usize::try_from(self.width).unwrap_or(0);
         let mut cover = vec![0i64; row_width + 1];
         let mut active: Vec<usize> = Vec::new();
@@ -211,6 +214,7 @@ impl Canvas {
             if !touched {
                 continue;
             }
+            // fallback: the size is bounded by DRW002
             let Ok(row_start) = usize::try_from(row * self.width) else {
                 continue;
             };
@@ -222,6 +226,7 @@ impl Canvas {
                 let dst = &mut self.pixels[row_start + px];
                 let d = i64::from(*dst);
                 let v = d + div_round(i128::from(i64::from(gray) - d) * i128::from(alpha), 255);
+                // fallback: clamped to a byte just before
                 *dst = u8::try_from(v.clamp(0, 255)).unwrap_or(0);
             }
         }
@@ -237,6 +242,7 @@ fn span(cover: &mut [i64], xa: i64, xb: i64, width: i64) -> bool {
         return false;
     }
     let (pa, pb) = (xa / UNIT, xb / UNIT);
+    // fallback: the span is clipped to the row above, so `p` is never negative
     let at = |p: i64| usize::try_from(p).unwrap_or(0);
     if pa == pb {
         cover[at(pa)] += xb - xa;
@@ -298,6 +304,7 @@ fn stroke(points: &[Point], width: i64) -> Vec<Vec<Point>> {
             out.push(quad);
         }
     }
+    // fallback: a polyline of one point has no inner vertex
     for p in &points[1..points.len().saturating_sub(1)] {
         out.push(octagon(*p, width / 2));
     }
@@ -414,6 +421,7 @@ fn encode(width: i64, height: i64, pixels: &[u8]) -> Result<Vec<u8>, Diagnostic>
     let fail = |error: png::EncodingError| {
         Diagnostic::new(Pos::NONE, Message::new("DRW003").text("error", error))
     };
+    // fallback: the size is bounded by DRW002
     let (w, h) = (
         u32::try_from(width).unwrap_or(0),
         u32::try_from(height).unwrap_or(0),

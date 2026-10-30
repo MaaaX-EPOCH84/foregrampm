@@ -480,6 +480,7 @@ impl Graph {
                             .text("node", end),
                     ));
                 }
+                // fallback: an unknown port is refused above as GPH003
                 let Some(port) = port else {
                     continue;
                 };

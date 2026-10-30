@@ -256,6 +256,14 @@ the standard input, which a call reads once at most; its refusals name it
 | 0 | Everything is valid |
 | 1 | At least one file is refused |
 | 2 | Wrong call, or unreadable file |
+| 3 | Internal error: an invariant of the product broke, the file may be right |
+
+An internal error is a fault of the product, not of the file: it is
+reported like a refusal, with a code of the family `INT` (see
+[Internal errors](#internal-errors)), and its exit code wins over the
+others when one run mixes them, since a fault makes the other verdicts
+suspect. A program that reads 1 corrects its file, 2 its call, and on 3
+stops and reports, touching nothing.
 
 `--lang` chooses the language of the messages: `en`, the default, or
 `fr`; any other is a wrong call. Without it the messages are in English,
@@ -315,6 +323,7 @@ family was once a single letter; the numbers did not change:
 | `M` | `MCD` | conceptual data model import |
 | `R` | `REF` | reference engines |
 | `V` | `DRW` | rendering (drawing) |
+| — | `INT` | internal errors, new with the three-letter families |
 
 The source format has its own family, `SRC`, formerly `T`, documented
 in [`source-format.md`](source-format.md).
@@ -413,7 +422,7 @@ read from the standard input:
 | `kind` | `"diagnostic"` |
 | `file` | The file, as the text output names it (`<stdin>` for `-`) |
 | `code` | The stable code: **what a program reads** |
-| `line`, `col` | The position, from 1, the column in characters; `null` when the refusal has no place in a text (a rendering refusal) |
+| `line`, `col` | The position, from 1, the column in characters; `null` when the refusal has no place in a text (a rendering refusal, an internal error) |
 | `key` | The catalogue key of the message: the code, plus a variant where the code has several sentences (`GPH001.again`) |
 | `args` | The arguments of the message, in the order given |
 | `text` | The sentence, composed in the language chosen by `--lang` |
@@ -869,6 +878,30 @@ every machine.
 | DRW001 | Scale outside 1 to 8 |
 | DRW002 | Image larger than 50,000,000 pixels |
 | DRW003 | PNG encoder failure |
+
+## Internal errors
+
+The product never stops dead: a case it believes impossible is handled
+by a fallback, which the sources mark with a comment `// fallback:` and
+its reason, and a guard refuses one without. Where a fallback would hide
+a broken invariant — a drawing with a hole, a measure of zero — it is an
+internal error instead: a refusal of the family `INT`, without position,
+which the command line reports with exit code 3. The file may be right;
+what is wrong is the product, and the error asks to be reported.
+
+Today the only such invariant is a layout taken as checked that was not:
+`Metrics::measure`, `Scene::build`, `svg` and `png` take a layout that
+passed `Layout::check`, and refuse one that leaves something unplaced.
+The command line always checks first, so these never come out of it
+unless the check itself is at fault.
+
+### Codes
+
+| Code | Fault |
+|---|---|
+| INT001 | A node has no place in a layout taken as checked |
+| INT002 | A port has no place in a layout taken as checked |
+| INT003 | An edge has no route in a layout taken as checked |
 
 ## Board and report
 

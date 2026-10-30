@@ -38,6 +38,7 @@ impl Document {
             .first()
             .map(|d| &d.before[..])
             .or_else(|| self.elements.first().map(|e| &e.before[..]))
+            // fallback: no first item means no comment to merge into the preamble
             .unwrap_or(&[]);
         let rest = !self.directives.is_empty() || !self.elements.is_empty() || !self.end.is_empty();
         comments(&mut out, &self.preamble, 0);

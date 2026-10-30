@@ -437,7 +437,7 @@ fn bench_only(key: &str) -> bool {
 
 /// Every code family, three capital letters each.
 const FAMILIES: &[&str] = &[
-    "JSN", "SCH", "GPH", "LYT", "GML", "ELK", "MCD", "REF", "DRW", "SRC",
+    "JSN", "SCH", "GPH", "LYT", "GML", "ELK", "MCD", "REF", "DRW", "INT", "SRC",
 ];
 /// The families of the bench's imports and reference engines.
 const BENCH: &[&str] = &["GML", "ELK", "MCD", "REF"];

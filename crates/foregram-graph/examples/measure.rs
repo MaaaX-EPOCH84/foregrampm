@@ -42,7 +42,15 @@ fn main() {
         std::process::exit(1);
     }
 
-    for line in Metrics::measure(&graph, &layout).report() {
+    // Checked above: an internal error here would be a fault of the library.
+    let metrics = match Metrics::measure(&graph, &layout) {
+        Ok(metrics) => metrics,
+        Err(fault) => {
+            eprintln!("{}", fault.render(catalog));
+            std::process::exit(3);
+        }
+    };
+    for line in metrics.report() {
         println!("{}", line.render(catalog));
     }
 }

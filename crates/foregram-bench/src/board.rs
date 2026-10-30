@@ -151,11 +151,14 @@ pub fn board(cache: &Path, layouts: &Path, out: &Path) -> u8 {
                     return None;
                 }
                 let diags = layout.check(&graph);
-                if diags.is_empty() {
-                    Some(Outcome::Measured(Metrics::measure(&graph, &layout)))
-                } else {
-                    Some(Outcome::Refused(codes(&diags)))
+                if !diags.is_empty() {
+                    return Some(Outcome::Refused(codes(&diags)));
                 }
+                // An internal error (family `INT`) is counted like a refusal.
+                Some(match Metrics::measure(&graph, &layout) {
+                    Ok(metrics) => Outcome::Measured(metrics),
+                    Err(diag) => Outcome::Refused(codes(&[diag])),
+                })
             };
             if let (Some(a), Some(b)) = (outcome(0), outcome(1)) {
                 entries.push(Entry {
@@ -266,11 +269,7 @@ fn draw(
     let source = corpus_dir.join(entry.shown.strip_prefix(entry.corpus).ok()?);
     let graph: Graph = import_any(&source, &load(&source, status)?).ok()?;
     let layout = Layout::parse(&load(&layout_path(layouts, kind, &entry.shown), status)?).ok()?;
-    Some(foregram_render::svg(
-        &graph,
-        &layout,
-        &foregram_render::Style::default(),
-    ))
+    foregram_render::svg(&graph, &layout, &foregram_render::Style::default()).ok()
 }
 
 /// A graph's refusals, counted by code.
